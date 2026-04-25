@@ -195,8 +195,8 @@ class ESSF_Admin_Page {
 
 		$due_raw = sanitize_text_field( wp_unslash( $post['essf_due_date'] ?? '' ) );
 		$pay_raw = sanitize_text_field( wp_unslash( $post['essf_pay_date'] ?? '' ) );
-		$due_dt  = $due_raw ? DateTime::createFromFormat( 'd/m/Y', $due_raw ) : false;
-		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'd/m/Y', $pay_raw ) : false;
+		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
+		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
 		$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
@@ -289,14 +289,12 @@ class ESSF_Admin_Page {
 			$amount      = (string) abs( $amount_val );
 			$status      = $entry->post_status;
 
-			$due_raw = substr( $entry->post_date_gmt, 0, 10 );
-			$pay_raw = substr( $entry->post_modified_gmt, 0, 10 );
-			$due_date = ( $due_raw && '0000-00-00' !== $due_raw ) ? (string) wp_date( 'd/m/Y', strtotime( $due_raw ) ) : '';
-			$pay_date = ( $pay_raw && '0000-00-00' !== $pay_raw ) ? (string) wp_date( 'd/m/Y', strtotime( $pay_raw ) ) : '';
+			$due_raw  = substr( $entry->post_date_gmt, 0, 10 );
+			$pay_raw  = substr( $entry->post_modified_gmt, 0, 10 );
+			$due_date = ( $due_raw && '0000-00-00' !== $due_raw ) ? $due_raw : '';
+			$pay_date = ( $pay_raw && '0000-00-00' !== $pay_raw ) ? $pay_raw : '';
 		}
 
-		$is_expense_active = ! $is_income;
-		$is_income_active  = $is_income;
 		$form_action       = $is_edit ? 'essf_update' : 'essf_add';
 		$nonce_action      = $is_edit ? self::UPDATE_NONCE : self::ADD_NONCE;
 		?>
@@ -319,37 +317,27 @@ class ESSF_Admin_Page {
 
 				<div class="form-field">
 					<label for="essf_due_date"><?php esc_html_e( 'Due Date', 'essfinance' ); ?></label>
-					<input type="text" id="essf_due_date" name="essf_due_date"
-						value="<?php echo esc_attr( $due_date ); ?>"
-						placeholder="dd/mm/yyyy" class="essf-datepicker widefat" autocomplete="off">
+					<input type="date" id="essf_due_date" name="essf_due_date"
+						value="<?php echo esc_attr( $due_date ); ?>" class="widefat">
 				</div>
 
 				<div class="form-field">
 					<label for="essf_pay_date"><?php esc_html_e( 'Pay Date', 'essfinance' ); ?></label>
-					<input type="text" id="essf_pay_date" name="essf_pay_date"
-						value="<?php echo esc_attr( $pay_date ); ?>"
-						placeholder="dd/mm/yyyy" class="essf-datepicker widefat" autocomplete="off">
+					<input type="date" id="essf_pay_date" name="essf_pay_date"
+						value="<?php echo esc_attr( $pay_date ); ?>" class="widefat">
 				</div>
 
-				<div class="form-field">
-					<label for="essf_amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
-					<input type="number" id="essf_amount" name="essf_amount"
-						value="<?php echo esc_attr( $amount ); ?>"
-						step="0.01" min="0" placeholder="0.00" class="widefat">
-				</div>
-
-				<div class="form-field">
-					<label><?php esc_html_e( 'Type', 'essfinance' ); ?></label>
-					<div class="essf-toggle-group">
-						<label class="essf-toggle-option <?php echo $is_expense_active ? 'is-active essf-expense' : ''; ?>">
-							<input type="radio" name="essf_is_income" value="0" <?php checked( $is_expense_active ); ?>>
-							<?php esc_html_e( 'Expense', 'essfinance' ); ?>
-						</label>
-						<label class="essf-toggle-option <?php echo $is_income_active ? 'is-active essf-income' : ''; ?>">
-							<input type="radio" name="essf_is_income" value="1" <?php checked( $is_income_active ); ?>>
-							<?php esc_html_e( 'Income', 'essfinance' ); ?>
-						</label>
+				<div class="form-field essf-field-row--amount">
+					<div class="essf-field--amount-wrap">
+						<label for="essf_amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
+						<input type="number" id="essf_amount" name="essf_amount"
+							value="<?php echo esc_attr( $amount ); ?>"
+							step="0.01" min="0" placeholder="0.00" class="widefat">
 					</div>
+					<label class="essf-income-label essf-income-label--form">
+						<input type="checkbox" name="essf_is_income" value="1" <?php checked( $is_income ); ?>>
+						<?php esc_html_e( 'Income', 'essfinance' ); ?>
+					</label>
 				</div>
 
 				<div class="form-field">
@@ -398,9 +386,7 @@ class ESSF_Admin_Page {
 			'essf_type'   => __( 'Type', 'essfinance' ),
 			'essf_amount' => __( 'Amount', 'essfinance' ),
 			'essf_due'    => __( 'Due Date', 'essfinance' ),
-			'essf_pay'    => __( 'Pay Date', 'essfinance' ),
 			'essf_status' => __( 'Status', 'essfinance' ),
-			'date'        => $cols['date'],
 		];
 	}
 
@@ -419,10 +405,6 @@ class ESSF_Admin_Page {
 				break;
 			case 'essf_due':
 				$d = substr( $post->post_date_gmt, 0, 10 );
-				echo ( $d && '0000-00-00' !== $d ) ? esc_html( (string) wp_date( 'd/m/Y', strtotime( $d ) ) ) : '—';
-				break;
-			case 'essf_pay':
-				$d = substr( $post->post_modified_gmt, 0, 10 );
 				echo ( $d && '0000-00-00' !== $d ) ? esc_html( (string) wp_date( 'd/m/Y', strtotime( $d ) ) ) : '—';
 				break;
 			case 'essf_status':

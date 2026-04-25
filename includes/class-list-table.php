@@ -57,7 +57,7 @@ class ESSF_List_Table extends WP_List_Table {
 		$base_url = $this->page_url;
 		$today    = (string) wp_date( 'Y-m-d' );
 
-		$all_statuses = [ 'pending', 'paid', 'canceled' ];
+		$all_statuses = [ 'pending', 'paid' ];
 
 		$counts = wp_count_posts( 'essf_cashflow' );
 		$all_count = 0;
@@ -77,9 +77,7 @@ class ESSF_List_Table extends WP_List_Table {
 
 		$pending_count = (int) ( $counts->pending ?? 0 );
 		$paid_count    = (int) ( $counts->paid ?? 0 );
-		$canceled_count = (int) ( $counts->canceled ?? 0 );
 
-		// Overdue = pending entries where due_date < today
 		$overdue_count = count( get_posts( [
 			'post_type'      => 'essf_cashflow',
 			'post_status'    => 'pending',
@@ -94,17 +92,15 @@ class ESSF_List_Table extends WP_List_Table {
 		] ) );
 
 		$status_counts = [
-			'pending'  => $pending_count,
-			'paid'     => $paid_count,
-			'overdue'  => $overdue_count,
-			'canceled' => $canceled_count,
+			'pending' => $pending_count,
+			'paid'    => $paid_count,
+			'overdue' => $overdue_count,
 		];
 
 		$status_labels = [
-			'pending'  => __( 'Pending', 'essfinance' ),
-			'paid'     => __( 'Paid', 'essfinance' ),
-			'overdue'  => __( 'Overdue', 'essfinance' ),
-			'canceled' => __( 'Canceled', 'essfinance' ),
+			'pending' => __( 'Pending', 'essfinance' ),
+			'paid'    => __( 'Paid', 'essfinance' ),
+			'overdue' => __( 'Overdue', 'essfinance' ),
 		];
 
 		foreach ( $status_labels as $status => $label ) {
@@ -169,7 +165,7 @@ class ESSF_List_Table extends WP_List_Table {
 	private function get_due_date_months(): array {
 		$posts = get_posts( [
 			'post_type'      => 'essf_cashflow',
-			'post_status'    => [ 'pending', 'paid', 'canceled' ],
+			'post_status'    => [ 'pending', 'paid' ],
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
 		] );
@@ -211,7 +207,7 @@ class ESSF_List_Table extends WP_List_Table {
 		} elseif ( $status_filter && array_key_exists( $status_filter, ESSF_CPT::$statuses ) ) {
 			$post_statuses = [ $status_filter ];
 		} else {
-			$post_statuses = [ 'pending', 'paid', 'canceled' ];
+			$post_statuses = [ 'pending', 'paid' ];
 		}
 
 		$args = [
