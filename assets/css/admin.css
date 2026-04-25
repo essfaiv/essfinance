@@ -71,9 +71,46 @@
 .essf-amount--income  { color: #00a32a; font-weight: 600; }
 .essf-amount--expense { color: #d63638; font-weight: 600; }
 
-/* ── Income checkbox ──────────────────────────────────── */
-.essf-field-row--amount {
+/* ── Meta box field layout ────────────────────────────── */
+.essf-meta-box .essf-field {
+	margin-bottom: 12px;
+}
+
+.essf-meta-box .essf-field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.essf-meta-box .essf-field-row {
+	display: flex;
+	gap: 12px;
+}
+
+.essf-meta-box .essf-field-row .essf-field {
+	flex: 1;
+}
+
+/* ── Auto-width for date + status in both contexts ────── */
+input[type="date"],
+.essf-meta-box select,
+.form-field input[type="date"],
+.form-field select#essf_status {
+	width: auto !important;
+	max-width: none !important;
+}
+
+/* ── Income checkbox + amount row ─────────────────────── */
+.essf-field-row--amount,
+.form-field.essf-field-row--amount {
+	display: flex !important;
 	align-items: flex-end;
+	gap: 10px;
+}
+
+.essf-field--amount,
+.essf-field--amount-wrap {
+	flex: 1;
 }
 
 .essf-field--income-check {

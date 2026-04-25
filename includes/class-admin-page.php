@@ -318,13 +318,13 @@ class ESSF_Admin_Page {
 				<div class="form-field">
 					<label for="essf_due_date"><?php esc_html_e( 'Due Date', 'essfinance' ); ?></label>
 					<input type="date" id="essf_due_date" name="essf_due_date"
-						value="<?php echo esc_attr( $due_date ); ?>" class="widefat">
+						value="<?php echo esc_attr( $due_date ); ?>">
 				</div>
 
 				<div class="form-field">
 					<label for="essf_pay_date"><?php esc_html_e( 'Pay Date', 'essfinance' ); ?></label>
 					<input type="date" id="essf_pay_date" name="essf_pay_date"
-						value="<?php echo esc_attr( $pay_date ); ?>" class="widefat">
+						value="<?php echo esc_attr( $pay_date ); ?>">
 				</div>
 
 				<div class="form-field essf-field-row--amount">
@@ -342,7 +342,7 @@ class ESSF_Admin_Page {
 
 				<div class="form-field">
 					<label for="essf_status"><?php esc_html_e( 'Status', 'essfinance' ); ?></label>
-					<select id="essf_status" name="essf_status" class="widefat">
+					<select id="essf_status" name="essf_status">
 						<?php foreach ( ESSF_CPT::$statuses as $val => $label ) : ?>
 							<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $status, $val ); ?>>
 								<?php echo esc_html( $label ); ?>
