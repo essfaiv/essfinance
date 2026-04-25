@@ -1,0 +1,160 @@
+/* EssFinance — minimal styles on top of WP admin defaults */
+
+/* ── Summary bar ──────────────────────────────────────── */
+.essf-summary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 16px 0 20px;
+}
+
+.essf-summary__card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+	box-shadow: 0 1px 1px rgba(0,0,0,.04);
+	padding: 14px 20px;
+	min-width: 140px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.essf-summary__label {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	color: #646970;
+}
+
+.essf-summary__value {
+	font-size: 22px;
+	font-weight: 700;
+	color: #1d2327;
+	line-height: 1;
+}
+
+.essf-summary__value.is-positive { color: #00a32a; }
+.essf-summary__value.is-negative { color: #d63638; }
+
+.essf-overdue-tag {
+	display: inline-block;
+	vertical-align: middle;
+	font-size: 10px;
+	font-weight: 600;
+	background: #d63638;
+	color: #fff;
+	padding: 2px 7px;
+	border-radius: 2px;
+	margin-left: 6px;
+}
+
+/* ── Type/Status badges ───────────────────────────────── */
+.essf-badge {
+	display: inline-block;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 2px 8px;
+	border-radius: 3px;
+	white-space: nowrap;
+}
+
+.essf-badge--income   { background: #edfaef; color: #00692e; }
+.essf-badge--expense  { background: #fde8e8; color: #8a1f1f; }
+.essf-badge--paid     { background: #edfaef; color: #00692e; }
+.essf-badge--pending  { background: #fef8ee; color: #7a5400; }
+.essf-badge--overdue  { background: #fde8e8; color: #8a1f1f; }
+.essf-badge--canceled { background: #f6f7f7; color: #50575e; }
+
+/* ── Amount colors ────────────────────────────────────── */
+.essf-amount--income  { color: #00a32a; font-weight: 600; }
+.essf-amount--expense { color: #d63638; font-weight: 600; }
+
+/* ── Income/Expense toggle ────────────────────────────── */
+.essf-toggle-group {
+	display: flex;
+	border: 1px solid #8c8f94;
+	border-radius: 3px;
+	overflow: hidden;
+	width: 100%;
+}
+
+.essf-toggle-option {
+	flex: 1;
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+	padding: 7px 0;
+	font-size: 13px !important;
+	font-weight: 600 !important;
+	cursor: pointer;
+	color: #50575e !important;
+	background: #fff;
+	text-transform: none !important;
+	letter-spacing: 0 !important;
+	margin: 0 !important;
+	border-bottom: none !important;
+	transition: background .12s, color .12s;
+	user-select: none;
+}
+
+.essf-toggle-option input[type="radio"] {
+	display: none;
+}
+
+.essf-toggle-option + .essf-toggle-option {
+	border-left: 1px solid #8c8f94;
+}
+
+.essf-toggle-option.is-active.essf-expense {
+	background: #fde8e8;
+	color: #8a1f1f !important;
+}
+
+.essf-toggle-option.is-active.essf-income {
+	background: #edfaef;
+	color: #00692e !important;
+}
+
+/* ── Dashboard list table ─────────────────────────────── */
+.essf-list-table .column-description { width: auto; }
+.essf-list-table .column-type   { width: 76px; }
+.essf-list-table .column-amount { width: 100px; }
+.essf-list-table .column-due    { width: 90px; }
+.essf-list-table .column-status { width: 82px; }
+
+/* ── Month group rows ─────────────────────────────────── */
+.essf-list-table .essf-month-row td {
+	background: #f6f7f7 !important;
+	padding-top: 10px !important;
+	padding-bottom: 10px !important;
+	border-top: 2px solid #c3c4c7 !important;
+}
+
+.essf-list-table tbody tr:first-child.essf-month-row td {
+	border-top: none !important;
+}
+
+.essf-month-totals {
+	white-space: nowrap;
+	text-align: right;
+}
+
+.essf-month-totals .essf-amount--income,
+.essf-month-totals .essf-amount--expense {
+	font-size: 12px;
+	margin-left: 10px;
+}
+
+/* ── WP List Table screen (edit.php) ─────────────────── */
+.post-type-essf_cashflow .column-essf_amount,
+.post-type-essf_cashflow .column-essf_due,
+.post-type-essf_cashflow .column-essf_pay {
+	width: 100px;
+}
+
+.post-type-essf_cashflow .column-essf_type,
+.post-type-essf_cashflow .column-essf_status {
+	width: 80px;
+}

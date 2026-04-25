@@ -1,0 +1,38 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "preferredVersions": {
+    "php": "8.2",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "installPlugin",
+      "pluginZipFile": {
+        "resource": "url",
+        "url": "https://github.com/essfaiv/essfinance/releases/download/v0.3.0/essfinance.zip"
+      },
+      "options": {
+        "activate": true
+      }
+    },
+    {
+      "step": "importWxrFile",
+      "file": {
+        "resource": "url",
+        "url": "https://raw.githubusercontent.com/essfaiv/essfinance/v0.3.0/sample-data.xml"
+      }
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require '/wordpress/wp-load.php'; wp_safe_redirect(admin_url('admin.php?page=essfinance')); exit;"
+    }
+  ]
+}
