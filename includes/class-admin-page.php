@@ -348,8 +348,8 @@ class ESSF_Admin_Page {
 				<div class="form-field form-required">
 					<label for="essf_description"><?php esc_html_e( 'Description', 'essfinance' ); ?></label>
 					<input type="text" id="essf_description" name="essf_description"
-						value="<?php echo esc_attr( $description ); ?>"
-						placeholder="<?php esc_attr_e( 'e.g. Monthly Salary', 'essfinance' ); ?>" class="widefat">
+						value="<?php echo esc_attr( $description ); ?>" class="widefat">
+					<p class="description"><?php esc_html_e( 'A short label for this entry.', 'essfinance' ); ?></p>
 				</div>
 
 				<div class="form-field">
