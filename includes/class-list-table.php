@@ -356,6 +356,10 @@ class ESSF_List_Table extends WP_List_Table {
 			return '<span class="essf-badge essf-badge--' . esc_attr( $status ) . '">' . esc_html( $label ) . '</span>';
 		}
 
+		if ( ESSF_Settings::show_status_icons() ) {
+			return ESSF_Settings::status_icon( $status ) . esc_html( $label );
+		}
+
 		return esc_html( $label );
 	}
 
