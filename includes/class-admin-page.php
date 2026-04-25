@@ -15,6 +15,7 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_add', [ $this, 'handle_add' ] );
 		add_action( 'admin_post_essf_update', [ $this, 'handle_update' ] );
 		add_action( 'admin_post_essf_delete', [ $this, 'handle_delete' ] );
+		add_action( 'admin_post_essf_export', [ $this, 'handle_export' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
@@ -40,14 +41,6 @@ class ESSF_Admin_Page {
 			[ $this, 'render_dashboard' ]
 		);
 
-		add_submenu_page(
-			'essfinance',
-			__( 'Add Entry', 'essfinance' ),
-			__( 'Add Entry', 'essfinance' ),
-			'manage_options',
-			'essfinance-add',
-			[ $this, 'render_add_page' ]
-		);
 	}
 
 	public function register_screen_options( WP_Screen $screen ): void {
@@ -171,6 +164,50 @@ class ESSF_Admin_Page {
 		exit;
 	}
 
+	public function handle_export(): void {
+		check_admin_referer( 'essf_export' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$posts = get_posts( [
+			'post_type'      => 'essf_cashflow',
+			'post_status'    => [ 'pending', 'paid' ],
+			'posts_per_page' => -1,
+			'orderby'        => 'meta_value',
+			'meta_key'       => '_order_date',
+			'order'          => 'ASC',
+		] );
+
+		$filename = 'cashflow-' . gmdate( 'Y-m-d' ) . '.csv';
+
+		header( 'Content-Type: text/csv; charset=UTF-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Pragma: no-cache' );
+
+		$out = fopen( 'php://output', 'w' );
+		fprintf( $out, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) ); // UTF-8 BOM
+		fputcsv( $out, [ 'Description', 'Amount', 'Type', 'Due Date', 'Pay Date', 'Status' ] );
+
+		foreach ( $posts as $post ) {
+			$amount  = (float) $post->post_content;
+			$is_inc  = $amount > 0;
+			$due     = substr( $post->post_date_gmt, 0, 10 );
+			$pay     = substr( $post->post_modified_gmt, 0, 10 );
+			fputcsv( $out, [
+				$post->post_title,
+				number_format( abs( $amount ), 2, '.', '' ),
+				$is_inc ? 'Income' : 'Expense',
+				( $due && '0000-00-00' !== $due ) ? $due : '',
+				( $pay && '0000-00-00' !== $pay ) ? $pay : '',
+				ucfirst( $post->post_status ),
+			] );
+		}
+
+		fclose( $out );
+		exit;
+	}
+
 	public function handle_delete(): void {
 		$post_id = absint( $_GET['entry'] ?? 0 );
 		check_admin_referer( self::DELETE_NONCE . '_' . $post_id );
@@ -229,9 +266,9 @@ class ESSF_Admin_Page {
 		$table->prepare_items();
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'EssFinance', 'essfinance' ); ?></h1>
-			<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance-add' ) ); ?>" class="page-title-action">
-				<?php esc_html_e( 'Add Entry', 'essfinance' ); ?>
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Cash Flow', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_export' ), 'essf_export' ) ); ?>" class="page-title-action">
+				<?php esc_html_e( 'Export', 'essfinance' ); ?>
 			</a>
 			<hr class="wp-header-end">
 
