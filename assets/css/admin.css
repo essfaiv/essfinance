@@ -124,6 +124,18 @@ input[type="date"],
 	padding-bottom: 6px;
 }
 
+.essf-income-label--form {
+	line-height: 1.385;
+}
+
+.essf-income-label--form input {
+	margin: 0;
+}
+
+.essf-field-row--amount .essf-income-label--form {
+	padding-block: 6px;
+}
+
 .essf-income-label {
 	display: flex !important;
 	align-items: center;
