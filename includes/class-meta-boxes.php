@@ -29,9 +29,6 @@ class ESSF_Meta_Boxes {
 		$due_date = '0000-00-00' !== substr( $post->post_date_gmt, 0, 10 ) ? substr( $post->post_date_gmt, 0, 10 ) : '';
 		$pay_date = '0000-00-00' !== substr( $post->post_modified_gmt, 0, 10 ) ? substr( $post->post_modified_gmt, 0, 10 ) : '';
 		$status   = $post->post_status;
-
-		$due_display = $due_date ? (string) wp_date( 'd/m/Y', strtotime( $due_date ) ) : '';
-		$pay_display = $pay_date ? (string) wp_date( 'd/m/Y', strtotime( $pay_date ) ) : '';
 		?>
 		<div class="essf-meta-box">
 			<div class="essf-field">
@@ -44,36 +41,27 @@ class ESSF_Meta_Boxes {
 			<div class="essf-field-row">
 				<div class="essf-field">
 					<label for="essf_due_date"><?php esc_html_e( 'Due Date', 'essfinance' ); ?></label>
-					<input type="text" id="essf_due_date" name="essf_due_date"
-						value="<?php echo esc_attr( $due_display ); ?>"
-						placeholder="dd/mm/yyyy" class="essf-datepicker" autocomplete="off">
+					<input type="date" id="essf_due_date" name="essf_due_date"
+						value="<?php echo esc_attr( $due_date ); ?>">
 				</div>
 				<div class="essf-field">
 					<label for="essf_pay_date"><?php esc_html_e( 'Pay Date', 'essfinance' ); ?></label>
-					<input type="text" id="essf_pay_date" name="essf_pay_date"
-						value="<?php echo esc_attr( $pay_display ); ?>"
-						placeholder="dd/mm/yyyy" class="essf-datepicker" autocomplete="off">
+					<input type="date" id="essf_pay_date" name="essf_pay_date"
+						value="<?php echo esc_attr( $pay_date ); ?>">
 				</div>
 			</div>
 
-			<div class="essf-field-row">
+			<div class="essf-field-row essf-field-row--amount">
 				<div class="essf-field essf-field--amount">
 					<label for="essf_amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
 					<input type="number" id="essf_amount" name="essf_amount"
 						value="<?php echo esc_attr( abs( $amount ) ); ?>" step="0.01" min="0" placeholder="0.00">
 				</div>
-				<div class="essf-field essf-field--income">
-					<label><?php esc_html_e( 'Type', 'essfinance' ); ?></label>
-					<div class="essf-toggle-group">
-						<label class="essf-toggle-option <?php echo ! $is_inc ? 'is-active essf-expense' : ''; ?>">
-							<input type="radio" name="essf_is_income" value="0" <?php checked( ! $is_inc ); ?>>
-							<?php esc_html_e( 'Expense', 'essfinance' ); ?>
-						</label>
-						<label class="essf-toggle-option <?php echo $is_inc ? 'is-active essf-income' : ''; ?>">
-							<input type="radio" name="essf_is_income" value="1" <?php checked( $is_inc ); ?>>
-							<?php esc_html_e( 'Income', 'essfinance' ); ?>
-						</label>
-					</div>
+				<div class="essf-field essf-field--income-check">
+					<label class="essf-income-label">
+						<input type="checkbox" name="essf_is_income" value="1" <?php checked( $is_inc ); ?>>
+						<?php esc_html_e( 'Income', 'essfinance' ); ?>
+					</label>
 				</div>
 			</div>
 
@@ -109,8 +97,8 @@ class ESSF_Meta_Boxes {
 
 		$due_raw = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
 		$pay_raw = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
-		$due_dt  = $due_raw ? DateTime::createFromFormat( 'd/m/Y', $due_raw ) : false;
-		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'd/m/Y', $pay_raw ) : false;
+		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
+		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
 		$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 

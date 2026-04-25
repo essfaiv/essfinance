@@ -4,9 +4,8 @@ defined( 'ABSPATH' ) || exit;
 class ESSF_CPT {
 
 	public static $statuses = [
-		'pending'  => 'Pending',
-		'paid'     => 'Paid',
-		'canceled' => 'Canceled',
+		'pending' => 'Pending',
+		'paid'    => 'Paid',
 	];
 
 	public function __construct() {
@@ -46,13 +45,6 @@ class ESSF_CPT {
 
 		register_post_status( 'paid', [
 			'label'                     => __( 'Paid', 'essfinance' ),
-			'public'                    => false,
-			'show_in_admin_status_list' => true,
-			'show_in_admin_all_list'    => true,
-		] );
-
-		register_post_status( 'canceled', [
-			'label'                     => __( 'Canceled', 'essfinance' ),
 			'public'                    => false,
 			'show_in_admin_status_list' => true,
 			'show_in_admin_all_list'    => true,

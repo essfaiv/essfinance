@@ -71,50 +71,26 @@
 .essf-amount--income  { color: #00a32a; font-weight: 600; }
 .essf-amount--expense { color: #d63638; font-weight: 600; }
 
-/* ── Income/Expense toggle ────────────────────────────── */
-.essf-toggle-group {
-	display: flex;
-	border: 1px solid #8c8f94;
-	border-radius: 3px;
-	overflow: hidden;
-	width: 100%;
+/* ── Income checkbox ──────────────────────────────────── */
+.essf-field-row--amount {
+	align-items: flex-end;
 }
 
-.essf-toggle-option {
-	flex: 1;
+.essf-field--income-check {
+	flex: 0 0 auto;
+	padding-bottom: 6px;
+}
+
+.essf-income-label {
 	display: flex !important;
 	align-items: center;
-	justify-content: center;
-	padding: 7px 0;
+	gap: 6px;
 	font-size: 13px !important;
-	font-weight: 600 !important;
+	font-weight: 400 !important;
+	color: #1d2327 !important;
 	cursor: pointer;
-	color: #50575e !important;
-	background: #fff;
-	text-transform: none !important;
-	letter-spacing: 0 !important;
 	margin: 0 !important;
-	border-bottom: none !important;
-	transition: background .12s, color .12s;
-	user-select: none;
-}
-
-.essf-toggle-option input[type="radio"] {
-	display: none;
-}
-
-.essf-toggle-option + .essf-toggle-option {
-	border-left: 1px solid #8c8f94;
-}
-
-.essf-toggle-option.is-active.essf-expense {
-	background: #fde8e8;
-	color: #8a1f1f !important;
-}
-
-.essf-toggle-option.is-active.essf-income {
-	background: #edfaef;
-	color: #00692e !important;
+	white-space: nowrap;
 }
 
 /* ── Dashboard list table ─────────────────────────────── */
