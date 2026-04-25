@@ -16,6 +16,7 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_update', [ $this, 'handle_update' ] );
 		add_action( 'admin_post_essf_delete', [ $this, 'handle_delete' ] );
 		add_action( 'admin_post_essf_export', [ $this, 'handle_export' ] );
+		add_action( 'admin_post_essf_import', [ $this, 'handle_import' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
@@ -52,6 +53,13 @@ class ESSF_Admin_Page {
 			'default' => 20,
 			'option'  => 'essf_entries_per_page',
 		] );
+		register_column_headers( $screen, ( new ESSF_List_Table() )->get_columns() );
+		add_filter( 'default_hidden_columns', function( array $hidden, WP_Screen $s ): array {
+			if ( 'toplevel_page_essfinance' === $s->id ) {
+				$hidden[] = 'essf_type';
+			}
+			return $hidden;
+		}, 10, 2 );
 	}
 
 	/* ── Bulk delete ────────────────────────────────────── */
@@ -179,33 +187,262 @@ class ESSF_Admin_Page {
 			'order'          => 'ASC',
 		] );
 
-		$filename = 'cashflow-' . gmdate( 'Y-m-d' ) . '.csv';
+		$filename = 'essfinance-export-' . gmdate( 'Y-m-d-His' ) . '.csv';
 
 		header( 'Content-Type: text/csv; charset=UTF-8' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 		header( 'Pragma: no-cache' );
 
 		$out = fopen( 'php://output', 'w' );
-		fprintf( $out, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) ); // UTF-8 BOM
-		fputcsv( $out, [ 'Description', 'Amount', 'Type', 'Due Date', 'Pay Date', 'Status' ] );
+		fprintf( $out, "\xEF\xBB\xBF" ); // UTF-8 BOM — ensures Excel opens accented chars correctly
+		fputcsv( $out, [ 'Description', 'Due Date', 'Pay Date', 'Status', 'Amount' ] );
 
 		foreach ( $posts as $post ) {
 			$amount  = (float) $post->post_content;
-			$is_inc  = $amount > 0;
 			$due     = substr( $post->post_date_gmt, 0, 10 );
 			$pay     = substr( $post->post_modified_gmt, 0, 10 );
 			fputcsv( $out, [
 				$post->post_title,
-				number_format( abs( $amount ), 2, '.', '' ),
-				$is_inc ? 'Income' : 'Expense',
 				( $due && '0000-00-00' !== $due ) ? $due : '',
 				( $pay && '0000-00-00' !== $pay ) ? $pay : '',
-				ucfirst( $post->post_status ),
+				$post->post_status,
+				self::format_amount_csv( $amount ),
 			] );
 		}
 
 		fclose( $out );
 		exit;
+	}
+
+	public function handle_import(): void {
+		check_admin_referer( 'essf_import' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$file = $_FILES['essf_csv_file'] ?? null;
+		if ( ! $file || UPLOAD_ERR_OK !== (int) $file['error'] || ! is_uploaded_file( $file['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		// Build dedup lookups (description+date+amount, and FITID for OFX).
+		$existing     = [];
+		$fitid_lookup = [];
+		foreach ( get_posts( [
+			'post_type'      => 'essf_cashflow',
+			'post_status'    => [ 'pending', 'paid' ],
+			'posts_per_page' => -1,
+		] ) as $p ) {
+			$due = substr( $p->post_date_gmt, 0, 10 );
+			$existing[ strtolower( trim( $p->post_title ) ) . '|' . $due . '|' . round( (float) $p->post_content, 2 ) ] = true;
+			$fitid = get_post_meta( $p->ID, '_essf_fitid', true );
+			if ( $fitid ) {
+				$fitid_lookup[ $fitid ] = true;
+			}
+		}
+
+		$ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
+
+		if ( in_array( $ext, [ 'ofx', 'qfx' ], true ) ) {
+			$content = file_get_contents( $file['tmp_name'] );
+			if ( false === $content ) {
+				wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
+				exit;
+			}
+			$result = $this->import_ofx( $content, $existing, $fitid_lookup );
+		} else {
+			$handle = fopen( $file['tmp_name'], 'r' );
+			if ( ! $handle ) {
+				wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
+				exit;
+			}
+			$bom = fread( $handle, 3 );
+			if ( "\xEF\xBB\xBF" !== $bom ) {
+				rewind( $handle );
+			}
+			fgetcsv( $handle ); // skip header row
+			$result = $this->import_csv( $handle, $existing );
+			fclose( $handle );
+		}
+
+		wp_safe_redirect( add_query_arg( [
+			'essf_msg'      => 'imported',
+			'essf_imported' => $result['imported'],
+			'essf_skipped'  => $result['skipped'],
+		], admin_url( 'admin.php?page=essfinance' ) ) );
+		exit;
+	}
+
+	private function import_csv( $handle, array &$existing ): array {
+		$imported = 0;
+		$skipped  = 0;
+
+		while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+			if ( count( $row ) < 5 ) {
+				continue;
+			}
+			[ $description, $due_raw, $pay_raw, $status_raw, $amount_raw ] = $row;
+
+			$description = sanitize_text_field( trim( $description ) );
+			if ( '' === $description ) {
+				continue;
+			}
+
+			$amount  = round( (float) str_replace( ',', '', $amount_raw ), 2 );
+			$due_dt  = trim( $due_raw ) ? DateTime::createFromFormat( 'Y-m-d', trim( $due_raw ) ) : false;
+			$pay_dt  = trim( $pay_raw ) ? DateTime::createFromFormat( 'Y-m-d', trim( $pay_raw ) ) : false;
+			$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+			$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+			$status  = sanitize_key( $status_raw );
+			if ( ! array_key_exists( $status, ESSF_CPT::$statuses ) ) {
+				$status = 'pending';
+			}
+			$due_key = $due_dt ? $due_dt->format( 'Y-m-d' ) : '';
+
+			$key = strtolower( $description ) . '|' . $due_key . '|' . $amount;
+			if ( isset( $existing[ $key ] ) ) {
+				$skipped++;
+				continue;
+			}
+
+			if ( $this->insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status ) ) {
+				$existing[ $key ] = true;
+				$imported++;
+			}
+		}
+
+		return compact( 'imported', 'skipped' );
+	}
+
+	private function import_ofx( string $content, array &$existing, array &$fitid_lookup ): array {
+		$imported = 0;
+		$skipped  = 0;
+
+		foreach ( $this->parse_ofx_transactions( $content ) as $trn ) {
+			$description = sanitize_text_field( $trn['description'] );
+			$amount      = round( $trn['amount'], 2 );
+			$due_key     = $trn['due_date'];
+			$fitid       = $trn['fitid'];
+
+			if ( $fitid && isset( $fitid_lookup[ $fitid ] ) ) {
+				$skipped++;
+				continue;
+			}
+
+			$key = strtolower( $description ) . '|' . $due_key . '|' . $amount;
+			if ( isset( $existing[ $key ] ) ) {
+				$skipped++;
+				continue;
+			}
+
+			$due_dt  = $due_key ? DateTime::createFromFormat( 'Y-m-d', $due_key ) : false;
+			$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+
+			$post_id = $this->insert_entry( $description, $amount, $due_gmt, '0000-00-00 00:00:00', 'pending' );
+			if ( $post_id ) {
+				if ( $fitid ) {
+					update_post_meta( $post_id, '_essf_fitid', $fitid );
+					$fitid_lookup[ $fitid ] = true;
+				}
+				$existing[ $key ] = true;
+				$imported++;
+			}
+		}
+
+		return compact( 'imported', 'skipped' );
+	}
+
+	private function parse_ofx_transactions( string $content ): array {
+		$content = str_replace( [ "\r\n", "\r" ], "\n", $content );
+
+		// Strip OFX 1.x header — everything before <OFX>.
+		if ( preg_match( '/<OFX>/i', $content, $m, PREG_OFFSET_CAPTURE ) ) {
+			$content = substr( $content, (int) $m[0][1] );
+		}
+
+		$extract = static function ( string $tag, string $block ): string {
+			return preg_match( '/<' . $tag . '>\s*([^\s<][^<\n\r]*)/i', $block, $m ) ? trim( $m[1] ) : '';
+		};
+
+		// OFX 2.x has proper closing tags; OFX 1.x (SGML) does not.
+		if ( preg_match_all( '/<STMTTRN>(.*?)<\/STMTTRN>/si', $content, $matches ) ) {
+			$blocks = $matches[1];
+		} else {
+			// SGML: split on opening tag, discard pre-first-transaction content.
+			$parts  = preg_split( '/<STMTTRN>/i', $content );
+			array_shift( $parts );
+			$blocks = array_map( static function ( string $p ): string {
+				return preg_split( '/<\/BANKTRANLIST>|<LEDGERBAL>|<AVAILBAL>/i', $p )[0];
+			}, $parts );
+		}
+
+		$transactions = [];
+		foreach ( $blocks as $block ) {
+			$amount_raw = $extract( 'TRNAMT', $block );
+			$date_raw   = $extract( 'DTPOSTED', $block );
+			if ( '' === $amount_raw || '' === $date_raw ) {
+				continue;
+			}
+
+			// OFX date: YYYYMMDD[HHMMSS[.mmm][tz]] — take first 8 digits.
+			$digits = substr( preg_replace( '/[^0-9]/', '', $date_raw ), 0, 8 );
+			if ( strlen( $digits ) < 8 ) {
+				continue;
+			}
+			$due_date = substr( $digits, 0, 4 ) . '-' . substr( $digits, 4, 2 ) . '-' . substr( $digits, 6, 2 );
+
+			$name        = $extract( 'NAME', $block );
+			$memo        = $extract( 'MEMO', $block );
+			$description = $name ?: $memo ?: 'OFX Transaction';
+
+			$transactions[] = [
+				'fitid'       => $extract( 'FITID', $block ),
+				'description' => $description,
+				'amount'      => (float) str_replace( ',', '.', $amount_raw ),
+				'due_date'    => $due_date,
+			];
+		}
+
+		return $transactions;
+	}
+
+	private function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status ): int {
+		$post_id = wp_insert_post( [
+			'post_type'    => 'essf_cashflow',
+			'post_title'   => $title,
+			'post_content' => (string) $amount,
+			'post_status'  => $status,
+		], true );
+
+		if ( is_wp_error( $post_id ) ) {
+			return 0;
+		}
+
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->posts,
+			[ 'post_date_gmt' => $due_gmt, 'post_modified_gmt' => $pay_gmt ],
+			[ 'ID' => $post_id ],
+			[ '%s', '%s' ],
+			[ '%d' ]
+		);
+
+		$order_date = '0000-00-00 00:00:00' !== $pay_gmt
+			? substr( $pay_gmt, 0, 10 )
+			: ( '0000-00-00 00:00:00' !== $due_gmt ? substr( $due_gmt, 0, 10 ) : '' );
+		update_post_meta( $post_id, '_order_date', $order_date );
+
+		return $post_id;
+	}
+
+	private static function format_amount_csv( float $amount ): string {
+		$prefix = $amount < 0 ? '-' : '';
+		$abs    = abs( $amount );
+		if ( $abs == (int) $abs ) {
+			return $prefix . (string) (int) $abs;
+		}
+		return $prefix . rtrim( number_format( $abs, 2, '.', '' ), '0' );
 	}
 
 	public function handle_delete(): void {
@@ -254,13 +491,15 @@ class ESSF_Admin_Page {
 	public function render_dashboard(): void {
 		$msg = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
 
-		$edit_entry = null;
 		if ( ! empty( $_GET['entry'] ) && current_user_can( 'manage_options' ) ) {
 			$post = get_post( absint( $_GET['entry'] ) );
 			if ( $post && 'essf_cashflow' === $post->post_type ) {
-				$edit_entry = $post;
+				$this->render_edit_page( $post, $msg );
+				return;
 			}
 		}
+
+		$essf_action = isset( $_GET['essf_action'] ) ? sanitize_key( $_GET['essf_action'] ) : '';
 
 		$table = new ESSF_List_Table();
 		$table->prepare_items();
@@ -270,6 +509,9 @@ class ESSF_Admin_Page {
 			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_export' ), 'essf_export' ) ); ?>" class="page-title-action">
 				<?php esc_html_e( 'Export', 'essfinance' ); ?>
 			</a>
+			<a href="<?php echo esc_url( add_query_arg( 'essf_action', 'import', admin_url( 'admin.php?page=essfinance' ) ) ); ?>" class="page-title-action<?php echo 'import' === $essf_action ? ' button-primary' : ''; ?>">
+				<?php esc_html_e( 'Import', 'essfinance' ); ?>
+			</a>
 			<hr class="wp-header-end">
 
 			<?php $this->render_notices( $msg ); ?>
@@ -277,7 +519,11 @@ class ESSF_Admin_Page {
 			<div id="col-container" class="wp-clearfix">
 				<div id="col-left">
 					<div class="col-wrap">
-						<?php $this->render_form( $edit_entry ); ?>
+						<?php if ( 'import' === $essf_action ) : ?>
+							<?php $this->render_import_form(); ?>
+						<?php else : ?>
+							<?php $this->render_form(); ?>
+						<?php endif; ?>
 					</div>
 				</div>
 				<div id="col-right">
@@ -298,6 +544,25 @@ class ESSF_Admin_Page {
 		<?php
 	}
 
+	private function render_edit_page( WP_Post $entry, string $msg ): void {
+		$back_url = admin_url( 'admin.php?page=essfinance' );
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Edit Entry', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( $back_url ); ?>" class="page-title-action">
+				&larr; <?php esc_html_e( 'Cash Flow', 'essfinance' ); ?>
+			</a>
+			<hr class="wp-header-end">
+
+			<?php $this->render_notices( $msg ); ?>
+
+			<div style="max-width:480px; margin-top:16px;">
+				<?php $this->render_form( $entry, false ); ?>
+			</div>
+		</div>
+		<?php
+	}
+
 	public function render_add_page(): void {
 		?>
 		<div class="wrap">
@@ -310,9 +575,32 @@ class ESSF_Admin_Page {
 		<?php
 	}
 
+	/* ── Import form ───────────────────────────────────── */
+
+	private function render_import_form(): void {
+		?>
+		<h2><?php esc_html_e( 'Import', 'essfinance' ); ?></h2>
+		<div class="form-wrap">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data">
+				<input type="hidden" name="action" value="essf_import">
+				<?php wp_nonce_field( 'essf_import' ); ?>
+				<div class="form-field form-required">
+					<label for="essf_csv_file"><?php esc_html_e( 'File', 'essfinance' ); ?></label>
+					<input type="file" id="essf_csv_file" name="essf_csv_file" accept=".csv,.ofx,.qfx">
+					<p class="description"><?php esc_html_e( 'Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically.', 'essfinance' ); ?></p>
+				</div>
+				<p class="submit">
+					<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Import', 'essfinance' ); ?>">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Cancel', 'essfinance' ); ?></a>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
 	/* ── Shared form ────────────────────────────────────── */
 
-	private function render_form( ?WP_Post $entry = null ): void {
+	private function render_form( ?WP_Post $entry = null, bool $show_heading = true ): void {
 		$is_edit = null !== $entry;
 
 		$description = $due_date = $pay_date = $status = '';
@@ -332,10 +620,12 @@ class ESSF_Admin_Page {
 			$pay_date = ( $pay_raw && '0000-00-00' !== $pay_raw ) ? $pay_raw : '';
 		}
 
-		$form_action       = $is_edit ? 'essf_update' : 'essf_add';
-		$nonce_action      = $is_edit ? self::UPDATE_NONCE : self::ADD_NONCE;
+		$form_action  = $is_edit ? 'essf_update' : 'essf_add';
+		$nonce_action = $is_edit ? self::UPDATE_NONCE : self::ADD_NONCE;
 		?>
+		<?php if ( $show_heading ) : ?>
 		<h2><?php echo $is_edit ? esc_html__( 'Edit Entry', 'essfinance' ) : esc_html__( 'Add Entry', 'essfinance' ); ?></h2>
+		<?php endif; ?>
 
 		<div class="form-wrap">
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -402,11 +692,22 @@ class ESSF_Admin_Page {
 	}
 
 	private function render_notices( string $msg ): void {
+		if ( 'imported' === $msg ) {
+			$n = absint( $_GET['essf_imported'] ?? 0 );
+			$s = absint( $_GET['essf_skipped'] ?? 0 );
+			printf(
+				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+				esc_html( sprintf( __( '%d %s imported, %d skipped as duplicates.', 'essfinance' ), $n, _n( 'entry', 'entries', $n, 'essfinance' ), $s ) )
+			);
+			return;
+		}
+
 		$map = [
-			'added'   => [ 'success', __( 'Entry added.', 'essfinance' ) ],
-			'updated' => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
-			'deleted' => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
-			'error'   => [ 'error',   __( 'Something went wrong. Please try again.', 'essfinance' ) ],
+			'added'        => [ 'success', __( 'Entry added.', 'essfinance' ) ],
+			'updated'      => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
+			'deleted'      => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
+			'error'        => [ 'error',   __( 'Something went wrong. Please try again.', 'essfinance' ) ],
+			'import_error' => [ 'error',   __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
 		];
 		if ( isset( $map[ $msg ] ) ) {
 			[ $type, $text ] = $map[ $msg ];
@@ -437,8 +738,13 @@ class ESSF_Admin_Page {
 				echo '<span class="essf-badge essf-badge--' . ( $is_inc ? 'income' : 'expense' ) . '">' . esc_html( $is_inc ? 'Income' : 'Expense' ) . '</span>';
 				break;
 			case 'essf_amount':
-				$sign = $is_inc ? '+' : '−';
-				echo '<span class="essf-amount--' . ( $is_inc ? 'income' : 'expense' ) . '">' . esc_html( $sign . number_format( abs( $amount ), 2, '.', ',' ) ) . '</span>';
+				$sign      = $is_inc ? '+' : ( ESSF_Settings::show_negative_prefix() ? '−' : '' );
+				$formatted = esc_html( $sign . number_format( abs( $amount ), 2, '.', ',' ) );
+				if ( ESSF_Settings::show_amount_colors() ) {
+					echo '<span class="essf-amount--' . ( $is_inc ? 'income' : 'expense' ) . '">' . $formatted . '</span>';
+				} else {
+					echo $formatted;
+				}
 				break;
 			case 'essf_due':
 				$d = substr( $post->post_date_gmt, 0, 10 );

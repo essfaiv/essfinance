@@ -329,11 +329,17 @@ class ESSF_List_Table extends WP_List_Table {
 	}
 
 	public function column_essf_amount( $item ): string {
-		$amount = (float) $item->post_content;
-		$is_inc = $amount > 0;
-		$sign   = $is_inc ? '+' : '−';
-		$cls    = $is_inc ? 'essf-amount--income' : 'essf-amount--expense';
-		return '<span class="' . esc_attr( $cls ) . '">' . esc_html( $sign . self::format_amount( $amount ) ) . '</span>';
+		$amount    = (float) $item->post_content;
+		$is_inc    = $amount > 0;
+		$sign      = $is_inc ? '+' : ( ESSF_Settings::show_negative_prefix() ? '−' : '' );
+		$formatted = esc_html( $sign . self::format_amount( $amount ) );
+
+		if ( ESSF_Settings::show_amount_colors() ) {
+			$cls = $is_inc ? 'essf-amount--income' : 'essf-amount--expense';
+			return '<span class="' . esc_attr( $cls ) . '">' . $formatted . '</span>';
+		}
+
+		return $formatted;
 	}
 
 	public function column_essf_due( $item ): string {

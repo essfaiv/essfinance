@@ -3,8 +3,10 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Settings {
 
-	const OPTION_STATUS_BADGE = 'essf_show_status_badge';
-	const OPTION_STATUS_ICONS = 'essf_show_status_icons';
+	const OPTION_STATUS_BADGE    = 'essf_show_status_badge';
+	const OPTION_STATUS_ICONS    = 'essf_show_status_icons';
+	const OPTION_AMOUNT_COLORS   = 'essf_show_amount_colors';
+	const OPTION_NEGATIVE_PREFIX = 'essf_show_negative_prefix';
 
 	private static array $icons = [
 		'paid'    => 'dashicons-yes-alt',
@@ -20,24 +22,35 @@ class ESSF_Settings {
 
 	public function register_menu(): void {
 		add_submenu_page(
-			'essfinance',
+			null,
 			__( 'EssFinance Settings', 'essfinance' ),
 			__( 'Settings', 'essfinance' ),
 			'manage_options',
 			'essfinance-settings',
 			[ $this, 'render' ]
 		);
-		remove_submenu_page( 'essfinance', 'essfinance-settings' );
 	}
 
 	public function register_settings(): void {
 		register_setting( 'essf_settings', self::OPTION_STATUS_BADGE, [
 			'type'              => 'boolean',
-			'default'           => true,
+			'default'           => false,
 			'sanitize_callback' => 'rest_sanitize_boolean',
 		] );
 
 		register_setting( 'essf_settings', self::OPTION_STATUS_ICONS, [
+			'type'              => 'boolean',
+			'default'           => true,
+			'sanitize_callback' => 'rest_sanitize_boolean',
+		] );
+
+		register_setting( 'essf_settings', self::OPTION_AMOUNT_COLORS, [
+			'type'              => 'boolean',
+			'default'           => false,
+			'sanitize_callback' => 'rest_sanitize_boolean',
+		] );
+
+		register_setting( 'essf_settings', self::OPTION_NEGATIVE_PREFIX, [
 			'type'              => 'boolean',
 			'default'           => false,
 			'sanitize_callback' => 'rest_sanitize_boolean',
@@ -60,10 +73,26 @@ class ESSF_Settings {
 			'essf_settings',
 			'essf_display'
 		);
+
+		add_settings_field(
+			self::OPTION_AMOUNT_COLORS,
+			__( 'Show amount with colors', 'essfinance' ),
+			[ $this, 'field_amount_colors' ],
+			'essf_settings',
+			'essf_display'
+		);
+
+		add_settings_field(
+			self::OPTION_NEGATIVE_PREFIX,
+			__( 'Show negative prefix', 'essfinance' ),
+			[ $this, 'field_negative_prefix' ],
+			'essf_settings',
+			'essf_display'
+		);
 	}
 
 	public function field_status_badge(): void {
-		$value = get_option( self::OPTION_STATUS_BADGE, true );
+		$value = get_option( self::OPTION_STATUS_BADGE, false );
 		?>
 		<label>
 			<input type="checkbox" id="essf_badge_toggle" name="<?php echo esc_attr( self::OPTION_STATUS_BADGE ); ?>" value="1" <?php checked( $value ); ?>>
@@ -82,7 +111,7 @@ class ESSF_Settings {
 	}
 
 	public function field_status_icons(): void {
-		$value = get_option( self::OPTION_STATUS_ICONS, false );
+		$value = get_option( self::OPTION_STATUS_ICONS, true );
 		?>
 		<label>
 			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_STATUS_ICONS ); ?>" value="1" <?php checked( $value ); ?>>
@@ -95,6 +124,26 @@ class ESSF_Settings {
 			if ( row ) row.id = 'essf_icons_row';
 		} )();
 		</script>
+		<?php
+	}
+
+	public function field_amount_colors(): void {
+		$value = get_option( self::OPTION_AMOUNT_COLORS, false );
+		?>
+		<label>
+			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_AMOUNT_COLORS ); ?>" value="1" <?php checked( $value ); ?>>
+			<?php esc_html_e( 'Colorize income and expense amounts', 'essfinance' ); ?>
+		</label>
+		<?php
+	}
+
+	public function field_negative_prefix(): void {
+		$value = get_option( self::OPTION_NEGATIVE_PREFIX, false );
+		?>
+		<label>
+			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_NEGATIVE_PREFIX ); ?>" value="1" <?php checked( $value ); ?>>
+			<?php esc_html_e( 'Show − sign before negative amounts', 'essfinance' ); ?>
+		</label>
 		<?php
 	}
 
@@ -120,11 +169,19 @@ class ESSF_Settings {
 	}
 
 	public static function show_status_badge(): bool {
-		return (bool) get_option( self::OPTION_STATUS_BADGE, true );
+		return (bool) get_option( self::OPTION_STATUS_BADGE, false );
 	}
 
 	public static function show_status_icons(): bool {
-		return (bool) get_option( self::OPTION_STATUS_ICONS, false );
+		return (bool) get_option( self::OPTION_STATUS_ICONS, true );
+	}
+
+	public static function show_amount_colors(): bool {
+		return (bool) get_option( self::OPTION_AMOUNT_COLORS, false );
+	}
+
+	public static function show_negative_prefix(): bool {
+		return (bool) get_option( self::OPTION_NEGATIVE_PREFIX, false );
 	}
 
 	public static function status_icon( string $status ): string {

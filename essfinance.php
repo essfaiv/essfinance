@@ -2,14 +2,14 @@
 /**
  * Plugin Name: EssFinance
  * Description: Simple personal finance management
- * Version: 0.3.0
+ * Version: 0.3.1
  * Author: EssFinance
  * Text Domain: essfinance
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ESSF_VERSION', '0.3.0' );
+define( 'ESSF_VERSION', '0.3.1' );
 define( 'ESSF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ESSF_URL', plugin_dir_url( __FILE__ ) );
 

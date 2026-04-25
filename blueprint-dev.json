@@ -16,8 +16,13 @@
     {
       "step": "installPlugin",
       "pluginZipFile": {
-        "resource": "url",
-        "url": "https://github.com/essfaiv/essfinance/releases/latest/download/essfinance.zip"
+        "resource": "github.com",
+        "owner": "essfaiv",
+        "repo": "essfinance",
+        "workflow": {
+          "id": "playground.yml",
+          "artifactName": "plugin-zip"
+        }
       },
       "options": {
         "activate": true
