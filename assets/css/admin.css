@@ -114,6 +114,11 @@ input[type="date"],
 	flex: 1;
 }
 
+.essf-field--amount input,
+.essf-field--amount-wrap input {
+	width: 100% !important;
+}
+
 .essf-field--income-check {
 	flex: 0 0 auto;
 	padding-bottom: 6px;
