@@ -30,8 +30,10 @@ function essf_boot() {
 	require_once ESSF_PATH . 'includes/class-list-table.php';
 	require_once ESSF_PATH . 'includes/class-admin-page.php';
 	require_once ESSF_PATH . 'includes/class-assets.php';
+	require_once ESSF_PATH . 'includes/class-settings.php';
 
 	new ESSF_Meta_Boxes();
 	new ESSF_Admin_Page();
 	new ESSF_Assets();
+	new ESSF_Settings();
 }

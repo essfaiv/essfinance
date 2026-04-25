@@ -346,12 +346,17 @@ class ESSF_List_Table extends WP_List_Table {
 		$status = $item->post_status;
 		$due    = substr( $item->post_date_gmt, 0, 10 );
 
-		// Compute overdue at display time.
 		if ( 'pending' === $status && $due && '0000-00-00' !== $due && $due < $today ) {
 			$status = 'overdue';
 		}
 
-		return '<span class="essf-badge essf-badge--' . esc_attr( $status ) . '">' . esc_html( ucfirst( $status ) ) . '</span>';
+		$label = ucfirst( $status );
+
+		if ( ESSF_Settings::show_status_badge() ) {
+			return '<span class="essf-badge essf-badge--' . esc_attr( $status ) . '">' . esc_html( $label ) . '</span>';
+		}
+
+		return esc_html( $label );
 	}
 
 	/* ── Helpers ────────────────────────────────────────── */
