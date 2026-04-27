@@ -377,7 +377,7 @@ class ESSF_Settings {
 
 	public function register_menu(): void {
 		add_submenu_page(
-			null,
+			'essfinance',
 			__( 'EssFinance Settings', 'essfinance' ),
 			__( 'Settings', 'essfinance' ),
 			'manage_options',
