@@ -82,7 +82,6 @@ class ESSF_Admin_Page {
 				'option'  => 'essf_entries_per_page',
 			]
 		);
-		// phpstan-ignore-next-line -- register_column_headers() accepts WP_Screen; stubs incorrectly type it as string
 		register_column_headers( $screen, ( new ESSF_List_Table() )->get_columns() );
 		add_filter(
 			'default_hidden_columns',

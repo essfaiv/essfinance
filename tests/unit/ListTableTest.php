@@ -24,9 +24,9 @@ class ListTableTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
-		Functions\expect( '__' )->andReturnFirstArg();
-		Functions\expect( 'admin_url' )->andReturn( 'http://example.com/wp-admin/' );
-		Functions\expect( 'add_query_arg' )->andReturnFirstArg();
+		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
+		Functions\expect( 'admin_url' )->zeroOrMoreTimes()->andReturn( 'http://example.com/wp-admin/' );
+		Functions\expect( 'add_query_arg' )->zeroOrMoreTimes()->andReturnFirstArg();
 
 		$this->table             = new \ESSF_List_Table();
 		$this->method_order_date = new ReflectionMethod( \ESSF_List_Table::class, 'entry_order_date' );
@@ -122,10 +122,17 @@ class ListTableTest extends TestCase {
 
 		Functions\expect( 'get_posts' )->andReturn( $posts );
 		Functions\expect( 'get_post_meta' )
-			->with( 101, '_order_date', true )->andReturn( '2026-01-15' );
-		Functions\expect( 'get_post_meta' )
-			->with( 102, '_order_date', true )->andReturn( '2026-03-01' );
-		Functions\expect( 'wp_date' )
+			->zeroOrMoreTimes()
+			->andReturnUsing( static function ( int $post_id, string $key ) {
+				if ( 101 === $post_id && '_order_date' === $key ) {
+					return '2026-01-15';
+				}
+				if ( 102 === $post_id && '_order_date' === $key ) {
+					return '2026-03-01';
+				}
+				return '';
+			} );
+		Functions\expect( 'date_i18n' )
 			->andReturnUsing( static function ( string $fmt, $ts ): string {
 				return date( $fmt, $ts ); // phpcs:ignore
 			} );
@@ -154,7 +161,7 @@ class ListTableTest extends TestCase {
 		Functions\expect( 'get_posts' )->andReturn( $posts );
 		Functions\expect( 'get_post_meta' )->andReturn( '' );
 		Functions\expect( 'update_post_meta' )->zeroOrMoreTimes();
-		Functions\expect( 'wp_date' )
+		Functions\expect( 'date_i18n' )
 			->andReturnUsing( static function ( string $fmt, $ts ): string {
 				return date( $fmt, $ts ); // phpcs:ignore
 			} );

@@ -10,30 +10,25 @@ declare( strict_types=1 );
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 
+// ── Activate Patchwork stream wrapper BEFORE defining any stub functions ──────
+// Brain\Monkey loads Patchwork lazily (inside setUp()), but our stubs must be
+// defined in a file that Patchwork's stream wrapper has already preprocessed —
+// otherwise it throws DefinedTooEarly when a test tries to mock them.
+require_once dirname( __DIR__ ) . '/vendor/antecedent/patchwork/Patchwork.php';
+
+// ── WordPress function stubs ──────────────────────────────────────────────────
+// Must be required (not eval'd inline) so Patchwork can intercept them and
+// Brain\Monkey can mock them per test.
+require_once __DIR__ . '/stubs/functions.php';
+
 use Brain\Monkey;
 
 // ── WordPress constants ───────────────────────────────────────────────────────
 
 defined( 'ABSPATH' ) || define( 'ABSPATH', sys_get_temp_dir() . '/wordpress/' );
-define( 'ESSF_VERSION', '0.3.1' );
+define( 'ESSF_VERSION', '0.3.2' );
 define( 'ESSF_PATH', dirname( __DIR__ ) . '/' );
 define( 'ESSF_URL', 'http://example.com/wp-content/plugins/essfinance03/' );
-
-// ── Minimal WordPress function stubs used at class-load time ─────────────────
-// Brain\Monkey provides proper per-test stubs; these are the bare-minimum needed
-// to require plugin PHP files without fatal errors.
-
-if ( ! function_exists( 'add_action' ) ) {
-	function add_action( ...$args ) {}
-}
-if ( ! function_exists( 'add_filter' ) ) {
-	function add_filter( ...$args ) {}
-}
-if ( ! function_exists( 'plugin_basename' ) ) {
-	function plugin_basename( string $file ): string {
-		return basename( dirname( $file ) ) . '/' . basename( $file );
-	}
-}
 
 // ── Minimal WP_List_Table stub so class-list-table.php can be required ───────
 

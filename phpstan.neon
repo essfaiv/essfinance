@@ -22,3 +22,6 @@ parameters:
         # wp_insert_post() can return WP_Error; szepeviktor/phpstan-wordpress extension narrows too aggressively
         - message: '#is_wp_error\(int<1, max>\) will always evaluate to false#'
           path: includes/class-shortcodes.php
+        # WP stubs incorrectly type register_column_headers() first param as string; WP_Screen is valid
+        - message: '#Parameter \#1 \$screen of function register_column_headers expects string, WP_Screen given#'
+          path: includes/class-admin-page.php

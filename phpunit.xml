@@ -4,7 +4,6 @@
     xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
     bootstrap="tests/bootstrap.php"
     colors="true"
-    failOnWarning="true"
     failOnRisky="true"
 >
     <testsuites>
@@ -14,10 +13,7 @@
     </testsuites>
     <source>
         <include>
-            <directory>includes</directory>
-        </include>
-        <include>
-            <file>essfinance.php</file>
+            <directory suffix=".php">includes</directory>
         </include>
     </source>
     <coverage>

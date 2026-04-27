@@ -24,7 +24,7 @@ class ShortcodesFilterTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
-		Functions\expect( '__' )->andReturnFirstArg();
+		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 
 		$this->shortcodes        = new \ESSF_Shortcodes();
 		$this->method_order_date = new ReflectionMethod( \ESSF_Shortcodes::class, 'entry_order_date' );

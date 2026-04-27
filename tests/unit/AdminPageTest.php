@@ -22,9 +22,9 @@ class AdminPageTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
-		Functions\expect( '__' )->andReturnFirstArg();
+		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 		Functions\expect( 'add_action' )->zeroOrMoreTimes();
-		Functions\expect( 'admin_url' )->andReturn( 'http://example.com/wp-admin/' );
+		Functions\expect( 'admin_url' )->zeroOrMoreTimes()->andReturn( 'http://example.com/wp-admin/' );
 
 		$this->admin_page = new \ESSF_Admin_Page();
 	}

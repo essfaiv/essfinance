@@ -27,7 +27,7 @@ class ShortcodesHandlersTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
-		Functions\expect( '__' )->andReturnFirstArg();
+		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 		$this->shortcodes = new \ESSF_Shortcodes();
 	}
 
@@ -42,23 +42,26 @@ class ShortcodesHandlersTest extends TestCase {
 		$method->invoke( $this->shortcodes );
 	}
 
+	private function redirect_throws(): void {
+		Functions\when( 'wp_safe_redirect' )->alias( static function () {
+			throw new HandlerExitException( 'redirect' );
+		} );
+	}
+
 	// ── handle_paid_today: nonce guard ───────────────────────────────────────
 
 	public function test_paid_today_does_nothing_when_nonce_missing(): void {
-		// No $_GET['_wpnonce'] set.
+		// No $_GET['_wpnonce'] set — is_user_logged_in() returns true (stub),
+		// wp_verify_nonce is still called with an empty nonce and returns false.
 		$_GET = [];
 
-		Functions\expect( 'wp_verify_nonce' )->never();
+		Functions\when( 'wp_verify_nonce' )->justReturn( false );
 		Functions\expect( 'get_post' )->never();
 		Functions\expect( 'wp_update_post' )->never();
+		$this->redirect_throws();
 
-		Functions\expect( 'wp_verify_nonce' )->never();
-		Functions\when( 'wp_safe_redirect' )->justReturn();
-
-		// Should return early without touching the database.
+		$this->expectException( HandlerExitException::class );
 		$this->invoke_handler( 'handle_paid_today' );
-
-		$this->assertTrue( true ); // If we reach here without fatal errors, nonce guard worked.
 	}
 
 	// ── handle_paid_today: invalid nonce ─────────────────────────────────────
@@ -67,16 +70,15 @@ class ShortcodesHandlersTest extends TestCase {
 		$_GET = [ '_wpnonce' => 'badnonce', 'entry' => '42' ];
 
 		Functions\expect( 'wp_unslash' )->andReturnFirstArg();
-		Functions\expect( 'sanitize_key' )->andReturnFirstArg();
+		Functions\when( 'sanitize_key' )->justReturn( '' ); // not called in this path
 		Functions\expect( 'absint' )->andReturn( 42 );
 		Functions\expect( 'wp_verify_nonce' )->andReturn( false );
 		Functions\expect( 'wp_update_post' )->never();
 		Functions\expect( 'update_post_meta' )->never();
-		Functions\when( 'wp_safe_redirect' )->justReturn();
+		$this->redirect_throws();
 
+		$this->expectException( HandlerExitException::class );
 		$this->invoke_handler( 'handle_paid_today' );
-
-		$this->assertTrue( true );
 	}
 
 	// ── handle_toggle_type: amount sign toggling ─────────────────────────────

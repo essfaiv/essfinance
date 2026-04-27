@@ -50,6 +50,7 @@ class CptTest extends TestCase {
 
 		$cpt = new \ESSF_CPT();
 		$cpt->register();
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_register_post_meta_registers_order_date(): void {
@@ -66,6 +67,7 @@ class CptTest extends TestCase {
 
 		$cpt = new \ESSF_CPT();
 		$cpt->register();
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_constructor_hooks_register_to_init(): void {
@@ -74,6 +76,7 @@ class CptTest extends TestCase {
 			->with( \Mockery::type( 'array' ) );
 
 		new \ESSF_CPT();
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_activate_calls_flush_rewrite_rules(): void {
@@ -84,5 +87,6 @@ class CptTest extends TestCase {
 		Functions\expect( 'flush_rewrite_rules' )->once();
 
 		\ESSF_CPT::activate();
+		$this->addToAssertionCount( 1 );
 	}
 }

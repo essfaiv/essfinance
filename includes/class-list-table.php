@@ -200,7 +200,7 @@ class ESSF_List_Table extends WP_List_Table {
 		if ( $od && '0000-00-00' !== $od ) {
 			update_post_meta( $post->ID, '_order_date', $od );
 		}
-		return $od ?: '';
+		return ( $od && '0000-00-00' !== $od ) ? $od : '';
 	}
 
 	private function get_due_date_months(): array {

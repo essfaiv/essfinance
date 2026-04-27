@@ -19,7 +19,7 @@ class SettingsTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
-		Functions\expect( '__' )->andReturnFirstArg();
+		Functions\expect( '__' )->zeroOrMoreTimes()->andReturnFirstArg();
 	}
 
 	protected function tearDown(): void {
@@ -39,7 +39,7 @@ class SettingsTest extends TestCase {
 					\ESSF_Settings::OPTION_NUM_DECIMALS   => $decimals,
 					\ESSF_Settings::OPTION_DECIMAL_SEP    => $dec_sep,
 					\ESSF_Settings::OPTION_THOUSANDS_SEP  => $thou_sep,
-					\ESSF_Settings::OPTION_CURRENCY        => 'USD',
+					\ESSF_Settings::OPTION_CURRENCY        => [ '$' => 'USD', '€' => 'EUR', 'R$' => 'BRL' ][ $symbol ] ?? 'USD',
 					\ESSF_Settings::OPTION_CURRENCY_POS    => $pos,
 					default                                => $default,
 				};
