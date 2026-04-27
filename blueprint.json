@@ -32,7 +32,7 @@
     },
     {
       "step": "runPHP",
-      "code": "<?php require '/wordpress/wp-load.php'; wp_safe_redirect(admin_url('admin.php?page=essfinance')); exit;"
+      "code": "<?php require '/wordpress/wp-load.php'; $id = (int) get_option('essf_cashflow_page_id'); wp_safe_redirect( $id ? get_permalink( $id ) : home_url() ); exit;"
     }
   ]
 }

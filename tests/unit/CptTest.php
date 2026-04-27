@@ -85,6 +85,10 @@ class CptTest extends TestCase {
 		Functions\expect( 'register_post_meta' )->once();
 		Functions\expect( '__' )->andReturnFirstArg();
 		Functions\expect( 'flush_rewrite_rules' )->once();
+		// create_pages() checks existing pages; stub them as already present so
+		// wp_insert_post() is never reached in this unit-test context.
+		Functions\expect( 'get_option' )->andReturn( 1 );
+		Functions\expect( 'get_post' )->andReturn( (object) [ 'ID' => 1 ] );
 
 		\ESSF_CPT::activate();
 		$this->addToAssertionCount( 1 );

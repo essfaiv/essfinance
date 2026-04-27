@@ -79,5 +79,6 @@ class ESSF_CPT {
 	public static function activate() {
 		( new self() )->register();
 		flush_rewrite_rules();
+		ESSF_Shortcodes::create_pages();
 	}
 }

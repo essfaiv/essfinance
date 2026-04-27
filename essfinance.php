@@ -2,7 +2,7 @@
 /**
  * Plugin Name: EssFinance
  * Description: Simple personal finance management
- * Version: 0.3.2
+ * Version: 0.3.3
  * Author: EssFinance
  * Text Domain: essfinance
  * License: GPL-2.0-or-later
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ESSF_VERSION', '0.3.2' );
+define( 'ESSF_VERSION', '0.3.3' );
 define( 'ESSF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ESSF_URL', plugin_dir_url( __FILE__ ) );
 
