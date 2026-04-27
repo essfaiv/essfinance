@@ -1,0 +1,14 @@
+{
+  "name": "essfinance",
+  "description": "Simple personal finance management plugin for WordPress",
+  "license": "GPL-2.0-or-later",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test tests/e2e/visual.spec.ts",
+    "test:update-snapshots": "playwright test --update-snapshots tests/e2e/visual.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}

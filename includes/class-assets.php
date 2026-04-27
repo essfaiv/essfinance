@@ -1,4 +1,11 @@
 <?php
+/**
+ * EssFinance — Assets
+ *
+ * @package EssFinance
+ * @license GPL-2.0-or-later
+ */
+
 defined( 'ABSPATH' ) || exit;
 
 class ESSF_Assets {

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook — runs PHPCS/WPCS on staged PHP files.
+# Installed automatically via: composer install
+# Or manually: git config core.hooksPath .githooks
+#
+set -euo pipefail
+
+PHPCS="vendor/bin/phpcs"
+CONFIG="phpcs.xml.dist"
+
+# ── Collect staged PHP files (skip vendor, tests, node_modules) ───────────────
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR \
+    | grep -E "\.php$" \
+    | grep -v "^vendor/" \
+    | grep -v "^tests/" \
+    | grep -v "^node_modules/" \
+    || true)
+
+[ -z "$STAGED" ] && exit 0
+
+# ── Guard: vendor must be installed ───────────────────────────────────────────
+if [ ! -x "$PHPCS" ]; then
+    printf "\033[33m⚠  PHPCS not found. Run: composer install\033[0m\n"
+    exit 1
+fi
+
+# ── Run PHPCS ─────────────────────────────────────────────────────────────────
+printf "\033[36m▶  PHPCS/WPCS on staged files...\033[0m\n"
+# shellcheck disable=SC2086
+"$PHPCS" --standard="$CONFIG" $STAGED
+
+printf "\033[32m✔  PHPCS passed.\033[0m\n"

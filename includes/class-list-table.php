@@ -1,4 +1,11 @@
 <?php
+/**
+ * EssFinance — Admin List Table
+ *
+ * @package EssFinance
+ * @license GPL-2.0-or-later
+ */
+
 defined( 'ABSPATH' ) || exit;
 
 if ( ! class_exists( 'WP_List_Table' ) ) {
@@ -7,14 +14,17 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class ESSF_List_Table extends WP_List_Table {
 
-	private string $page_url;
+	/* @var string */
+	private $page_url;
 
 	public function __construct() {
-		parent::__construct( [
-			'singular' => 'entry',
-			'plural'   => 'entries',
-			'ajax'     => false,
-		] );
+		parent::__construct(
+			[
+				'singular' => 'entry',
+				'plural'   => 'entries',
+				'ajax'     => false,
+			]
+		);
 		$this->page_url = admin_url( 'admin.php?page=essfinance' );
 	}
 
@@ -26,7 +36,7 @@ class ESSF_List_Table extends WP_List_Table {
 			'description' => __( 'Description', 'essfinance' ),
 			'essf_type'   => __( 'Type', 'essfinance' ),
 			'essf_amount' => __( 'Amount', 'essfinance' ),
-			'essf_due'    => __( 'Due Date', 'essfinance' ),
+			'essf_due'    => __( 'Date', 'essfinance' ),
 			'essf_status' => __( 'Status', 'essfinance' ),
 		];
 	}
@@ -46,7 +56,11 @@ class ESSF_List_Table extends WP_List_Table {
 
 	public function get_bulk_actions(): array {
 		return [
-			'delete' => __( 'Delete', 'essfinance' ),
+			'mark_paid'    => __( 'Mark as Paid Today', 'essfinance' ),
+			'mark_pending' => __( 'Mark as Pending', 'essfinance' ),
+			'make_income'  => __( 'Make Income', 'essfinance' ),
+			'make_expense' => __( 'Make Expense', 'essfinance' ),
+			'delete'       => __( 'Delete', 'essfinance' ),
 		];
 	}
 
@@ -55,11 +69,11 @@ class ESSF_List_Table extends WP_List_Table {
 	public function get_views(): array {
 		$current  = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
 		$base_url = $this->page_url;
-		$today    = (string) wp_date( 'Y-m-d' );
+		$today    = (string) date_i18n( 'Y-m-d' );
 
 		$all_statuses = [ 'pending', 'paid' ];
 
-		$counts = wp_count_posts( 'essf_cashflow' );
+		$counts    = wp_count_posts( 'essf_cashflow' );
 		$all_count = 0;
 		foreach ( $all_statuses as $s ) {
 			$all_count += (int) ( $counts->$s ?? 0 );
@@ -78,18 +92,22 @@ class ESSF_List_Table extends WP_List_Table {
 		$pending_count = (int) ( $counts->pending ?? 0 );
 		$paid_count    = (int) ( $counts->paid ?? 0 );
 
-		$overdue_count = count( get_posts( [
-			'post_type'      => 'essf_cashflow',
-			'post_status'    => 'pending',
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-			'date_query'     => [
+		$overdue_count = count(
+			get_posts(
 				[
-					'column' => 'post_date_gmt',
-					'before' => $today,
-				],
-			],
-		] ) );
+					'post_type'      => 'essf_cashflow',
+					'post_status'    => 'pending',
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'date_query'     => [
+						[
+							'column' => 'post_date_gmt',
+							'before' => $today,
+						],
+					],
+				]
+			)
+		);
 
 		$status_counts = [
 			'pending' => $pending_count,
@@ -106,7 +124,7 @@ class ESSF_List_Table extends WP_List_Table {
 		foreach ( $status_labels as $status => $label ) {
 			$count = $status_counts[ $status ];
 			if ( $count > 0 ) {
-				$url = add_query_arg( 'essf_status', $status, $base_url );
+				$url              = add_query_arg( 'essf_status', $status, $base_url );
 				$views[ $status ] = sprintf(
 					'<a href="%s"%s>%s <span class="count">(%d)</span></a>',
 					esc_url( $url ),
@@ -126,10 +144,19 @@ class ESSF_List_Table extends WP_List_Table {
 		if ( 'top' !== $which ) {
 			return;
 		}
-		$current_type = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
-		$current_m    = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
+		$current_status = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
+		$current_type   = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
+		$current_m      = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
 		?>
 		<div class="alignleft actions">
+			<label for="essf_status" class="screen-reader-text"><?php esc_html_e( 'Filter by status', 'essfinance' ); ?></label>
+			<select name="essf_status" id="essf_status">
+				<option value=""><?php esc_html_e( 'All statuses', 'essfinance' ); ?></option>
+				<option value="paid" <?php selected( $current_status, 'paid' ); ?>><?php esc_html_e( 'Paid', 'essfinance' ); ?></option>
+				<option value="pending" <?php selected( $current_status, 'pending' ); ?>><?php esc_html_e( 'Pending', 'essfinance' ); ?></option>
+				<option value="overdue" <?php selected( $current_status, 'overdue' ); ?>><?php esc_html_e( 'Overdue', 'essfinance' ); ?></option>
+			</select>
+
 			<label for="essf_type" class="screen-reader-text"><?php esc_html_e( 'Filter by type', 'essfinance' ); ?></label>
 			<select name="essf_type" id="essf_type">
 				<option value=""><?php esc_html_e( 'All types', 'essfinance' ); ?></option>
@@ -162,25 +189,38 @@ class ESSF_List_Table extends WP_List_Table {
 		<?php
 	}
 
+	private function entry_order_date( WP_Post $post ): string {
+		$od = get_post_meta( $post->ID, '_order_date', true );
+		if ( $od && '0000-00-00' !== $od ) {
+			return $od;
+		}
+		$pay = substr( $post->post_modified_gmt, 0, 10 );
+		$due = substr( $post->post_date_gmt, 0, 10 );
+		$od  = ( 'paid' === $post->post_status && $pay && '0000-00-00' !== $pay ) ? $pay : $due;
+		if ( $od && '0000-00-00' !== $od ) {
+			update_post_meta( $post->ID, '_order_date', $od );
+		}
+		return $od ?: '';
+	}
+
 	private function get_due_date_months(): array {
-		$posts = get_posts( [
-			'post_type'      => 'essf_cashflow',
-			'post_status'    => [ 'pending', 'paid' ],
-			'posts_per_page' => -1,
-			'fields'         => 'ids',
-		] );
+		$posts = get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+			]
+		);
 
 		$months = [];
-		foreach ( $posts as $id ) {
-			$post = get_post( $id );
-			$due  = substr( $post->post_date_gmt, 0, 10 );
-			if ( ! $due || '0000-00-00' === $due ) {
+		foreach ( $posts as $post ) {
+			$od = $this->entry_order_date( $post );
+			if ( ! $od || '0000-00-00' === $od ) {
 				continue;
 			}
-			$ts    = strtotime( $due );
-			$ym    = (string) wp_date( 'Ym', $ts );
-			$label = (string) wp_date( 'F Y', $ts );
-			$months[ $ym ] = $label;
+			$ts            = strtotime( $od );
+			$ym            = (string) date_i18n( 'Ym', $ts );
+			$months[ $ym ] = (string) date_i18n( 'F Y', $ts );
 		}
 
 		krsort( $months );
@@ -199,9 +239,8 @@ class ESSF_List_Table extends WP_List_Table {
 		$month_filter  = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
 		$orderby       = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : '';
 		$order         = isset( $_REQUEST['order'] ) && 'asc' === strtolower( sanitize_key( $_REQUEST['order'] ) ) ? 'ASC' : 'DESC';
-		$today         = (string) wp_date( 'Y-m-d' );
+		$today         = (string) date_i18n( 'Y-m-d' );
 
-		// Determine post_status for the query.
 		if ( 'overdue' === $status_filter ) {
 			$post_statuses = [ 'pending' ];
 		} elseif ( $status_filter && array_key_exists( $status_filter, ESSF_CPT::$statuses ) ) {
@@ -217,12 +256,10 @@ class ESSF_List_Table extends WP_List_Table {
 			'paged'          => $current_page,
 		];
 
-		// Search by post_title.
 		if ( $search ) {
 			$args['s'] = $search;
 		}
 
-		// Overdue: pending entries with due date before today.
 		if ( 'overdue' === $status_filter ) {
 			$args['date_query'] = [
 				[
@@ -232,51 +269,55 @@ class ESSF_List_Table extends WP_List_Table {
 			];
 		}
 
-		// Type filter: income = positive amount, expense = negative.
-		// Handled post-query since post_content sign can't be filtered in WP_Query directly.
-		// We fetch more and filter in PHP when type filter is active.
-		if ( $type_filter ) {
+		if ( $type_filter || $month_filter ) {
 			$args['posts_per_page'] = -1;
 		}
 
-		// Month filter by post_date_gmt.
-		if ( $month_filter && preg_match( '/^\d{6}$/', $month_filter ) ) {
-			$year  = (int) substr( $month_filter, 0, 4 );
-			$month = (int) substr( $month_filter, 4, 2 );
-			$args['date_query'] = array_merge( $args['date_query'] ?? [], [
-				[
-					'column' => 'post_date_gmt',
-					'year'   => $year,
-					'month'  => $month,
-				],
-			] );
-		}
-
-		// Sorting.
 		if ( 'essf_amount' === $orderby ) {
-			// Sort by post_content (numeric).
 			$args['orderby'] = 'post_content';
 			$args['order']   = $order;
 		} elseif ( 'essf_due' === $orderby ) {
 			$args['orderby'] = 'post_date_gmt';
 			$args['order']   = $order;
 		} else {
-			$args['orderby'] = 'meta_value';
+			$args['orderby']  = 'meta_value';
 			$args['meta_key'] = '_order_date';
-			$args['order']   = 'DESC';
+			$args['order']    = 'DESC';
 		}
 
 		$query = new WP_Query( $args );
 		$posts = $query->posts;
 
-		// Type filter in PHP.
-		if ( $type_filter ) {
-			$posts = array_values( array_filter( $posts, function( $post ) use ( $type_filter ) {
-				$amount = (float) $post->post_content;
-				return 'income' === $type_filter ? $amount > 0 : $amount <= 0;
-			} ) );
-
-			$total = count( $posts );
+		if ( $type_filter || $month_filter ) {
+			if ( $type_filter ) {
+				$posts = array_values(
+					array_filter(
+						$posts,
+						function ( $post ) use ( $type_filter ) {
+							$amount = (float) $post->post_content;
+							return 'income' === $type_filter ? $amount > 0 : $amount <= 0;
+						}
+					)
+				);
+			}
+			if ( $month_filter && preg_match( '/^\d{6}$/', $month_filter ) ) {
+				$ym_prefix = substr( $month_filter, 0, 4 ) . '-' . substr( $month_filter, 4, 2 ) . '-';
+				$posts     = array_values(
+					array_filter(
+						$posts,
+						function ( $post ) use ( $ym_prefix ) {
+							$od = get_post_meta( $post->ID, '_order_date', true );
+							if ( ! $od ) {
+								$pay = substr( $post->post_modified_gmt, 0, 10 );
+								$due = substr( $post->post_date_gmt, 0, 10 );
+								$od  = ( 'paid' === $post->post_status && $pay && '0000-00-00' !== $pay ) ? $pay : $due;
+							}
+							return $od && 0 === strpos( $od, $ym_prefix );
+						}
+					)
+				);
+			}
+			$total  = count( $posts );
 			$offset = ( $current_page - 1 ) * $per_page;
 			$posts  = array_slice( $posts, $offset, $per_page );
 		} else {
@@ -285,11 +326,13 @@ class ESSF_List_Table extends WP_List_Table {
 
 		$this->items = $posts;
 
-		$this->set_pagination_args( [
-			'total_items' => $total,
-			'per_page'    => $per_page,
-			'total_pages' => (int) ceil( $total / $per_page ),
-		] );
+		$this->set_pagination_args(
+			[
+				'total_items' => $total,
+				'per_page'    => $per_page,
+				'total_pages' => (int) ceil( $total / $per_page ),
+			]
+		);
 
 		$this->_column_headers = [
 			$this->get_columns(),
@@ -306,15 +349,67 @@ class ESSF_List_Table extends WP_List_Table {
 	}
 
 	public function column_description( $item ): string {
-		$edit_url   = add_query_arg( [ 'page' => 'essfinance', 'entry' => $item->ID ], admin_url( 'admin.php' ) );
+		$amount = (float) $item->post_content;
+		$is_inc = $amount > 0;
+
+		$edit_url = add_query_arg(
+			[
+				'page'  => 'essfinance',
+				'entry' => $item->ID,
+			],
+			admin_url( 'admin.php' )
+		);
+
+		$paid_today_url = wp_nonce_url(
+			add_query_arg(
+				[
+					'action' => 'essf_paid_today',
+					'entry'  => $item->ID,
+				],
+				admin_url( 'admin-post.php' )
+			),
+			'essf_paid_today_' . $item->ID
+		);
+
+		$paid_date_url = add_query_arg(
+			[
+				'page'       => 'essfinance',
+				'entry'      => $item->ID,
+				'essf_focus' => 'pay_date',
+			],
+			admin_url( 'admin.php' )
+		);
+
+		$toggle_url = wp_nonce_url(
+			add_query_arg(
+				[
+					'action' => 'essf_toggle_type',
+					'entry'  => $item->ID,
+				],
+				admin_url( 'admin-post.php' )
+			),
+			'essf_toggle_type_' . $item->ID
+		);
+
 		$delete_url = wp_nonce_url(
-			add_query_arg( [ 'action' => 'essf_delete', 'entry' => $item->ID ], admin_url( 'admin-post.php' ) ),
+			add_query_arg(
+				[
+					'action' => 'essf_delete',
+					'entry'  => $item->ID,
+				],
+				admin_url( 'admin-post.php' )
+			),
 			'essf_delete_' . $item->ID
 		);
 
 		$actions = [
-			'edit'   => '<a href="' . esc_url( $edit_url ) . '">' . __( 'Edit', 'essfinance' ) . '</a>',
-			'delete' => '<a href="' . esc_url( $delete_url ) . '" class="submitdelete" onclick="return confirm(\'' . esc_js( __( 'Delete this entry? This cannot be undone.', 'essfinance' ) ) . '\')">' . __( 'Delete', 'essfinance' ) . '</a>',
+			'edit'        => '<a href="' . esc_url( $edit_url ) . '">' . __( 'Edit', 'essfinance' ) . '</a>',
+			'paid_today'  => '<a href="' . esc_url( $paid_today_url ) . '">' . __( 'Paid Today', 'essfinance' ) . '</a>',
+			'paid_date'   => '<a href="' . esc_url( $paid_date_url ) . '">' . __( 'Paid Date', 'essfinance' ) . '</a>',
+			'toggle_type' => $is_inc
+				? '<a href="' . esc_url( $toggle_url ) . '">' . __( 'Make Expense', 'essfinance' ) . '</a>'
+				: '<a href="' . esc_url( $toggle_url ) . '">' . __( 'Make Income', 'essfinance' ) . '</a>',
+			'delete'      => '<a href="' . esc_url( $delete_url ) . '" class="submitdelete" onclick="return confirm(\'' . esc_js( __( 'Delete this entry? This cannot be undone.', 'essfinance' ) ) . '\')">' . __( 'Delete', 'essfinance' ) . '</a>',
 		];
 
 		return '<strong><a href="' . esc_url( $edit_url ) . '">' . esc_html( $item->post_title ) . '</a></strong>'
@@ -332,7 +427,7 @@ class ESSF_List_Table extends WP_List_Table {
 		$amount    = (float) $item->post_content;
 		$is_inc    = $amount > 0;
 		$sign      = $is_inc ? '+' : ( ESSF_Settings::show_negative_prefix() ? '−' : '' );
-		$formatted = esc_html( $sign . self::format_amount( $amount ) );
+		$formatted = esc_html( $sign . ESSF_Settings::format_amount( $amount ) );
 
 		if ( ESSF_Settings::show_amount_colors() ) {
 			$cls = $is_inc ? 'essf-amount--income' : 'essf-amount--expense';
@@ -343,12 +438,20 @@ class ESSF_List_Table extends WP_List_Table {
 	}
 
 	public function column_essf_due( $item ): string {
-		$d = substr( $item->post_date_gmt, 0, 10 );
-		return ( $d && '0000-00-00' !== $d ) ? esc_html( (string) wp_date( 'd/m/Y', strtotime( $d ) ) ) : '—';
+		$pay = substr( $item->post_modified_gmt, 0, 10 );
+		$due = substr( $item->post_date_gmt, 0, 10 );
+
+		if ( $pay && '0000-00-00' !== $pay ) {
+			return esc_html( (string) date_i18n( 'd/m/Y', strtotime( $pay ) ) );
+		}
+		if ( $due && '0000-00-00' !== $due ) {
+			return esc_html( (string) date_i18n( 'd/m/Y', strtotime( $due ) ) );
+		}
+		return '—';
 	}
 
 	public function column_essf_status( $item ): string {
-		$today  = (string) wp_date( 'Y-m-d' );
+		$today  = (string) date_i18n( 'Y-m-d' );
 		$status = $item->post_status;
 		$due    = substr( $item->post_date_gmt, 0, 10 );
 
@@ -367,11 +470,5 @@ class ESSF_List_Table extends WP_List_Table {
 		}
 
 		return esc_html( $label );
-	}
-
-	/* ── Helpers ────────────────────────────────────────── */
-
-	private static function format_amount( float $n ): string {
-		return number_format( abs( $n ), 2, '.', ',' );
 	}
 }

@@ -1,4 +1,11 @@
 <?php
+/**
+ * EssFinance — Meta Boxes
+ *
+ * @package EssFinance
+ * @license GPL-2.0-or-later
+ */
+
 defined( 'ABSPATH' ) || exit;
 
 class ESSF_Meta_Boxes {
@@ -80,7 +87,7 @@ class ESSF_Meta_Boxes {
 	}
 
 	public function save( $post_id ) {
-		if ( ! isset( $_POST[ self::NONCE ] ) || ! wp_verify_nonce( wp_unslash( $_POST[ self::NONCE ] ), self::NONCE ) ) {
+		if ( ! isset( $_POST[ self::NONCE ] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE ] ) ), self::NONCE ) ) {
 			return;
 		}
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
@@ -91,8 +98,8 @@ class ESSF_Meta_Boxes {
 		}
 
 		$desc      = sanitize_text_field( wp_unslash( $_POST['essf_description'] ?? '' ) );
-		$amount_in = (float) wp_unslash( $_POST['essf_amount'] ?? 0 );
-		$is_income = isset( $_POST['essf_is_income'] ) && '1' === wp_unslash( $_POST['essf_is_income'] );
+		$amount_in = (float) sanitize_text_field( wp_unslash( $_POST['essf_amount'] ?? '' ) );
+		$is_income = isset( $_POST['essf_is_income'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['essf_is_income'] ) );
 		$amount    = $is_income ? abs( $amount_in ) : -abs( $amount_in );
 
 		$due_raw = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
