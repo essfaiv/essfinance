@@ -344,8 +344,9 @@ class ESSF_List_Table extends WP_List_Table {
 
 	/* ── Column renderers ───────────────────────────────── */
 
+	/** @param WP_Post $item */
 	public function column_cb( $item ): string {
-		return '<input type="checkbox" name="entries[]" value="' . esc_attr( $item->ID ) . '">';
+		return '<input type="checkbox" name="entries[]" value="' . esc_attr( (string) $item->ID ) . '">';
 	}
 
 	public function column_description( $item ): string {

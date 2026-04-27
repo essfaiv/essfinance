@@ -647,7 +647,7 @@ class ESSF_Settings {
 		?>
 		<input name="<?php echo esc_attr( self::OPTION_NUM_DECIMALS ); ?>"
 			id="<?php echo esc_attr( self::OPTION_NUM_DECIMALS ); ?>"
-			type="number" style="width:50px;" value="<?php echo esc_attr( $value ); ?>"
+			type="number" style="width:50px;" value="<?php echo esc_attr( (string) $value ); ?>"
 			min="0" step="1" placeholder="">
 		<?php
 	}

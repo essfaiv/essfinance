@@ -12,6 +12,7 @@
     <exclude-pattern>assets/</exclude-pattern>
     <exclude-pattern>node_modules/</exclude-pattern>
     <exclude-pattern>bin/</exclude-pattern>
+    <exclude-pattern>phpstan-bootstrap.php</exclude-pattern>
 
     <arg name="extensions" value="php"/>
     <arg name="colors"/>
@@ -67,6 +68,9 @@
 
         <!-- @var type-hint block comments trigger false-positive "commented out code" warnings. -->
         <exclude name="Squiz.PHP.CommentedOutCode.Found"/>
+
+        <!-- Single-purpose @var/@param docblocks don't need a separate short description. -->
+        <exclude name="Generic.Commenting.DocComment.MissingShort"/>
     </rule>
 
     <!-- Enforce correct text domain (PHPCS 3.3+ array element syntax). -->

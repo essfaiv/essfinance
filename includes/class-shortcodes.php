@@ -957,7 +957,7 @@ class ESSF_Shortcodes {
 		$sign      = ( $is_income && $show_pos_prefix ) ? '+' : ( ! $is_income && $show_neg_prefix ? '−' : '' );
 		?>
 		<tr class="essf-row essf-status-<?php echo esc_attr( $display_status ); ?> essf-type-<?php echo $is_income ? 'income' : 'expense'; ?>">
-			<td class="essf-cb"><input type="checkbox" name="entries[]" value="<?php echo esc_attr( $entry->ID ); ?>"></td>
+			<td class="essf-cb"><input type="checkbox" name="entries[]" value="<?php echo esc_attr( (string) $entry->ID ); ?>"></td>
 			<td>
 				<?php echo esc_html( $entry->post_title ); ?>
 				<div class="essf-row-actions">
@@ -998,7 +998,7 @@ class ESSF_Shortcodes {
 				<?php wp_nonce_field( 'essf_save_entry' ); ?>
 				<input type="hidden" name="essf_action" value="<?php echo $is_edit ? 'edit_entry' : 'add_entry'; ?>">
 				<?php if ( $is_edit ) : ?>
-					<input type="hidden" name="essf_entry_id" value="<?php echo esc_attr( $entry->ID ); ?>">
+					<input type="hidden" name="essf_entry_id" value="<?php echo esc_attr( (string) $entry->ID ); ?>">
 				<?php endif; ?>
 				<p><label><?php esc_html_e( 'Description', 'essfinance' ); ?><br>
 				<input type="text" name="essf_description" value="<?php echo esc_attr( $entry ? $entry->post_title : '' ); ?>" required></label></p>

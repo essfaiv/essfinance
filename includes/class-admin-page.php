@@ -82,6 +82,7 @@ class ESSF_Admin_Page {
 				'option'  => 'essf_entries_per_page',
 			]
 		);
+		// phpstan-ignore-next-line -- register_column_headers() accepts WP_Screen; stubs incorrectly type it as string
 		register_column_headers( $screen, ( new ESSF_List_Table() )->get_columns() );
 		add_filter(
 			'default_hidden_columns',
@@ -795,7 +796,7 @@ class ESSF_Admin_Page {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="<?php echo esc_attr( $form_action ); ?>">
 				<?php if ( $is_edit ) : ?>
-					<input type="hidden" name="entry_id" value="<?php echo esc_attr( $entry->ID ); ?>">
+					<input type="hidden" name="entry_id" value="<?php echo esc_attr( (string) $entry->ID ); ?>">
 				<?php endif; ?>
 				<?php wp_nonce_field( $nonce_action ); ?>
 

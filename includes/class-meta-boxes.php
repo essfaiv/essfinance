@@ -62,7 +62,7 @@ class ESSF_Meta_Boxes {
 				<div class="essf-field essf-field--amount">
 					<label for="essf_amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
 					<input type="number" id="essf_amount" name="essf_amount"
-						value="<?php echo esc_attr( abs( $amount ) ); ?>" step="0.01" min="0" placeholder="0.00">
+						value="<?php echo esc_attr( (string) abs( $amount ) ); ?>" step="0.01" min="0" placeholder="0.00">
 				</div>
 				<div class="essf-field essf-field--income-check">
 					<label class="essf-income-label">
