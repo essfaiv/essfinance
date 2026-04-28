@@ -16,9 +16,6 @@ parameters:
         maximumNumberOfProcesses: 1
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
-        # null parent_slug is a valid WP pattern to register a hidden admin page
-        - message: '#Parameter \#1 \$parent_slug of function add_submenu_page expects string, null given#'
-          path: includes/class-settings.php
         # wp_insert_post() can return WP_Error; szepeviktor/phpstan-wordpress extension narrows too aggressively
         - message: '#is_wp_error\(int<1, max>\) will always evaluate to false#'
           path: includes/class-shortcodes.php
