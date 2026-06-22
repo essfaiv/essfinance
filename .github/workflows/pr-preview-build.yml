@@ -1,0 +1,14 @@
+name: PR Preview - Build
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+jobs:
+  build:
+    uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@v3
+    with:
+      artifacts: plugin-zip=build/essfinance.zip
+      build-command: |
+        mkdir -p build/essfinance
+        rsync -r --exclude='.git/' --exclude='.github/' --exclude='*.zip' \
+          . build/essfinance/
+        (cd build && zip -r essfinance.zip essfinance)

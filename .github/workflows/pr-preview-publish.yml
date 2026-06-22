@@ -1,0 +1,40 @@
+name: PR Preview - Publish
+on:
+  workflow_run:
+    workflows: ["PR Preview - Build"]
+    types: [completed]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  publish:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-publish.yml@v3
+    with:
+      blueprint: |
+        {
+          "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+          "preferredVersions": { "php": "8.2", "wp": "latest" },
+          "features": { "networking": true },
+          "steps": [
+            { "step": "login", "username": "admin", "password": "password" },
+            {
+              "step": "installPlugin",
+              "pluginData": { "resource": "url", "url": "{{ARTIFACT_URL:plugin-zip}}" },
+              "options": { "activate": true }
+            },
+            {
+              "step": "importWxr",
+              "file": {
+                "resource": "url",
+                "url": "https://raw.githubusercontent.com/essfaiv/essfinance/main/sample-data.xml"
+              }
+            },
+            {
+              "step": "runPHP",
+              "code": "<?php require '/wordpress/wp-load.php'; $id = (int) get_option('essf_cashflow_page_id'); wp_safe_redirect( $id ? get_permalink( $id ) : home_url() ); exit;"
+            }
+          ]
+        }
