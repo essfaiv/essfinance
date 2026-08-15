@@ -70,6 +70,7 @@ if ( ! class_exists( 'WP_Post' ) ) {
 // ── Load plugin includes (order matters — dependencies first) ─────────────────
 
 require_once ESSF_PATH . 'includes/class-cpt.php';
+require_once ESSF_PATH . 'includes/class-category.php';
 require_once ESSF_PATH . 'includes/class-ofx-parser.php';
 require_once ESSF_PATH . 'includes/class-ofx-suggestions.php';
 require_once ESSF_PATH . 'includes/class-settings.php';

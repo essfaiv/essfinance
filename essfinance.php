@@ -39,12 +39,14 @@ if ( file_exists( $_essf_selfdirectory ) ) {
 unset( $_essf_selfdirectory );
 
 require_once ESSF_PATH . 'includes/class-cpt.php';
+require_once ESSF_PATH . 'includes/class-category.php';
 require_once ESSF_PATH . 'includes/class-ofx-parser.php';
 require_once ESSF_PATH . 'includes/class-ofx-suggestions.php';
 require_once ESSF_PATH . 'includes/class-settings.php';
 require_once ESSF_PATH . 'includes/class-shortcodes.php';
 
 register_activation_hook( __FILE__, [ 'ESSF_CPT', 'activate' ] );
+register_activation_hook( __FILE__, [ 'ESSF_Category', 'activate' ] );
 
 add_action( 'plugins_loaded', 'essf_boot' );
 
@@ -53,6 +55,7 @@ function essf_boot() {
 	load_plugin_textdomain( 'essfinance', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 	new ESSF_CPT();
+	new ESSF_Category();
 	new ESSF_Shortcodes();
 
 	if ( is_admin() ) {
