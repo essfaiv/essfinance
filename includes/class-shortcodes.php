@@ -152,6 +152,7 @@ class ESSF_Shortcodes {
 		$status      = array_key_exists( $status_raw, ESSF_CPT::$statuses ) ? $status_raw : 'pending';
 		$due_raw     = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
 		$pay_raw     = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
+		$category    = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
 
 		$amount  = $is_income ? abs( $amount ) : -abs( $amount );
 		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
@@ -187,6 +188,7 @@ class ESSF_Shortcodes {
 
 			$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
 			update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
+			wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
 
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'updated', self::get_cashflow_url() ) );
 		} else {
@@ -214,6 +216,7 @@ class ESSF_Shortcodes {
 				);
 				$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
 				update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
+				wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
 			}
 
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'added', self::get_cashflow_url() ) );
@@ -375,11 +378,17 @@ class ESSF_Shortcodes {
 				case 'delete':
 					wp_delete_post( $post_id, true );
 					break;
+				case 'set_category':
+					$bulk_category = sanitize_key( wp_unslash( $_POST['essf_bulk_category'] ?? '' ) );
+					if ( $bulk_category ) {
+						wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $bulk_category ) ], ESSF_Category::TAXONOMY );
+					}
+					break;
 			}
 		}
 
 		$carry = [];
-		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'paged', 'essf_search' ] as $key ) {
+		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'essf_cat', 'paged', 'essf_search' ] as $key ) {
 			$val = sanitize_key( wp_unslash( $_POST[ $key ] ?? '' ) );
 			if ( '' !== $val ) {
 				$carry[ $key ] = $val;
@@ -629,6 +638,7 @@ class ESSF_Shortcodes {
 		$status_filter = sanitize_key( wp_unslash( $_GET['essf_status'] ?? '' ) );
 		$type_filter   = sanitize_key( wp_unslash( $_GET['essf_type'] ?? '' ) );
 		$month_filter  = sanitize_key( wp_unslash( $_GET['essf_m'] ?? '' ) );
+		$cat_filter    = sanitize_key( wp_unslash( $_GET['essf_cat'] ?? '' ) );
 		$search        = sanitize_text_field( wp_unslash( $_GET['essf_search'] ?? '' ) );
 		$msg           = sanitize_key( wp_unslash( $_GET['essf_msg'] ?? '' ) );
 		$imported      = isset( $_GET['essf_imported'] ) ? (int) $_GET['essf_imported'] : -1;
@@ -654,6 +664,15 @@ class ESSF_Shortcodes {
 		];
 		if ( $search ) {
 			$query_args['s'] = $search;
+		}
+		if ( $cat_filter ) {
+			$query_args['tax_query'] = [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => ESSF_Category::TAXONOMY,
+					'field'    => 'slug',
+					'terms'    => [ $cat_filter ],
+				],
+			];
 		}
 
 		$query = new WP_Query( $query_args );
@@ -742,6 +761,7 @@ class ESSF_Shortcodes {
 						<input type="hidden" name="essf_status" value="<?php echo esc_attr( $status_filter ); ?>">
 						<input type="hidden" name="essf_type" value="<?php echo esc_attr( $type_filter ); ?>">
 						<input type="hidden" name="essf_m" value="<?php echo esc_attr( $month_filter ); ?>">
+						<input type="hidden" name="essf_cat" value="<?php echo esc_attr( $cat_filter ); ?>">
 						<input type="search" name="essf_search" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search entries…', 'essfinance' ); ?>">
 						<button type="submit" class="essf-btn essf-btn-secondary"><?php esc_html_e( 'Search', 'essfinance' ); ?></button>
 						<?php if ( $search ) : ?>
@@ -753,6 +773,7 @@ class ESSF_Shortcodes {
 						<div class="essf-col-menu" id="essf-col-menu">
 							<label><input type="checkbox" value="date"> <?php esc_html_e( 'Date', 'essfinance' ); ?></label>
 							<label><input type="checkbox" value="type"> <?php esc_html_e( 'Type', 'essfinance' ); ?></label>
+							<label><input type="checkbox" value="category"> <?php esc_html_e( 'Category', 'essfinance' ); ?></label>
 							<label><input type="checkbox" value="status"> <?php esc_html_e( 'Status', 'essfinance' ); ?></label>
 							<label><input type="checkbox" value="amount"> <?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
 						</div>
@@ -769,6 +790,7 @@ class ESSF_Shortcodes {
 					<input type="hidden" name="essf_status" value="<?php echo esc_attr( $status_filter ); ?>">
 					<input type="hidden" name="essf_type" value="<?php echo esc_attr( $type_filter ); ?>">
 					<input type="hidden" name="essf_m" value="<?php echo esc_attr( $month_filter ); ?>">
+					<input type="hidden" name="essf_cat" value="<?php echo esc_attr( $cat_filter ); ?>">
 					<input type="hidden" name="essf_search" value="<?php echo esc_attr( $search ); ?>">
 					<input type="hidden" name="paged" value="<?php echo esc_attr( (string) $paged ); ?>">
 					<div class="essf-toolbar-row essf-toolbar-row2">
@@ -779,7 +801,13 @@ class ESSF_Shortcodes {
 								<option value="mark_pending"><?php esc_html_e( 'Mark as Pending', 'essfinance' ); ?></option>
 								<option value="make_income"><?php esc_html_e( 'Make Income', 'essfinance' ); ?></option>
 								<option value="make_expense"><?php esc_html_e( 'Make Expense', 'essfinance' ); ?></option>
+								<option value="set_category"><?php esc_html_e( 'Set Category', 'essfinance' ); ?></option>
 								<option value="delete"><?php esc_html_e( 'Delete', 'essfinance' ); ?></option>
+							</select>
+							<select name="essf_bulk_category">
+								<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
+									<option value="<?php echo esc_attr( $term->slug ); ?>"><?php echo esc_html( $term->name ); ?></option>
+								<?php endforeach; ?>
 							</select>
 							<button type="submit" class="essf-btn essf-btn-secondary"><?php esc_html_e( 'Apply', 'essfinance' ); ?></button>
 						</div>
@@ -804,6 +832,13 @@ class ESSF_Shortcodes {
 										'expense' => __( 'Expense', 'essfinance' ),
 									]
 								); ?>
+								<?php
+								$cat_options = [ '' => __( 'All categories', 'essfinance' ) ];
+								foreach ( ESSF_Category::get_ordered_terms() as $term ) {
+									$cat_options[ $term->slug ] = $term->name;
+								}
+								$this->render_filter_select( 'essf_cat', $cat_filter, $cat_options );
+								?>
 								<?php if ( ! empty( $months ) ) : ?>
 									<?php $this->render_filter_select(
 										'essf_m',
@@ -822,6 +857,7 @@ class ESSF_Shortcodes {
 								<th class="essf-cb"><input type="checkbox" id="essf-check-all"></th>
 								<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
 								<th data-col="type"><?php esc_html_e( 'Type', 'essfinance' ); ?></th>
+								<th data-col="category"><?php esc_html_e( 'Category', 'essfinance' ); ?></th>
 								<th data-col="amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></th>
 								<th data-col="date"><?php esc_html_e( 'Date', 'essfinance' ); ?></th>
 								<th data-col="status"><?php esc_html_e( 'Status', 'essfinance' ); ?></th>
@@ -839,7 +875,7 @@ class ESSF_Shortcodes {
 				</form>
 				<script>
 				(function(){
-					var COLS = ['date','type','status','amount'];
+					var COLS = ['date','type','category','status','amount'];
 					var DEFAULT_HIDDEN = ['type'];
 					var KEY = 'essf_hidden_cols';
 					function getHidden(){try{return JSON.parse(localStorage.getItem(KEY))||DEFAULT_HIDDEN;}catch(e){return DEFAULT_HIDDEN;}}
@@ -953,8 +989,9 @@ class ESSF_Shortcodes {
 			'essf_paid_today_' . $entry->ID
 		);
 
-		$icon_html = $show_icons ? ESSF_Settings::status_icon( $display_status ) : '';
-		$sign      = ( $is_income && $show_pos_prefix ) ? '+' : ( ! $is_income && $show_neg_prefix ? '−' : '' );
+		$icon_html     = $show_icons ? ESSF_Settings::status_icon( $display_status ) : '';
+		$sign          = ( $is_income && $show_pos_prefix ) ? '+' : ( ! $is_income && $show_neg_prefix ? '−' : '' );
+		$category_name = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'names' ] )[0] ?? __( 'Uncategorized', 'essfinance' );
 		?>
 		<tr class="essf-row essf-status-<?php echo esc_attr( $display_status ); ?> essf-type-<?php echo $is_income ? 'income' : 'expense'; ?>">
 			<td class="essf-cb"><input type="checkbox" name="entries[]" value="<?php echo esc_attr( (string) $entry->ID ); ?>"></td>
@@ -969,6 +1006,7 @@ class ESSF_Shortcodes {
 				</div>
 			</td>
 			<td data-col="type"><?php echo $is_income ? esc_html__( 'Income', 'essfinance' ) : esc_html__( 'Expense', 'essfinance' ); ?></td>
+			<td data-col="category"><?php echo esc_html( $category_name ); ?></td>
 			<td data-col="amount" class="essf-amount"><?php echo esc_html( $sign . ESSF_Settings::format_amount( $amount ) ); ?></td>
 			<td data-col="date"><?php echo esc_html( $date ); ?></td>
 			<td data-col="status"><span class="essf-status">
@@ -986,6 +1024,11 @@ class ESSF_Shortcodes {
 		$status_val = $entry ? $entry->post_status : 'pending';
 		$due_val    = ( $entry && '0000-00-00' !== substr( $entry->post_date_gmt, 0, 10 ) ) ? substr( $entry->post_date_gmt, 0, 10 ) : '';
 		$pay_val    = ( $entry && '0000-00-00' !== substr( $entry->post_modified_gmt, 0, 10 ) ) ? substr( $entry->post_modified_gmt, 0, 10 ) : '';
+		$cat_val    = 'uncategorized';
+		if ( $entry ) {
+			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
+			$cat_val     = $entry_terms[0] ?? 'uncategorized';
+		}
 
 		if ( 'pay_date' === $focus ) {
 			$pay_val    = gmdate( 'Y-m-d' );
@@ -1020,6 +1063,12 @@ class ESSF_Shortcodes {
 				<select name="essf_status">
 					<?php foreach ( ESSF_CPT::$statuses as $val => $label ) : ?>
 						<option value="<?php echo esc_attr( $val ); ?>"<?php selected( $status_val, $val ); ?>><?php echo esc_html( $label ); ?></option>
+					<?php endforeach; ?>
+				</select></label></p>
+				<p><label><?php esc_html_e( 'Category', 'essfinance' ); ?><br>
+				<select name="essf_category">
+					<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
+						<option value="<?php echo esc_attr( $term->slug ); ?>"<?php selected( $cat_val, $term->slug ); ?>><?php echo esc_html( $term->name ); ?></option>
 					<?php endforeach; ?>
 				</select></label></p>
 				<p class="essf-form-actions">
@@ -1061,13 +1110,14 @@ class ESSF_Shortcodes {
 		header( 'Expires: 0' );
 
 		$out = fopen( 'php://output', 'w' );
-		fputcsv( $out, [ 'due_date', 'pay_date', 'description', 'type', 'amount', 'status' ] );
+		fputcsv( $out, [ 'due_date', 'pay_date', 'description', 'type', 'amount', 'status', 'category' ] );
 
 		foreach ( $query->posts as $entry ) {
 			$amount    = (float) $entry->post_content;
 			$is_income = $amount >= 0;
 			$due_date  = '0000-00-00' !== substr( $entry->post_date_gmt, 0, 10 ) ? substr( $entry->post_date_gmt, 0, 10 ) : '';
 			$pay_date  = '0000-00-00' !== substr( $entry->post_modified_gmt, 0, 10 ) ? substr( $entry->post_modified_gmt, 0, 10 ) : '';
+			$cat_slugs = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
 			fputcsv(
 				$out,
 				[
@@ -1077,6 +1127,7 @@ class ESSF_Shortcodes {
 					$is_income ? 'income' : 'expense',
 					abs( $amount ),
 					$entry->post_status,
+					$cat_slugs[0] ?? 'uncategorized',
 				]
 			);
 		}
@@ -1174,6 +1225,8 @@ class ESSF_Shortcodes {
 
 			$due_raw   = isset( $col['due_date'] ) ? trim( $row[ $col['due_date'] ] ?? '' ) : '';
 			$pay_raw   = isset( $col['pay_date'] ) ? trim( $row[ $col['pay_date'] ] ?? '' ) : '';
+			$cat_raw   = isset( $col['category'] ) ? sanitize_key( trim( $row[ $col['category'] ] ?? '' ) ) : '';
+			$category  = ( $cat_raw && get_term_by( 'slug', $cat_raw, ESSF_Category::TAXONOMY ) ) ? $cat_raw : 'uncategorized';
 			$due_dt    = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
 			$pay_dt    = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
 			$due_gmt   = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
@@ -1196,6 +1249,7 @@ class ESSF_Shortcodes {
 				$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => $pay_gmt ], [ 'ID' => $post_id ], [ '%s' ], [ '%d' ] );
 				$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
 				update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
+				wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
 				++$imported;
 			}
 		}
@@ -1219,7 +1273,7 @@ class ESSF_Shortcodes {
 			<?php if ( $error && isset( $error_messages[ $error ] ) ) : ?>
 				<div class="essf-notice essf-error"><?php echo esc_html( $error_messages[ $error ] ); ?></div>
 			<?php endif; ?>
-			<p><?php esc_html_e( 'Upload a CSV with columns: due_date, pay_date, description, type (income/expense), amount, status.', 'essfinance' ); ?></p>
+			<p><?php esc_html_e( 'Upload a CSV with columns: due_date, pay_date, description, type (income/expense), amount, status, category (optional).', 'essfinance' ); ?></p>
 			<form method="post" enctype="multipart/form-data" class="essf-form">
 				<?php wp_nonce_field( 'essf_import' ); ?>
 				<input type="hidden" name="essf_action" value="import">
@@ -1236,7 +1290,7 @@ class ESSF_Shortcodes {
 
 	private function cashflow_url_with_filters( array $extra = [] ): string {
 		$carry = [];
-		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'paged', 'essf_search' ] as $key ) {
+		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'essf_cat', 'paged', 'essf_search' ] as $key ) {
 			$val = sanitize_key( wp_unslash( $_GET[ $key ] ?? '' ) );
 			if ( '' !== $val ) {
 				$carry[ $key ] = $val;
