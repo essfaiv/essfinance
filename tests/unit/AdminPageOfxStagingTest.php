@@ -88,6 +88,16 @@ class AdminPageOfxStagingTest extends TestCase {
 		$this->assertNull( $result['rows'][0]['possible_duplicate'] );
 	}
 
+	public function test_build_stage_rows_defaults_category_to_uncategorized(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN020', 'amount' => -20.0, 'due_date' => '2026-08-01', 'name' => '', 'memo' => 'Pix enviado' ],
+		];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [] );
+
+		$this->assertSame( 'uncategorized', $result['rows'][0]['category'] );
+	}
+
 	public function test_build_stage_rows_resolves_description_via_parse_boleto(): void {
 		$transactions = [
 			[
@@ -191,6 +201,33 @@ class AdminPageOfxStagingTest extends TestCase {
 		$result = \ESSF_Admin_Page::resolve_ofx_confirm_rows( $staged, $posted );
 
 		$this->assertSame( 'Pix enviado', $result['insert'][0]['description'] );
+	}
+
+	public function test_resolve_confirm_rows_uses_posted_category(): void {
+		$staged = [ [ 'description' => 'Pix enviado', 'amount' => -10.0, 'category' => 'uncategorized' ] ];
+		$posted = [ [ 'include' => '1', 'description' => 'Pix enviado', 'category' => 'groceries' ] ];
+
+		$result = \ESSF_Admin_Page::resolve_ofx_confirm_rows( $staged, $posted );
+
+		$this->assertSame( 'groceries', $result['insert'][0]['category'] );
+	}
+
+	public function test_resolve_confirm_rows_falls_back_to_staged_category_when_blank(): void {
+		$staged = [ [ 'description' => 'Pix enviado', 'amount' => -10.0, 'category' => 'groceries' ] ];
+		$posted = [ [ 'include' => '1', 'description' => 'Pix enviado', 'category' => '' ] ];
+
+		$result = \ESSF_Admin_Page::resolve_ofx_confirm_rows( $staged, $posted );
+
+		$this->assertSame( 'groceries', $result['insert'][0]['category'] );
+	}
+
+	public function test_resolve_confirm_rows_falls_back_to_uncategorized_when_staged_row_has_no_category(): void {
+		$staged = [ [ 'description' => 'Pix enviado', 'amount' => -10.0 ] ];
+		$posted = [ [ 'include' => '1', 'description' => 'Pix enviado' ] ];
+
+		$result = \ESSF_Admin_Page::resolve_ofx_confirm_rows( $staged, $posted );
+
+		$this->assertSame( 'uncategorized', $result['insert'][0]['category'] );
 	}
 
 	public function test_resolve_confirm_rows_round_trip_matches_staged_count_minus_excluded(): void {

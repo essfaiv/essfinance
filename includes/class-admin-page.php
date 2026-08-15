@@ -590,6 +590,7 @@ class ESSF_Admin_Page {
 				'name'               => $name,
 				'memo'               => $memo,
 				'description'        => $description,
+				'category'           => 'uncategorized',
 				'transfer_detail'    => $transfer['detail'] ?? '',
 				'possible_duplicate' => self::find_possible_duplicate( $amount, $due_date, $amount_index ),
 				'suggested_exclude'  => ESSF_OFX_Suggestions::matches_excluded( $name ?: $memo, $excluded_memos ),
@@ -669,6 +670,41 @@ class ESSF_Admin_Page {
 		return $history;
 	}
 
+	/**
+	 * Prior OFX memo→category history used to power review-page category
+	 * suggestions — same shape as ofx_memo_history(), but 'title' holds the
+	 * post's category term name instead of its post_title, so the generic
+	 * ESSF_OFX_Suggestions::suggest() ranking can be reused unmodified.
+	 *
+	 * @return array<int, array{memo: string, title: string, date: string}>
+	 */
+	private function ofx_category_history(): array {
+		$posts = get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+				'meta_key'       => '_essf_ofx_memo',
+			]
+		);
+
+		$history = [];
+		foreach ( $posts as $post ) {
+			$memo = get_post_meta( $post->ID, '_essf_ofx_memo', true );
+			if ( ! $memo ) {
+				continue;
+			}
+			$terms     = wp_get_post_terms( $post->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'names' ] );
+			$history[] = [
+				'memo'  => $memo,
+				'title' => $terms[0] ?? __( 'Uncategorized', 'essfinance' ),
+				'date'  => (string) get_post_meta( $post->ID, '_order_date', true ),
+			];
+		}
+
+		return $history;
+	}
+
 	private static function review_transient_key( string $token ): string {
 		return 'essf_ofx_review_' . $token;
 	}
@@ -731,12 +767,13 @@ class ESSF_Admin_Page {
 		$imported = 0;
 		foreach ( $resolved['insert'] as $row ) {
 			$description = sanitize_text_field( $row['description'] );
+			$category    = sanitize_key( $row['category'] );
 			$due_dt      = $row['due_date'] ? DateTime::createFromFormat( 'Y-m-d', $row['due_date'] ) : false;
 			$due_gmt     = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
 			// A bank statement transaction has already cleared, so OFX
 			// imports always land paid — there's no pending state to review.
-			$post_id = $this->insert_entry( $description, (float) $row['amount'], $due_gmt, $due_gmt, 'paid' );
+			$post_id = $this->insert_entry( $description, (float) $row['amount'], $due_gmt, $due_gmt, 'paid', $category );
 			if ( ! $post_id ) {
 				continue;
 			}
@@ -796,7 +833,18 @@ class ESSF_Admin_Page {
 				$description = $row['description'];
 			}
 
-			$to_insert[] = array_merge( $row, [ 'description' => $description ] );
+			$category = trim( (string) ( $posted['category'] ?? '' ) );
+			if ( '' === $category ) {
+				$category = $row['category'] ?? 'uncategorized';
+			}
+
+			$to_insert[] = array_merge(
+				$row,
+				[
+					'description' => $description,
+					'category'    => $category,
+				]
+			);
 		}
 
 		return [
@@ -1273,8 +1321,10 @@ class ESSF_Admin_Page {
 	 * @param array  $staged Transient payload: user_id, skipped, rows.
 	 */
 	private function render_review_page( string $token, array $staged ): void {
-		$back_url = admin_url( 'admin.php?page=essfinance' );
-		$history  = $this->ofx_memo_history();
+		$back_url    = admin_url( 'admin.php?page=essfinance' );
+		$history     = $this->ofx_memo_history();
+		$cat_history = $this->ofx_category_history();
+		$cat_terms   = ESSF_Category::get_ordered_terms();
 
 		// The From/To pickers are only worth showing (and only get a real
 		// min/max) when the batch actually spans more than one date — a
@@ -1346,16 +1396,27 @@ class ESSF_Admin_Page {
 									<th><?php esc_html_e( 'Date', 'essfinance' ); ?></th>
 									<th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th>
 									<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
+									<th><?php esc_html_e( 'Category', 'essfinance' ); ?></th>
 								</tr>
 							</thead>
 							<tbody>
 								<?php foreach ( $staged['rows'] as $i => $row ) : ?>
 									<?php
-									$raw_memo    = $row['memo'] ?: $row['name'];
-									$suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $history );
-									$is_dupe     = ! empty( $row['possible_duplicate'] );
-									$is_learned  = ! empty( $row['suggested_exclude'] );
-									$is_income   = $row['amount'] > 0;
+									$raw_memo              = $row['memo'] ?: $row['name'];
+									$suggestions           = ESSF_OFX_Suggestions::suggest( $raw_memo, $history );
+									$cat_suggestions       = ESSF_OFX_Suggestions::suggest( $raw_memo, $cat_history );
+									$default_category_slug = $row['category'];
+									if ( $cat_suggestions ) {
+										foreach ( $cat_terms as $cat_term ) {
+											if ( $cat_term->name === $cat_suggestions[0]['title'] ) {
+												$default_category_slug = $cat_term->slug;
+												break;
+											}
+										}
+									}
+									$is_dupe    = ! empty( $row['possible_duplicate'] );
+									$is_learned = ! empty( $row['suggested_exclude'] );
+									$is_income  = $row['amount'] > 0;
 
 									if ( $is_dupe ) {
 										$dupe_title = $row['possible_duplicate']['title'];
@@ -1439,6 +1500,15 @@ class ESSF_Admin_Page {
 												<button type="button" class="essf-ofx-desc-confirm" aria-label="<?php esc_attr_e( 'Confirm description', 'essfinance' ); ?>">✓</button>
 												<button type="button" class="essf-ofx-desc-cancel" aria-label="<?php esc_attr_e( 'Cancel edit', 'essfinance' ); ?>">✕</button>
 											</span>
+										</td>
+										<td class="essf-ofx-review-cat">
+											<select class="essf-ofx-category-select" name="essf_rows[<?php echo esc_attr( (string) $i ); ?>][category]">
+												<?php foreach ( $cat_terms as $term ) : ?>
+													<option value="<?php echo esc_attr( $term->slug ); ?>" <?php selected( $default_category_slug, $term->slug ); ?>>
+														<?php echo esc_html( $term->name ); ?>
+													</option>
+												<?php endforeach; ?>
+											</select>
 										</td>
 									</tr>
 								<?php endforeach; ?>

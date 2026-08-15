@@ -223,9 +223,11 @@
 			}
 			var includeInput = row.querySelector( '.essf-ofx-include-input' );
 			var descValue    = row.querySelector( '.essf-ofx-desc-value' );
+			var catSelect    = row.querySelector( '.essf-ofx-category-select' );
 			state.rows[ idx ] = {
 				include: includeInput ? includeInput.value : '1',
-				description: descValue ? descValue.value : ''
+				description: descValue ? descValue.value : '',
+				category: catSelect ? catSelect.value : ''
 			};
 		} );
 
@@ -316,6 +318,11 @@
 				if ( indicator ) {
 					indicator.remove();
 				}
+			}
+
+			var catSelect = row.querySelector( '.essf-ofx-category-select' );
+			if ( catSelect && saved.category && saved.category !== catSelect.value ) {
+				catSelect.value = saved.category;
 			}
 		} );
 	}
@@ -415,6 +422,12 @@
 			} else if ( 'Escape' === event.key ) {
 				event.preventDefault();
 				cancelDescEdit( findDescCell( event.target ) );
+			}
+		} );
+
+		dialog.addEventListener( 'change', function ( event ) {
+			if ( event.target.classList.contains( 'essf-ofx-category-select' ) ) {
+				saveState( dialog );
 			}
 		} );
 
