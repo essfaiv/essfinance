@@ -87,6 +87,14 @@ class ESSF_Admin_Page {
 			'essfinance-ofx-glossary',
 			[ $this, 'render_glossary_page' ]
 		);
+
+		add_submenu_page(
+			'essfinance',
+			__( 'Categories', 'essfinance' ),
+			__( 'Categories', 'essfinance' ),
+			'manage_options',
+			'edit-tags.php?taxonomy=' . ESSF_Category::TAXONOMY . '&post_type=essf_cashflow'
+		);
 	}
 
 	public function register_screen_options( WP_Screen $screen ): void {
