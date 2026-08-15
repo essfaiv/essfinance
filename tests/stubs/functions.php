@@ -93,3 +93,8 @@ if ( ! function_exists( 'home_url' ) ) {
 if ( ! function_exists( 'plugin_action_links_' ) ) {
 	// filter — no-op
 }
+if ( ! function_exists( 'get_locale' ) ) {
+	function get_locale() {
+		return 'en_US';
+	}
+}

@@ -209,6 +209,21 @@ class ESSF_Category {
 	}
 
 	/**
+	 * Display label for a slug without a live term/DB lookup, in the site's
+	 * seed-time locale (PT-BR vs EN, same rule as seed_terms()). Falls back
+	 * to the raw slug for an unrecognized one.
+	 */
+	public static function label_for_slug( string $slug ): string {
+		$labels = self::term_definitions()[ $slug ] ?? null;
+		if ( ! $labels ) {
+			return $slug;
+		}
+
+		$lang = ( 0 === strpos( get_locale(), 'pt_BR' ) ) ? 'pt_BR' : 'en';
+		return $labels[ $lang ];
+	}
+
+	/**
 	 * All terms in their curated seed order (term_id ascending) rather than
 	 * alphabetical — alphabetical order differs between the EN and PT-BR label
 	 * sets and would scramble the intentional grouping either way.
@@ -226,5 +241,82 @@ class ESSF_Category {
 		);
 
 		return is_wp_error( $terms ) ? [] : $terms;
+	}
+
+	/**
+	 * PT-BR keyword rules for guess_slug_from_description(), derived from a
+	 * real export of this plugin's own data. Declaration order only matters
+	 * as a tie-breaker (see guess_slug_from_description()) — a category
+	 * still matches regardless of where it's declared, so `groceries` is
+	 * placed before `food-and-drink` (e.g. "Comida...Bodega..." should read
+	 * as a market run, not a meal) and `entertainment` before
+	 * `food-and-drink` (e.g. "Lazer comida cinema..." should read as an
+	 * outing, not a meal) to resolve real equal-length ties found in that
+	 * export the way a human would.
+	 *
+	 * `miscellaneous-expenses` and `uncategorized` intentionally have no
+	 * keywords: `miscellaneous-expenses` stays a manually-assigned catch-all,
+	 * distinct from the algorithmic no-match fallback (`uncategorized`).
+	 *
+	 * @return array<string, array<int, string>>
+	 */
+	private static function keyword_map(): array {
+		return [
+			'loans'                 => [ 'emprestimo', 'empréstimo' ],
+			'income'                => [ 'recebimento', 'salario', 'salário', 'pro-labore', 'pró-labore', 'prolabore', 'lucro' ],
+			'transfers'             => [ 'transferencia', 'transferência', 'reembolso', 'pix enviado', 'pix recebido' ],
+			'pet-care'              => [ 'pet shop', 'petshop', 'animais', 'animal', 'cachorro', 'banho e tosa', 'banho cão', 'banho cao', 'veterinari', 'ração', 'racao' ],
+			'service-subscriptions' => [ 'assinatura', 'copilot', 'netflix', 'spotify', 'streaming', 'amazon prime', 'youtube premium' ],
+			'health'                => [ 'farmacia', 'farmácia', 'dentista', 'medico', 'médico', 'consulta', 'exame', 'plano de saude', 'plano de saúde', 'hospital' ],
+			'insurance'             => [ 'seguro' ],
+			'taxes'                 => [ 'ipva', 'imposto', 'iptu', 'irpf', 'licenciamento' ],
+			'investments'           => [ 'investimento', 'aplicação', 'aplicacao', 'tesouro direto', 'cdb', 'ações', 'acoes' ],
+			'housing'               => [ 'habitação', 'habitacao', 'condomínio', 'condominio', 'aluguel', 'financiamento imóvel', 'financiamento imovel', 'prestação casa', 'prestacao casa' ],
+			'groceries'             => [ 'mercado', 'supermercado', 'bodega', 'komprão', 'komprao', 'atacad', 'hortifruti' ],
+			'entertainment'         => [ 'cinema', 'lazer', 'ingresso', 'parque' ],
+			'food-and-drink'        => [ 'comida', 'restaurante', 'almoço', 'almoco', 'jantar', 'lanche', 'mcdonald', 'ifood', 'café', 'cafe', 'padaria' ],
+			'education'             => [ 'escola', 'faculdade', 'curso', 'vestibular', 'universidade', 'matrícula', 'matricula' ],
+			'donations'             => [ 'doação', 'doacao', 'dízimo', 'dizimo' ],
+			'sports'                => [ 'academia', 'gympass', 'personal trainer', 'futebol' ],
+			'personal-care'         => [ 'cabeleireiro', 'salão de beleza', 'salao de beleza', 'manicure', 'barbearia' ],
+			'services'              => [ 'advogado', 'serviço', 'servico', 'limpeza', 'encanador', 'eletricista', 'manutenção', 'manutencao' ],
+			'financial-fees'        => [ 'tarifa', 'tarifa de manutenção', 'tarifa de manutencao', 'taxa bancária', 'taxa bancaria', 'anuidade', 'iof', 'juros' ],
+			'transportation'        => [ 'transporte', 'uber', 'combustível', 'combustivel', 'estacionamento', 'pedágio', 'pedagio', 'multa', 'colisão', 'colisao', 'carro' ],
+			'shopping'              => [ 'mercado livre', 'compra', 'shopping', 'meli', 'aliexpress' ],
+			'bills'                 => [ 'eletricidade', 'energia elétrica', 'energia eletrica', 'internet', 'telefone' ],
+			'travel'                => [ 'viagem', 'hotel', 'passagem aérea', 'passagem aerea', 'hospedagem', 'airbnb' ],
+		];
+	}
+
+	/**
+	 * Guess a category slug from a curated entry description using the
+	 * keyword rules above, falling back to 'uncategorized' when nothing
+	 * matches. Pure/WordPress-free by design — used from
+	 * ESSF_Admin_Page::build_ofx_stage_rows(), which is deliberately
+	 * unit-testable without mocking WordPress.
+	 *
+	 * The *longest* matching keyword wins, not the first category checked —
+	 * e.g. "Compra Laptop Beatriz Mercado Livre" contains both "mercado"
+	 * (groceries) and the more specific "mercado livre" (shopping); picking
+	 * the longer match lets the more specific phrase win regardless of
+	 * keyword_map()'s declaration order. Equal-length ties fall back to
+	 * declaration order.
+	 */
+	public static function guess_slug_from_description( string $description ): string {
+		$haystack  = mb_strtolower( $description );
+		$best_slug = '';
+		$best_len  = 0;
+
+		foreach ( self::keyword_map() as $slug => $keywords ) {
+			foreach ( $keywords as $keyword ) {
+				$len = mb_strlen( $keyword );
+				if ( $len > $best_len && false !== mb_stripos( $haystack, $keyword ) ) {
+					$best_slug = $slug;
+					$best_len  = $len;
+				}
+			}
+		}
+
+		return '' !== $best_slug ? $best_slug : 'uncategorized';
 	}
 }

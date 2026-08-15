@@ -258,21 +258,34 @@ class ESSF_CLI {
 
 	/**
 	 * Predict what category the import-review pipeline would suggest for a raw
-	 * OFX memo today. Unlike predict_description(), there's no parser-based
-	 * fallback chain — nothing in ESSF_OFX_Parser infers a spending category
-	 * from memo text — so this is a learned suggestion or nothing.
+	 * OFX memo today: a learned suggestion first (matched against the raw
+	 * memo, same as ESSF_Admin_Page::render_review_page()), then
+	 * ESSF_Category::guess_slug_from_description() against the *resolved*
+	 * description (same as ESSF_Admin_Page::build_ofx_stage_rows() — a
+	 * keyword guess runs on the cleaned title, not the noisy raw memo), then
+	 * 'Uncategorized'.
 	 *
-	 * @param string $raw_memo Raw OFX NAME/MEMO text.
-	 * @param array  $history  Prior entries, shape per ESSF_OFX_Suggestions::suggest().
+	 * @param string $raw_memo    Raw OFX NAME/MEMO text.
+	 * @param string $description Resolved description for this entry (predict_description()'s title).
+	 * @param array  $history     Prior entries, shape per ESSF_OFX_Suggestions::suggest().
 	 * @return array{title: string, source: string, score: string}
 	 */
-	public static function predict_category( string $raw_memo, array $history ): array {
+	public static function predict_category( string $raw_memo, string $description, array $history ): array {
 		$suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $history, 1 );
 		if ( $suggestions ) {
 			return [
 				'title'  => $suggestions[0]['title'],
 				'source' => 'suggestion',
 				'score'  => number_format( $suggestions[0]['score'], 1 ),
+			];
+		}
+
+		$slug = ESSF_Category::guess_slug_from_description( $description );
+		if ( 'uncategorized' !== $slug ) {
+			return [
+				'title'  => ESSF_Category::label_for_slug( $slug ),
+				'source' => 'keyword',
+				'score'  => '',
 			];
 		}
 
@@ -303,7 +316,7 @@ class ESSF_CLI {
 		foreach ( $entries as $entry ) {
 			$category      = $entry['category'] ?? __( 'Uncategorized', 'essfinance' );
 			$predicted     = self::predict_description( $entry['memo'], $history );
-			$predicted_cat = self::predict_category( $entry['memo'], $cat_history );
+			$predicted_cat = self::predict_category( $entry['memo'], $predicted['title'], $cat_history );
 
 			$rows[] = [
 				'ID'                 => $entry['id'],

@@ -598,7 +598,7 @@ class ESSF_Admin_Page {
 				'name'               => $name,
 				'memo'               => $memo,
 				'description'        => $description,
-				'category'           => 'uncategorized',
+				'category'           => ESSF_Category::guess_slug_from_description( $description ),
 				'transfer_detail'    => $transfer['detail'] ?? '',
 				'possible_duplicate' => self::find_possible_duplicate( $amount, $due_date, $amount_index ),
 				'suggested_exclude'  => ESSF_OFX_Suggestions::matches_excluded( $name ?: $memo, $excluded_memos ),

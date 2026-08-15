@@ -202,6 +202,7 @@ class CliTest extends TestCase {
 	public function test_predict_category_prefers_learned_suggestion(): void {
 		$prediction = \ESSF_CLI::predict_category(
 			'Compra no débito - KOMPRAO KOCH ATACADIST',
+			'Komprao Koch Atacadist',
 			[
 				[
 					'memo'  => 'Compra no débito - KOMPRAO KOCH ATACADIST',
@@ -215,8 +216,15 @@ class CliTest extends TestCase {
 		$this->assertSame( 'suggestion', $prediction['source'] );
 	}
 
+	public function test_predict_category_falls_back_to_keyword_guess_when_no_suggestion(): void {
+		$prediction = \ESSF_CLI::predict_category( 'Juros cartão de crédito', 'Juros cartão de crédito', [] );
+
+		$this->assertSame( 'Financial fees', $prediction['title'] );
+		$this->assertSame( 'keyword', $prediction['source'] );
+	}
+
 	public function test_predict_category_falls_back_to_uncategorized_when_nothing_matches(): void {
-		$prediction = \ESSF_CLI::predict_category( 'Tarifa de manutenção de conta', [] );
+		$prediction = \ESSF_CLI::predict_category( 'Trimania', 'Trimania', [] );
 
 		$this->assertSame( 'Uncategorized', $prediction['title'] );
 		$this->assertSame( 'fallback', $prediction['source'] );
@@ -278,21 +286,24 @@ class CliTest extends TestCase {
 	}
 
 	public function test_replay_suggestions_learns_category_from_earlier_manual_corrections(): void {
+		// "Loja Xyz Center" matches none of ESSF_Category's keyword rules, so
+		// the first occurrence can't be keyword-guessed — only a learned
+		// suggestion (from the prior row) can get the second one right.
 		$rows = \ESSF_CLI::replay_suggestions(
 			[
 				[
 					'id'       => 101,
 					'date'     => '2026-01-05',
-					'title'    => 'Mercado',
-					'memo'     => 'Compra no débito - KOMPRAO KOCH ATACADIST',
-					'category' => 'Groceries',
+					'title'    => 'Presente Aniversário',
+					'memo'     => 'Compra no débito - LOJA XYZ CENTER',
+					'category' => 'Shopping',
 				],
 				[
 					'id'       => 102,
 					'date'     => '2026-02-10',
-					'title'    => 'Mercado',
-					'memo'     => 'Compra no débito - KOMPRAO KOCH ATACADIST',
-					'category' => 'Groceries',
+					'title'    => 'Presente Aniversário',
+					'memo'     => 'Compra no débito - LOJA XYZ CENTER',
+					'category' => 'Shopping',
 				],
 			]
 		);
@@ -300,8 +311,25 @@ class CliTest extends TestCase {
 		$this->assertSame( 'Uncategorized', $rows[0]['Predicted Category'] );
 		$this->assertSame( 'no', $rows[0]['Category Auto-fill'] );
 
-		$this->assertSame( 'Groceries', $rows[1]['Predicted Category'] );
+		$this->assertSame( 'Shopping', $rows[1]['Predicted Category'] );
 		$this->assertSame( 'yes', $rows[1]['Category Auto-fill'] );
+	}
+
+	public function test_replay_suggestions_keyword_guesses_category_when_no_history_yet(): void {
+		$rows = \ESSF_CLI::replay_suggestions(
+			[
+				[
+					'id'       => 201,
+					'date'     => '2026-01-05',
+					'title'    => 'Mercado',
+					'memo'     => 'Compra no débito - KOMPRAO KOCH ATACADIST',
+					'category' => 'Groceries',
+				],
+			]
+		);
+
+		$this->assertSame( 'Groceries', $rows[0]['Predicted Category'] );
+		$this->assertSame( 'yes', $rows[0]['Category Auto-fill'] );
 	}
 
 	public function test_replay_suggestions_defaults_category_to_uncategorized_when_missing(): void {

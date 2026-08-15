@@ -198,4 +198,76 @@ class CategoryTest extends TestCase {
 
 		$this->assertSame( [], \ESSF_Category::get_ordered_terms() );
 	}
+
+	// ── label_for_slug() ─────────────────────────────────────────────────
+
+	public function test_label_for_slug_returns_english_label_for_en_locale(): void {
+		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
+
+		$this->assertSame( 'Groceries', \ESSF_Category::label_for_slug( 'groceries' ) );
+	}
+
+	public function test_label_for_slug_returns_ptbr_label_for_ptbr_locale(): void {
+		Functions\expect( 'get_locale' )->once()->andReturn( 'pt_BR' );
+
+		$this->assertSame( 'Mercado', \ESSF_Category::label_for_slug( 'groceries' ) );
+	}
+
+	public function test_label_for_slug_returns_slug_itself_for_unknown_slug(): void {
+		$this->assertSame( 'not-a-real-slug', \ESSF_Category::label_for_slug( 'not-a-real-slug' ) );
+	}
+
+	// ── guess_slug_from_description() ────────────────────────────────────
+	//
+	// Regression cases pulled from a real export of this plugin's own data
+	// (essfinance-export-2026-08-15-233924.csv), spot-checking the longest-
+	// match-wins algorithm and its declared tie-breaks.
+
+	public function test_guess_slug_prefers_longer_more_specific_keyword(): void {
+		// "mercado livre" (shopping) is longer than the substring "mercado"
+		// (groceries) — the more specific phrase must win.
+		$this->assertSame( 'shopping', \ESSF_Category::guess_slug_from_description( 'Compra Laptop Beatriz Mercado Livre' ) );
+	}
+
+	public function test_guess_slug_breaks_tie_toward_entertainment_over_food(): void {
+		// "comida" (food-and-drink) and "cinema" (entertainment) tie at 6
+		// characters; entertainment is declared first for this exact case.
+		$this->assertSame( 'entertainment', \ESSF_Category::guess_slug_from_description( 'Lazer comida cinema GNC Garten' ) );
+	}
+
+	public function test_guess_slug_breaks_tie_toward_groceries_over_food(): void {
+		// "comida" (food-and-drink) and "bodega" (groceries) tie at 6
+		// characters; groceries is declared first for this exact case.
+		$this->assertSame( 'groceries', \ESSF_Category::guess_slug_from_description( 'Comida queijo Bodega da Gih' ) );
+	}
+
+	public function test_guess_slug_prefers_longer_match_over_shorter_unrelated_one(): void {
+		// "dentista" (8, health) beats "limpeza" (7, services).
+		$this->assertSame( 'health', \ESSF_Category::guess_slug_from_description( 'Dentista Limpeza Interação' ) );
+	}
+
+	public function test_guess_slug_treats_reembolso_as_a_transfer(): void {
+		// "reembolso" (9, transfers) beats "comida" (6, food-and-drink).
+		$this->assertSame( 'transfers', \ESSF_Category::guess_slug_from_description( "Reembolso Comida McDonald's" ) );
+	}
+
+	public function test_guess_slug_matches_common_categories(): void {
+		$this->assertSame( 'loans', \ESSF_Category::guess_slug_from_description( 'Empréstimo Lucia' ) );
+		$this->assertSame( 'income', \ESSF_Category::guess_slug_from_description( 'Recebimento Pro-labore Essfaiv' ) );
+		$this->assertSame( 'transfers', \ESSF_Category::guess_slug_from_description( 'Transferência Esposa' ) );
+		$this->assertSame( 'housing', \ESSF_Category::guess_slug_from_description( 'Condomínio Nov-2025' ) );
+		$this->assertSame( 'bills', \ESSF_Category::guess_slug_from_description( 'Eletricidade Nov-2025' ) );
+		$this->assertSame( 'transportation', \ESSF_Category::guess_slug_from_description( 'Transporte App' ) );
+		$this->assertSame( 'taxes', \ESSF_Category::guess_slug_from_description( 'IPVA (1a. Cota) 2026' ) );
+		$this->assertSame( 'services', \ESSF_Category::guess_slug_from_description( 'Advogado 1/2' ) );
+		$this->assertSame( 'pet-care', \ESSF_Category::guess_slug_from_description( 'Animais Agro Pet Shop Vila Nova' ) );
+	}
+
+	public function test_guess_slug_falls_back_to_uncategorized_when_nothing_matches(): void {
+		$this->assertSame( 'uncategorized', \ESSF_Category::guess_slug_from_description( 'Trimania' ) );
+	}
+
+	public function test_guess_slug_never_returns_empty_string(): void {
+		$this->assertSame( 'uncategorized', \ESSF_Category::guess_slug_from_description( '' ) );
+	}
 }

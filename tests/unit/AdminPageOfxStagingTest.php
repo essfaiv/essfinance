@@ -88,9 +88,20 @@ class AdminPageOfxStagingTest extends TestCase {
 		$this->assertNull( $result['rows'][0]['possible_duplicate'] );
 	}
 
-	public function test_build_stage_rows_defaults_category_to_uncategorized(): void {
+	public function test_build_stage_rows_guesses_category_from_resolved_description(): void {
 		$transactions = [
 			[ 'fitid' => 'TXN020', 'amount' => -20.0, 'due_date' => '2026-08-01', 'name' => '', 'memo' => 'Pix enviado' ],
+		];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [] );
+
+		// "Pix enviado" matches the 'transfers' keyword rule verbatim.
+		$this->assertSame( 'transfers', $result['rows'][0]['category'] );
+	}
+
+	public function test_build_stage_rows_defaults_category_to_uncategorized_when_nothing_matches(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN021', 'amount' => -20.0, 'due_date' => '2026-08-01', 'name' => '', 'memo' => 'Trimania' ],
 		];
 
 		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [] );
