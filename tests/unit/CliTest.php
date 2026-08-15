@@ -197,6 +197,32 @@ class CliTest extends TestCase {
 		$this->assertSame( '', $prediction['score'] );
 	}
 
+	// ── predict_category() ───────────────────────────────────────────────
+
+	public function test_predict_category_prefers_learned_suggestion(): void {
+		$prediction = \ESSF_CLI::predict_category(
+			'Compra no débito - KOMPRAO KOCH ATACADIST',
+			[
+				[
+					'memo'  => 'Compra no débito - KOMPRAO KOCH ATACADIST',
+					'title' => 'Groceries',
+					'date'  => '2026-01-01',
+				],
+			]
+		);
+
+		$this->assertSame( 'Groceries', $prediction['title'] );
+		$this->assertSame( 'suggestion', $prediction['source'] );
+	}
+
+	public function test_predict_category_falls_back_to_uncategorized_when_nothing_matches(): void {
+		$prediction = \ESSF_CLI::predict_category( 'Tarifa de manutenção de conta', [] );
+
+		$this->assertSame( 'Uncategorized', $prediction['title'] );
+		$this->assertSame( 'fallback', $prediction['source'] );
+		$this->assertSame( '', $prediction['score'] );
+	}
+
 	// ── replay_suggestions() ─────────────────────────────────────────────
 
 	public function test_replay_suggestions_learns_from_earlier_manual_corrections(): void {
@@ -249,5 +275,47 @@ class CliTest extends TestCase {
 		$this->assertSame( '2026-01-01', $rows[0]['Date'] );
 		$this->assertSame( 'Salário', $rows[0]['Title'] );
 		$this->assertSame( 'Salary', $rows[0]['Raw Memo'] );
+	}
+
+	public function test_replay_suggestions_learns_category_from_earlier_manual_corrections(): void {
+		$rows = \ESSF_CLI::replay_suggestions(
+			[
+				[
+					'id'       => 101,
+					'date'     => '2026-01-05',
+					'title'    => 'Mercado',
+					'memo'     => 'Compra no débito - KOMPRAO KOCH ATACADIST',
+					'category' => 'Groceries',
+				],
+				[
+					'id'       => 102,
+					'date'     => '2026-02-10',
+					'title'    => 'Mercado',
+					'memo'     => 'Compra no débito - KOMPRAO KOCH ATACADIST',
+					'category' => 'Groceries',
+				],
+			]
+		);
+
+		$this->assertSame( 'Uncategorized', $rows[0]['Predicted Category'] );
+		$this->assertSame( 'no', $rows[0]['Category Auto-fill'] );
+
+		$this->assertSame( 'Groceries', $rows[1]['Predicted Category'] );
+		$this->assertSame( 'yes', $rows[1]['Category Auto-fill'] );
+	}
+
+	public function test_replay_suggestions_defaults_category_to_uncategorized_when_missing(): void {
+		$rows = \ESSF_CLI::replay_suggestions(
+			[
+				[
+					'id'    => 1,
+					'date'  => '2026-01-01',
+					'title' => 'Salário',
+					'memo'  => 'Salary',
+				],
+			]
+		);
+
+		$this->assertSame( 'Uncategorized', $rows[0]['Category'] );
 	}
 }

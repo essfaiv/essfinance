@@ -106,7 +106,7 @@ class ESSF_CLI {
 	 * : Write the result to a file instead of STDOUT.
 	 *
 	 * [--only-opportunities]
-	 * : Only include rows where today's algorithm would NOT have proposed the actual title.
+	 * : Only include rows where today's algorithm would NOT have proposed the actual title or the actual category.
 	 *
 	 * ## EXAMPLES
 	 *
@@ -131,7 +131,7 @@ class ESSF_CLI {
 				array_filter(
 					$rows,
 					static function ( array $row ): bool {
-						return 'no' === $row['Auto-fill'];
+						return 'no' === $row['Auto-fill'] || 'no' === $row['Category Auto-fill'];
 					}
 				)
 			);
@@ -157,7 +157,7 @@ class ESSF_CLI {
 	 * neither of those (private, on an admin-only class not loaded under
 	 * WP-CLI) fits this command's needs.
 	 *
-	 * @return array<int, array{id: int, date: string, title: string, memo: string}>
+	 * @return array<int, array{id: int, date: string, title: string, memo: string, category: string}>
 	 */
 	private static function query_ofx_history(): array {
 		$posts = get_posts(
@@ -175,11 +175,13 @@ class ESSF_CLI {
 			if ( ! $memo ) {
 				continue;
 			}
+			$terms     = wp_get_post_terms( $post->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'names' ] );
 			$entries[] = [
-				'id'    => $post->ID,
-				'date'  => (string) get_post_meta( $post->ID, '_order_date', true ),
-				'title' => $post->post_title,
-				'memo'  => $memo,
+				'id'       => $post->ID,
+				'date'     => (string) get_post_meta( $post->ID, '_order_date', true ),
+				'title'    => $post->post_title,
+				'memo'     => $memo,
+				'category' => $terms[0] ?? __( 'Uncategorized', 'essfinance' ),
 			];
 		}
 
@@ -255,6 +257,33 @@ class ESSF_CLI {
 	}
 
 	/**
+	 * Predict what category the import-review pipeline would suggest for a raw
+	 * OFX memo today. Unlike predict_description(), there's no parser-based
+	 * fallback chain — nothing in ESSF_OFX_Parser infers a spending category
+	 * from memo text — so this is a learned suggestion or nothing.
+	 *
+	 * @param string $raw_memo Raw OFX NAME/MEMO text.
+	 * @param array  $history  Prior entries, shape per ESSF_OFX_Suggestions::suggest().
+	 * @return array{title: string, source: string, score: string}
+	 */
+	public static function predict_category( string $raw_memo, array $history ): array {
+		$suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $history, 1 );
+		if ( $suggestions ) {
+			return [
+				'title'  => $suggestions[0]['title'],
+				'source' => 'suggestion',
+				'score'  => number_format( $suggestions[0]['score'], 1 ),
+			];
+		}
+
+		return [
+			'title'  => __( 'Uncategorized', 'essfinance' ),
+			'source' => 'fallback',
+			'score'  => '',
+		];
+	}
+
+	/**
 	 * Replay predict_description() chronologically against a full history of
 	 * already-imported OFX entries (oldest first), comparing what today's
 	 * algorithm would propose for each entry against the title actually
@@ -263,30 +292,41 @@ class ESSF_CLI {
 	 * Pure/dependency-free, mirroring ESSF_OFX_Suggestions's own design, so
 	 * it's unit-testable without WordPress.
 	 *
-	 * @param array $entries Chronologically ordered (oldest first) rows: {id: int, date: string, title: string, memo: string}.
-	 * @return array<int, array{ID: int, Date: string, Title: string, 'Raw Memo': string, Predicted: string, Source: string, Score: string, 'Auto-fill': string}>
+	 * @param array $entries Chronologically ordered (oldest first) rows: {id: int, date: string, title: string, memo: string, category: string}.
+	 * @return array<int, array{ID: int, Date: string, Title: string, 'Raw Memo': string, Predicted: string, Source: string, Score: string, 'Auto-fill': string, Category: string, 'Predicted Category': string, 'Category Auto-fill': string}>
 	 */
 	public static function replay_suggestions( array $entries ): array {
-		$rows    = [];
-		$history = [];
+		$rows        = [];
+		$history     = [];
+		$cat_history = [];
 
 		foreach ( $entries as $entry ) {
-			$predicted = self::predict_description( $entry['memo'], $history );
+			$category      = $entry['category'] ?? __( 'Uncategorized', 'essfinance' );
+			$predicted     = self::predict_description( $entry['memo'], $history );
+			$predicted_cat = self::predict_category( $entry['memo'], $cat_history );
 
 			$rows[] = [
-				'ID'        => $entry['id'],
-				'Date'      => $entry['date'],
-				'Title'     => $entry['title'],
-				'Raw Memo'  => $entry['memo'],
-				'Predicted' => $predicted['title'],
-				'Source'    => $predicted['source'],
-				'Score'     => $predicted['score'],
-				'Auto-fill' => $predicted['title'] === $entry['title'] ? 'yes' : 'no',
+				'ID'                 => $entry['id'],
+				'Date'               => $entry['date'],
+				'Title'              => $entry['title'],
+				'Raw Memo'           => $entry['memo'],
+				'Predicted'          => $predicted['title'],
+				'Source'             => $predicted['source'],
+				'Score'              => $predicted['score'],
+				'Auto-fill'          => $predicted['title'] === $entry['title'] ? 'yes' : 'no',
+				'Category'           => $category,
+				'Predicted Category' => $predicted_cat['title'],
+				'Category Auto-fill' => $predicted_cat['title'] === $category ? 'yes' : 'no',
 			];
 
-			$history[] = [
+			$history[]     = [
 				'memo'  => $entry['memo'],
 				'title' => $entry['title'],
+				'date'  => $entry['date'],
+			];
+			$cat_history[] = [
+				'memo'  => $entry['memo'],
+				'title' => $category,
 				'date'  => $entry['date'],
 			];
 		}
