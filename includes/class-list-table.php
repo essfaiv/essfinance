@@ -61,6 +61,7 @@ class ESSF_List_Table extends WP_List_Table {
 			'mark_pending' => __( 'Mark as Pending', 'essfinance' ),
 			'make_income'  => __( 'Make Income', 'essfinance' ),
 			'make_expense' => __( 'Make Expense', 'essfinance' ),
+			'set_category' => __( 'Set Category', 'essfinance' ),
 			'delete'       => __( 'Delete', 'essfinance' ),
 		];
 	}
@@ -179,6 +180,13 @@ class ESSF_List_Table extends WP_List_Table {
 			<?php $this->render_months_dropdown( $current_m ); ?>
 
 			<input type="submit" class="button" value="<?php esc_attr_e( 'Filter', 'essfinance' ); ?>">
+
+			<label for="essf_bulk_category" class="screen-reader-text"><?php esc_html_e( 'Category to apply with Set Category', 'essfinance' ); ?></label>
+			<select name="essf_bulk_category" id="essf_bulk_category">
+				<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
+					<option value="<?php echo esc_attr( $term->slug ); ?>"><?php echo esc_html( $term->name ); ?></option>
+				<?php endforeach; ?>
+			</select>
 		</div>
 		<?php
 	}
