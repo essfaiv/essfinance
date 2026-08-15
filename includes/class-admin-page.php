@@ -232,6 +232,7 @@ class ESSF_Admin_Page {
 		);
 
 		update_post_meta( $post_id, '_order_date', $data['order_date'] );
+		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $data['category'] ) ], ESSF_Category::TAXONOMY );
 
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'added', admin_url( 'admin.php?page=essfinance' ) ) );
 		exit;
@@ -269,6 +270,7 @@ class ESSF_Admin_Page {
 		);
 
 		update_post_meta( $post_id, '_order_date', $data['order_date'] );
+		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $data['category'] ) ], ESSF_Category::TAXONOMY );
 
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'updated', admin_url( 'admin.php?page=essfinance' ) ) );
 		exit;
@@ -1024,7 +1026,7 @@ class ESSF_Admin_Page {
 		exit;
 	}
 
-	private function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status ): int {
+	private function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status, string $category_slug = 'uncategorized' ): int {
 		$post_id = wp_insert_post(
 			[
 				'post_type'    => 'essf_cashflow',
@@ -1055,6 +1057,7 @@ class ESSF_Admin_Page {
 			? substr( $pay_gmt, 0, 10 )
 			: ( '0000-00-00 00:00:00' !== $due_gmt ? substr( $due_gmt, 0, 10 ) : '' );
 		update_post_meta( $post_id, '_order_date', $order_date );
+		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category_slug ) ], ESSF_Category::TAXONOMY );
 
 		return $post_id;
 	}
@@ -1156,11 +1159,13 @@ class ESSF_Admin_Page {
 			$status = 'pending';
 		}
 
+		$category = sanitize_key( wp_unslash( $post['essf_category'] ?? 'uncategorized' ) );
+
 		$order_date = '0000-00-00 00:00:00' !== $pay_gmt
 			? substr( $pay_gmt, 0, 10 )
 			: ( '0000-00-00 00:00:00' !== $due_gmt ? substr( $due_gmt, 0, 10 ) : '' );
 
-		return compact( 'title', 'amount', 'is_income', 'due_gmt', 'pay_gmt', 'status', 'order_date' );
+		return compact( 'title', 'amount', 'is_income', 'due_gmt', 'pay_gmt', 'status', 'order_date', 'category' );
 	}
 
 	/* ── Pages ──────────────────────────────────────────── */
@@ -1487,6 +1492,7 @@ class ESSF_Admin_Page {
 		$description = $due_date = $pay_date = $status = '';
 		$amount      = '';
 		$is_income   = false;
+		$category    = 'uncategorized';
 
 		if ( $is_edit ) {
 			$amount_val  = (float) $entry->post_content;
@@ -1499,6 +1505,9 @@ class ESSF_Admin_Page {
 			$pay_raw  = substr( $entry->post_modified_gmt, 0, 10 );
 			$due_date = ( $due_raw && '0000-00-00' !== $due_raw ) ? $due_raw : '';
 			$pay_date = ( $pay_raw && '0000-00-00' !== $pay_raw ) ? $pay_raw : '';
+
+			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
+			$category    = $entry_terms[0] ?? 'uncategorized';
 		}
 
 		if ( 'pay_date' === $focus ) {
@@ -1564,6 +1573,17 @@ class ESSF_Admin_Page {
 					</select>
 				</div>
 
+				<div class="form-field">
+					<label for="essf_category"><?php esc_html_e( 'Category', 'essfinance' ); ?></label>
+					<select id="essf_category" name="essf_category">
+						<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
+							<option value="<?php echo esc_attr( $term->slug ); ?>" <?php selected( $category, $term->slug ); ?>>
+								<?php echo esc_html( $term->name ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
 				<p class="submit">
 					<?php if ( $is_edit ) : ?>
 						<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Update Entry', 'essfinance' ); ?>">
@@ -1618,12 +1638,13 @@ class ESSF_Admin_Page {
 
 	public function columns( $cols ): array {
 		return [
-			'cb'          => $cols['cb'],
-			'title'       => __( 'Title', 'essfinance' ),
-			'essf_type'   => __( 'Type', 'essfinance' ),
-			'essf_amount' => __( 'Amount', 'essfinance' ),
-			'essf_due'    => __( 'Due Date', 'essfinance' ),
-			'essf_status' => __( 'Status', 'essfinance' ),
+			'cb'            => $cols['cb'],
+			'title'         => __( 'Title', 'essfinance' ),
+			'essf_type'     => __( 'Type', 'essfinance' ),
+			'essf_category' => __( 'Category', 'essfinance' ),
+			'essf_amount'   => __( 'Amount', 'essfinance' ),
+			'essf_due'      => __( 'Due Date', 'essfinance' ),
+			'essf_status'   => __( 'Status', 'essfinance' ),
 		];
 	}
 
@@ -1645,6 +1666,10 @@ class ESSF_Admin_Page {
 				} else {
 					echo $formatted; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $formatted is already esc_html()
 				}
+				break;
+			case 'essf_category':
+				$terms = wp_get_post_terms( $post_id, ESSF_Category::TAXONOMY, [ 'fields' => 'names' ] );
+				echo esc_html( $terms[0] ?? __( 'Uncategorized', 'essfinance' ) );
 				break;
 			case 'essf_due':
 				$d = substr( $post->post_date_gmt, 0, 10 );

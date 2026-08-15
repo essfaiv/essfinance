@@ -131,6 +131,35 @@ class AdminPageTest extends TestCase {
 		$this->assertSame( '2026-01-15', $data['order_date'] );
 	}
 
+	public function test_parse_form_data_category_defaults_to_uncategorized(): void {
+		Functions\expect( 'sanitize_text_field' )->andReturnFirstArg();
+		Functions\expect( 'wp_unslash' )->andReturnFirstArg();
+
+		$data = $this->call_parse_form( [
+			'essf_description' => 'Test',
+			'essf_amount'      => '100',
+			'essf_due_date'    => '2026-04-01',
+			'essf_status'      => 'pending',
+		] );
+
+		$this->assertSame( 'uncategorized', $data['category'] );
+	}
+
+	public function test_parse_form_data_category_from_posted_value(): void {
+		Functions\expect( 'sanitize_text_field' )->andReturnFirstArg();
+		Functions\expect( 'wp_unslash' )->andReturnFirstArg();
+
+		$data = $this->call_parse_form( [
+			'essf_description' => 'Test',
+			'essf_amount'      => '100',
+			'essf_due_date'    => '2026-04-01',
+			'essf_status'      => 'pending',
+			'essf_category'    => 'groceries',
+		] );
+
+		$this->assertSame( 'groceries', $data['category'] );
+	}
+
 	public function test_parse_form_data_order_date_uses_due_when_no_pay(): void {
 		Functions\expect( 'sanitize_text_field' )->andReturnFirstArg();
 		Functions\expect( 'wp_unslash' )->andReturnFirstArg();
