@@ -3,8 +3,8 @@ Contributors: essfinance
 Tags: finance, cashflow, income, expense, budget
 Requires at least: 4.9
 Tested up to: 6.9
-Requires PHP: 7.2
-Stable tag: 0.3.3
+Requires PHP: 8.0
+Stable tag: 0.3.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -42,13 +42,22 @@ CSV (comma-separated) and OFX (Open Financial Exchange) files are supported.
 
 = What is the minimum PHP version required? =
 
-PHP 7.2 or higher. WordPress 4.9 or higher is required.
+PHP 8.0 or higher. WordPress 4.9 or higher is required.
 
 = Is the plugin translatable? =
 
 Yes. All strings are wrapped in standard WordPress i18n functions with the `essfinance` text domain.
 
 == Changelog ==
+
+= 0.3.4 =
+* New `wp essf ofx-view` WP-CLI command — dumps an OFX/QFX file to a CSV or Markdown table for offline reconciliation (read-only, no DB writes).
+* New `wp essf ofx-audit` WP-CLI command — replays the import description-suggestion pipeline against everything already imported to find entries that would still need a manual edit, and doubles as a full CSV/Markdown export of every imported OFX entry (read-only, no DB writes).
+* Admin OFX import now opens a review modal (editable description with suggestions from past imports) before anything is saved, instead of inserting immediately.
+* Every imported OFX entry lands as "paid" with the bank's posted date, instead of always landing "pending".
+* Review flags likely duplicates (same amount, nearby date, different description) and rows resembling ones you've excluded before (balances, internal transfers, etc.) — both are shown dimmed by default; click the ✕ to exclude/restore any row.
+* Confirming a duplicate as excluded now also tags the existing entry it matched with the bank memo, so it starts feeding description suggestions too — not just entries created via this import flow.
+* Admin dashboard only — the frontend importer remains CSV-only.
 
 = 0.3.2 =
 * PHP 7.2 and WordPress 4.9 minimum requirements — removed typed properties, arrow functions, `str_starts_with`, and `wp_date` from production code.

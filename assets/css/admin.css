@@ -178,6 +178,302 @@ input[type="date"],
 	margin-left: 10px;
 }
 
+/* ── OFX review modal ─────────────────────────────────── */
+/* Header (title + intro) and footer (submit) stay fixed; only the table
+   region in between scrolls — the dialog and its form are flex columns so
+   that region is the sole flex-growing, overflow:auto child. */
+.essf-ofx-review-modal {
+	width: min(960px, 92vw);
+	max-height: 85vh;
+	overflow: hidden;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 0;
+	box-shadow: 0 4px 20px rgba(0,0,0,.2);
+	display: flex;
+	flex-direction: column;
+}
+
+.essf-ofx-review-modal::backdrop {
+	background: rgba(0,0,0,.5);
+}
+
+.essf-ofx-review-modal form {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.essf-ofx-review-modal form > h2,
+.essf-ofx-review-modal form > p.description {
+	flex: 0 0 auto;
+	padding: 0 24px;
+}
+
+.essf-ofx-review-modal form > h2 {
+	margin-top: 20px;
+}
+
+.essf-ofx-review-filter {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 24px 12px;
+	font-size: 13px;
+}
+
+.essf-ofx-review-filter label {
+	font-weight: 600;
+}
+
+.essf-ofx-review-filter input[type="date"] {
+	padding: 3px 6px;
+}
+
+.essf-ofx-filter-count {
+	color: #646970;
+	margin-left: auto;
+}
+
+.essf-ofx-review-table-wrap {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	margin: 12px 0;
+	padding: 0 24px;
+}
+
+.essf-ofx-review-modal form > p.submit {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 16px 24px;
+	border-top: 1px solid #dcdcde;
+}
+
+/* Minimal, borderless table — modeled on WordPress core's DataViews table
+   layout (thin top-border row separators, uppercase muted headers, and
+   row actions hidden until hover/focus instead of always-on chrome). */
+.essf-ofx-review-table {
+	width: 100%;
+	border-collapse: collapse;
+	/* Fixed layout so the description's ellipsis actually truncates instead
+	   of growing the table to fit its unwrapped text — with the default
+	   `auto` layout, `white-space: nowrap` content can force horizontal
+	   overflow regardless of any min-width set on the cell. */
+	table-layout: fixed;
+}
+
+.essf-ofx-review-table th,
+.essf-ofx-review-table td {
+	vertical-align: middle;
+	padding: 10px;
+	text-align: left;
+}
+
+.essf-ofx-review-table th:nth-child(1),
+.essf-ofx-review-table td:nth-child(1) {
+	width: 36px; /* Include/exclude toggle */
+}
+
+.essf-ofx-review-table th:nth-child(2),
+.essf-ofx-review-table td:nth-child(2) {
+	width: 90px; /* Date */
+}
+
+.essf-ofx-review-table th:nth-child(3),
+.essf-ofx-review-table td:nth-child(3) {
+	width: 110px; /* Amount */
+}
+
+.essf-ofx-review-table tbody td:nth-child(3) {
+	text-align: end;
+}
+
+.essf-ofx-review-table thead th {
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: #646970;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.essf-ofx-review-table tbody tr {
+	border-top: 1px solid #f0f0f1;
+}
+
+.essf-ofx-review-table tbody tr:hover {
+	background: #f6f7f7;
+}
+
+.essf-ofx-review-table tbody tr.is-excluded td:not(.essf-ofx-row-action) {
+	opacity: .45;
+}
+
+.essf-ofx-row-action {
+	text-align: center;
+}
+
+.essf-ofx-row-toggle {
+	width: 28px;
+	height: 28px;
+	line-height: 1;
+	font-size: 14px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity .12s ease;
+}
+
+.essf-ofx-review-table tbody tr:hover .essf-ofx-row-toggle,
+.essf-ofx-review-table tbody tr:focus-within .essf-ofx-row-toggle,
+.essf-ofx-review-table tbody tr.is-excluded .essf-ofx-row-toggle {
+	opacity: 1;
+}
+
+@media (hover: none) {
+	/* Devices without hover (touch) always show row actions. */
+	.essf-ofx-row-toggle {
+		opacity: 1;
+	}
+}
+
+.essf-ofx-row-toggle:hover {
+	border-color: #8c8f94;
+}
+
+.essf-ofx-review-warning {
+	margin: 4px 0 0;
+	font-size: 12px;
+	color: #7a5400;
+}
+
+/* ── Description: click-to-edit ───────────────────────── */
+.essf-ofx-review-desc {
+	position: relative;
+	width: auto;
+	min-width: 0;
+}
+
+.essf-ofx-desc-display {
+	align-items: center;
+	gap: 6px;
+	width: 100%;
+	background: none;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	margin: -5px -7px;
+	padding-block: 10px;
+	padding-inline: 7px;
+	font: inherit;
+	line-height: 1.385;
+	text-align: left;
+	cursor: text;
+}
+
+/* Scoped to :not([hidden]) rather than a bare `display: flex` — an
+   unconditional `display` here would override the browser's default
+   `[hidden] { display: none }` rule (equal specificity, author stylesheet
+   wins), leaving the button visible even when JS hides it during edit mode. */
+.essf-ofx-desc-display:not([hidden]) {
+	display: flex;
+}
+
+.essf-ofx-desc-display:hover,
+.essf-ofx-desc-display:focus {
+	border-color: #c3c4c7;
+	background: #fff;
+}
+
+.essf-ofx-desc-text {
+	flex: 1 1 auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.essf-ofx-desc-indicator {
+	flex: 0 0 auto;
+	font-size: 12px;
+	line-height: 1;
+}
+
+.essf-ofx-desc-indicator--match {
+	color: #00a32a;
+}
+
+.essf-ofx-desc-indicator--needs-input {
+	color: #b45f06;
+}
+
+/* Overlaid, not stacked in normal flow — the row keeps its original height
+   and the description text stays exactly as it was; this floats in the
+   cell's bottom-right corner instead of sitting on top of the text. */
+.essf-ofx-desc-apply-link {
+	position: absolute;
+	right: 6px;
+	bottom: 2px;
+	padding: 1px 8px;
+	border: 1px solid #c3c4c7;
+	border-radius: 10px;
+	background: #fff;
+	color: #2271b1;
+	font-size: 11px;
+	line-height: 1.6;
+	text-decoration: none;
+	cursor: pointer;
+	box-shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+
+.essf-ofx-desc-apply-link:hover {
+	color: #135e96;
+	border-color: #8c8f94;
+}
+
+.essf-ofx-desc-edit {
+	position: relative;
+}
+
+.essf-ofx-desc-edit:not([hidden]) {
+	display: block;
+}
+
+.essf-ofx-desc-input {
+	width: 100%;
+	/* Reserve room for the two buttons overlaid inside the input (below)
+	   so typed text never runs under them. */
+	padding-right: 54px;
+}
+
+.essf-ofx-desc-confirm,
+.essf-ofx-desc-cancel {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 22px;
+	height: 22px;
+	line-height: 1;
+	font-size: 11px;
+	border: 1px solid #c3c4c7;
+	border-radius: 3px;
+	background: #fff;
+	cursor: pointer;
+}
+
+.essf-ofx-desc-confirm {
+	right: 27px;
+	color: #00a32a;
+}
+
+.essf-ofx-desc-cancel {
+	right: 3px;
+	color: #d63638;
+}
+
 /* ── WP List Table screen (edit.php) ─────────────────── */
 .post-type-essf_cashflow .column-essf_amount,
 .post-type-essf_cashflow .column-essf_due,

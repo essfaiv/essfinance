@@ -12,12 +12,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build plugin zip
         run: |
-          mkdir -p /tmp/build/essfinance
-          rsync -r --exclude='.git/' --exclude='.github/' --exclude='*.zip' \
-            . /tmp/build/essfinance/
+          mkdir -p /tmp/build
+          git archive HEAD --prefix=essfinance/ | tar xf - -C /tmp/build/
+
+          git -C lib/selfdirectory archive HEAD \
+            --prefix=essfinance/lib/selfdirectory/ \
+            -- class-selfdirectory.php \
+            | tar xf - -C /tmp/build/
+
           cd /tmp/build
           zip -r essfinance.zip essfinance
 

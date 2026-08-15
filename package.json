@@ -4,11 +4,14 @@
   "license": "GPL-2.0-or-later",
   "private": true,
   "scripts": {
+    "readme": "grunt readme",
     "test:e2e": "playwright test",
     "test:visual": "playwright test tests/e2e/visual.spec.ts",
     "test:update-snapshots": "playwright test --update-snapshots tests/e2e/visual.spec.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.44.0"
+    "@playwright/test": "^1.44.0",
+    "grunt": "^1.6.2",
+    "grunt-wp-readme-to-markdown": "^2.1.0"
   }
 }

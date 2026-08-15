@@ -70,9 +70,12 @@ if ( ! class_exists( 'WP_Post' ) ) {
 // ── Load plugin includes (order matters — dependencies first) ─────────────────
 
 require_once ESSF_PATH . 'includes/class-cpt.php';
+require_once ESSF_PATH . 'includes/class-ofx-parser.php';
+require_once ESSF_PATH . 'includes/class-ofx-suggestions.php';
 require_once ESSF_PATH . 'includes/class-settings.php';
 require_once ESSF_PATH . 'includes/class-shortcodes.php';
 require_once ESSF_PATH . 'includes/class-list-table.php';
 require_once ESSF_PATH . 'includes/class-meta-boxes.php';
 require_once ESSF_PATH . 'includes/class-admin-page.php';
 require_once ESSF_PATH . 'includes/class-assets.php';
+require_once ESSF_PATH . 'includes/class-cli.php';

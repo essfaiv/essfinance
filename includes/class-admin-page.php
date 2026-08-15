@@ -10,11 +10,18 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Admin_Page {
 
-	const ADD_NONCE         = 'essf_add';
-	const UPDATE_NONCE      = 'essf_update';
-	const DELETE_NONCE      = 'essf_delete';
-	const PAID_TODAY_NONCE  = 'essf_paid_today';
-	const TOGGLE_TYPE_NONCE = 'essf_toggle_type';
+	const ADD_NONCE                = 'essf_add';
+	const UPDATE_NONCE             = 'essf_update';
+	const DELETE_NONCE             = 'essf_delete';
+	const PAID_TODAY_NONCE         = 'essf_paid_today';
+	const TOGGLE_TYPE_NONCE        = 'essf_toggle_type';
+	const IMPORT_OFX_CONFIRM_NONCE = 'essf_import_ofx_confirm';
+	const FORGET_MEMO_NONCE        = 'essf_forget_memo';
+	const FORGET_EXCLUDED_NONCE    = 'essf_forget_excluded';
+
+	/** Option storing normalized memos of rows the operator has excluded before (FIFO-capped). */
+	const EXCLUDED_MEMOS_OPTION = 'essf_ofx_excluded_memos';
+	const EXCLUDED_MEMOS_LIMIT  = 300;
 
 	public function __construct() {
 		add_action( 'admin_menu', [ $this, 'register_menus' ] );
@@ -44,6 +51,9 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_toggle_type', [ $this, 'handle_toggle_type' ] );
 		add_action( 'admin_post_essf_export', [ $this, 'handle_export' ] );
 		add_action( 'admin_post_essf_import', [ $this, 'handle_import' ] );
+		add_action( 'admin_post_essf_import_ofx_confirm', [ $this, 'handle_import_ofx_confirm' ] );
+		add_action( 'admin_post_essf_forget_memo', [ $this, 'handle_forget_memo' ] );
+		add_action( 'admin_post_essf_forget_excluded', [ $this, 'handle_forget_excluded' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
@@ -67,6 +77,15 @@ class ESSF_Admin_Page {
 			'manage_options',
 			'essfinance',
 			[ $this, 'render_dashboard' ]
+		);
+
+		add_submenu_page(
+			'essfinance',
+			__( 'OFX Glossary', 'essfinance' ),
+			__( 'OFX Glossary', 'essfinance' ),
+			'manage_options',
+			'essfinance-ofx-glossary',
+			[ $this, 'render_glossary_page' ]
 		);
 	}
 
@@ -314,23 +333,7 @@ class ESSF_Admin_Page {
 			exit;
 		}
 
-		// Build dedup lookups (description+date+amount, and FITID for OFX).
-		$existing     = [];
-		$fitid_lookup = [];
-		foreach ( get_posts(
-			[
-				'post_type'      => 'essf_cashflow',
-				'post_status'    => [ 'pending', 'paid' ],
-				'posts_per_page' => -1,
-			]
-		) as $p ) {
-			$due = substr( $p->post_date_gmt, 0, 10 );
-			$existing[ strtolower( trim( $p->post_title ) ) . '|' . $due . '|' . round( (float) $p->post_content, 2 ) ] = true;
-			$fitid = get_post_meta( $p->ID, '_essf_fitid', true );
-			if ( $fitid ) {
-				$fitid_lookup[ $fitid ] = true;
-			}
-		}
+		[ $existing, $fitid_lookup, $amount_index ] = $this->build_dedup_lookups();
 
 		$ext = strtolower( pathinfo( $file['name'], PATHINFO_EXTENSION ) );
 
@@ -340,21 +343,23 @@ class ESSF_Admin_Page {
 				wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
 				exit;
 			}
-			$result = $this->import_ofx( $content, $existing, $fitid_lookup );
-		} else {
-			$handle = fopen( $file['tmp_name'], 'r' );
-			if ( ! $handle ) {
-				wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
-				exit;
-			}
-			$bom = fread( $handle, 3 );
-			if ( "\xEF\xBB\xBF" !== $bom ) {
-				rewind( $handle );
-			}
-			fgetcsv( $handle ); // skip header row
-			$result = $this->import_csv( $handle, $existing );
-			fclose( $handle );
+			// OFX transactions are staged for review — never inserted directly. Always exits.
+			$this->stage_ofx_import( $content, $existing, $fitid_lookup, $amount_index );
+			exit;
 		}
+
+		$handle = fopen( $file['tmp_name'], 'r' );
+		if ( ! $handle ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+		$bom = fread( $handle, 3 );
+		if ( "\xEF\xBB\xBF" !== $bom ) {
+			rewind( $handle );
+		}
+		fgetcsv( $handle ); // skip header row
+		$result = $this->import_csv( $handle, $existing );
+		fclose( $handle );
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -367,6 +372,54 @@ class ESSF_Admin_Page {
 			)
 		);
 		exit;
+	}
+
+	/**
+	 * Build dedup lookups shared by CSV and OFX imports: description+date+amount
+	 * keys for exact-match dedup, FITID for OFX, and an amount→[id,date,title]
+	 * index used to flag *possible* duplicates that differ only by
+	 * description (the common case when a bank memo doesn't match the
+	 * curated title of an already-recorded entry). The post ID travels with
+	 * the match so a confirmed duplicate can be backfilled with the raw memo
+	 * — see backfill_duplicate_memos().
+	 *
+	 * @return array{0: array<string, bool>, 1: array<string, bool>, 2: array<string, array<int, array{id: int, date: string, title: string}>>}
+	 */
+	private function build_dedup_lookups(): array {
+		$existing     = [];
+		$fitid_lookup = [];
+		$amount_index = [];
+		foreach ( get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+			]
+		) as $p ) {
+			$due    = substr( $p->post_date_gmt, 0, 10 );
+			$pay    = substr( $p->post_modified_gmt, 0, 10 );
+			$amount = round( (float) $p->post_content, 2 );
+
+			$existing[ strtolower( trim( $p->post_title ) ) . '|' . $due . '|' . $amount ] = true;
+
+			$fitid = get_post_meta( $p->ID, '_essf_fitid', true );
+			if ( $fitid ) {
+				$fitid_lookup[ $fitid ] = true;
+			}
+
+			$is_real_date = static function ( string $d ): bool {
+				return '' !== $d && '0000-00-00' !== $d;
+			};
+			foreach ( array_unique( array_filter( [ $due, $pay ], $is_real_date ) ) as $date ) {
+				$amount_index[ (string) $amount ][] = [
+					'id'    => $p->ID,
+					'date'  => $date,
+					'title' => $p->post_title,
+				];
+			}
+		}
+
+		return [ $existing, $fitid_lookup, $amount_index ];
 	}
 
 	private function import_csv( $handle, array &$existing ): array {
@@ -410,99 +463,565 @@ class ESSF_Admin_Page {
 		return compact( 'imported', 'skipped' );
 	}
 
-	private function import_ofx( string $content, array &$existing, array &$fitid_lookup ): array {
-		$imported = 0;
-		$skipped  = 0;
+	/**
+	 * Parse + dedupe an OFX file's transactions, stage the survivors in a
+	 * short-lived transient, and redirect to the review page. Nothing is
+	 * written to the database until the operator confirms.
+	 *
+	 * @param string $content      Raw OFX/QFX file contents.
+	 * @param array  $existing     Exact-match dedup lookup from build_dedup_lookups().
+	 * @param array  $fitid_lookup FITID dedup lookup from build_dedup_lookups().
+	 * @param array  $amount_index Amount→[id,date,title] index from build_dedup_lookups().
+	 */
+	private function stage_ofx_import( string $content, array $existing, array $fitid_lookup, array $amount_index ): void {
+		$excluded_memos = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
+		$staged         = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos );
 
-		foreach ( $this->parse_ofx_transactions( $content ) as $trn ) {
-			$description = sanitize_text_field( $trn['description'] );
-			$amount      = round( $trn['amount'], 2 );
-			$due_key     = $trn['due_date'];
-			$fitid       = $trn['fitid'];
+		if ( ! $staged['rows'] ) {
+			wp_safe_redirect(
+				add_query_arg(
+					[
+						'essf_msg'      => 'imported',
+						'essf_imported' => 0,
+						'essf_skipped'  => $staged['skipped'],
+					],
+					admin_url( 'admin.php?page=essfinance' )
+				)
+			);
+			exit;
+		}
 
+		// A 40-char hex token, shaped like a git SHA-1 (short-form display
+		// uses the first 7 chars, same as `git log --oneline`) rather than
+		// wp_generate_password()'s mixed-case/no-symbol charset.
+		$token = bin2hex( random_bytes( 20 ) );
+		set_transient(
+			self::review_transient_key( $token ),
+			[
+				'user_id' => get_current_user_id(),
+				'skipped' => $staged['skipped'],
+				'rows'    => $staged['rows'],
+			],
+			15 * MINUTE_IN_SECONDS
+		);
+
+		wp_safe_redirect(
+			add_query_arg(
+				[
+					'page'        => 'essfinance',
+					// Short in the URL, like a git ref — resolve_review_token()
+					// looks the full token back up server-side; the full form
+					// is still what actually secures the transient lookup.
+					'essf_review' => substr( $token, 0, 7 ),
+				],
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Pure dedup/staging logic for OFX transactions — no WordPress calls, so
+	 * it's directly unit testable. Exact-match duplicates (by FITID, or by
+	 * description+date+amount) are dropped silently, same as before this
+	 * feature. Amount+date-only matches (different description — the normal
+	 * case when a bank memo hasn't been mapped yet) are kept but flagged as
+	 * `possible_duplicate`, and rows whose memo resembles one the operator
+	 * has excluded before are flagged `suggested_exclude` — the review UI
+	 * defaults both to excluded, dimmed, but still shown for confirmation.
+	 *
+	 * @param array $transactions   Rows returned by ESSF_OFX_Parser::parse().
+	 * @param array $existing       Exact-match dedup lookup.
+	 * @param array $fitid_lookup   FITID dedup lookup.
+	 * @param array $amount_index   Amount→[id,date,title] index.
+	 * @param array $excluded_memos Normalized memos of previously-excluded rows.
+	 * @return array{rows: array<int, array>, skipped: int}
+	 */
+	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [] ): array {
+		$rows    = [];
+		$skipped = 0;
+
+		foreach ( $transactions as $trn ) {
+			$fitid = $trn['fitid'] ?? '';
 			if ( $fitid && isset( $fitid_lookup[ $fitid ] ) ) {
 				++$skipped;
 				continue;
 			}
 
-			$key = strtolower( $description ) . '|' . $due_key . '|' . $amount;
+			$amount   = round( (float) ( $trn['amount'] ?? 0 ), 2 );
+			$due_date = (string) ( $trn['due_date'] ?? '' );
+			$name     = $trn['name'] ?? '';
+			$memo     = $trn['memo'] ?? '';
+
+			// "Transferência enviada/recebida ... - Nome - resto" reduces to
+			// a short "Transferência Nome" title (direction is already the
+			// amount's sign) with the counterparty detail kept for
+			// _essf_ofx_detail; "Compra no débito/crédito [via X] - Merchant"
+			// reduces to just the merchant name; "Pagamento de boleto
+			// efetuado - Beneficiário" reduces to just the beneficiary name;
+			// anything else falls back to describe(). Either way,
+			// ESSF_OFX_Suggestions::suggest() still gets first pick if it
+			// finds a learned mapping — this is only the fallback shown when
+			// nothing in history matches yet.
+			$transfer    = ESSF_OFX_Parser::parse_transfer( $name ?: $memo );
+			$purchase    = $transfer ? null : ESSF_OFX_Parser::parse_purchase( $name ?: $memo );
+			$boleto      = ( $transfer || null !== $purchase ) ? null : ESSF_OFX_Parser::parse_boleto( $name ?: $memo );
+			$description = $transfer['title'] ?? $purchase ?? $boleto ?? ESSF_OFX_Parser::describe( $trn );
+
+			$key = strtolower( $description ) . '|' . $due_date . '|' . $amount;
 			if ( isset( $existing[ $key ] ) ) {
 				++$skipped;
 				continue;
 			}
 
-			$due_dt  = $due_key ? DateTime::createFromFormat( 'Y-m-d', $due_key ) : false;
-			$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
-
-			$post_id = $this->insert_entry( $description, $amount, $due_gmt, '0000-00-00 00:00:00', 'pending' );
-			if ( $post_id ) {
-				if ( $fitid ) {
-					update_post_meta( $post_id, '_essf_fitid', $fitid );
-					$fitid_lookup[ $fitid ] = true;
-				}
-				$existing[ $key ] = true;
-				++$imported;
-			}
-		}
-
-		return compact( 'imported', 'skipped' );
-	}
-
-	private function parse_ofx_transactions( string $content ): array {
-		$content = str_replace( [ "\r\n", "\r" ], "\n", $content );
-
-		// Strip OFX 1.x header — everything before <OFX>.
-		if ( preg_match( '/<OFX>/i', $content, $m, PREG_OFFSET_CAPTURE ) ) {
-			$content = substr( $content, (int) $m[0][1] );
-		}
-
-		$extract = static function ( string $tag, string $block ): string {
-			return preg_match( '/<' . $tag . '>\s*([^\s<][^<\n\r]*)/i', $block, $m ) ? trim( $m[1] ) : '';
-		};
-
-		// OFX 2.x has proper closing tags; OFX 1.x (SGML) does not.
-		if ( preg_match_all( '/<STMTTRN>(.*?)<\/STMTTRN>/si', $content, $matches ) ) {
-			$blocks = $matches[1];
-		} else {
-			// SGML: split on opening tag, discard pre-first-transaction content.
-			$parts = preg_split( '/<STMTTRN>/i', $content );
-			array_shift( $parts );
-			$blocks = array_map(
-				static function ( string $p ): string {
-					return preg_split( '/<\/BANKTRANLIST>|<LEDGERBAL>|<AVAILBAL>/i', $p )[0];
-				},
-				$parts
-			);
-		}
-
-		$transactions = [];
-		foreach ( $blocks as $block ) {
-			$amount_raw = $extract( 'TRNAMT', $block );
-			$date_raw   = $extract( 'DTPOSTED', $block );
-			if ( '' === $amount_raw || '' === $date_raw ) {
-				continue;
-			}
-
-			// OFX date: YYYYMMDD[HHMMSS[.mmm][tz]] — take first 8 digits.
-			$digits = substr( preg_replace( '/[^0-9]/', '', $date_raw ), 0, 8 );
-			if ( strlen( $digits ) < 8 ) {
-				continue;
-			}
-			$due_date = substr( $digits, 0, 4 ) . '-' . substr( $digits, 4, 2 ) . '-' . substr( $digits, 6, 2 );
-
-			$name        = $extract( 'NAME', $block );
-			$memo        = $extract( 'MEMO', $block );
-			$description = $name ?: $memo ?: 'OFX Transaction';
-
-			$transactions[] = [
-				'fitid'       => $extract( 'FITID', $block ),
-				'description' => $description,
-				'amount'      => (float) str_replace( ',', '.', $amount_raw ),
-				'due_date'    => $due_date,
+			$rows[] = [
+				'fitid'              => $fitid,
+				'amount'             => $amount,
+				'due_date'           => $due_date,
+				'name'               => $name,
+				'memo'               => $memo,
+				'description'        => $description,
+				'transfer_detail'    => $transfer['detail'] ?? '',
+				'possible_duplicate' => self::find_possible_duplicate( $amount, $due_date, $amount_index ),
+				'suggested_exclude'  => ESSF_OFX_Suggestions::matches_excluded( $name ?: $memo, $excluded_memos ),
 			];
 		}
 
-		return $transactions;
+		return [
+			'rows'    => $rows,
+			'skipped' => $skipped,
+		];
+	}
+
+	/**
+	 * Look for an existing entry with the same amount within a small date
+	 * tolerance, regardless of description. Used to flag likely duplicates
+	 * that the exact-match key (which includes description) can't catch —
+	 * bank memos rarely match a curated title verbatim.
+	 *
+	 * @param float  $amount         Transaction amount, already rounded.
+	 * @param string $date           Transaction date, `Y-m-d`.
+	 * @param array  $amount_index   Amount→[id,date,title] index.
+	 * @param int    $tolerance_days Max day difference still considered a match.
+	 * @return array{id: int, date: string, title: string}|null
+	 */
+	public static function find_possible_duplicate( float $amount, string $date, array $amount_index, int $tolerance_days = 2 ): ?array {
+		$bucket = $amount_index[ (string) $amount ] ?? [];
+		if ( ! $bucket || '' === $date ) {
+			return null;
+		}
+
+		$target_ts = strtotime( $date );
+		if ( false === $target_ts ) {
+			return null;
+		}
+
+		foreach ( $bucket as $entry ) {
+			$entry_ts = strtotime( $entry['date'] );
+			if ( false === $entry_ts ) {
+				continue;
+			}
+			if ( abs( $target_ts - $entry_ts ) / 86400 <= $tolerance_days ) {
+				return $entry;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Prior OFX memo→title history used to power review-page suggestions.
+	 *
+	 * @return array<int, array{memo: string, title: string, date: string}>
+	 */
+	private function ofx_memo_history(): array {
+		$posts = get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+				'meta_key'       => '_essf_ofx_memo',
+			]
+		);
+
+		$history = [];
+		foreach ( $posts as $post ) {
+			$memo = get_post_meta( $post->ID, '_essf_ofx_memo', true );
+			if ( ! $memo ) {
+				continue;
+			}
+			$history[] = [
+				'memo'  => $memo,
+				'title' => $post->post_title,
+				'date'  => (string) get_post_meta( $post->ID, '_order_date', true ),
+			];
+		}
+
+		return $history;
+	}
+
+	private static function review_transient_key( string $token ): string {
+		return 'essf_ofx_review_' . $token;
+	}
+
+	/**
+	 * Resolve the short (7-char) token shown in the review URL back to the
+	 * full 40-char one the transient is actually keyed on. Transients don't
+	 * support a prefix lookup, so this is a direct LIKE query against
+	 * wp_options — same idea as `git show <short-sha>` resolving against the
+	 * full object database. The full token is what secures the lookup; the
+	 * short form only exists for a shorter, human-readable URL.
+	 *
+	 * @param string $short The token prefix from `$_GET['essf_review']`.
+	 */
+	private function resolve_review_token( string $short ): ?string {
+		$short = preg_replace( '/[^a-f0-9]/', '', strtolower( $short ) );
+		if ( '' === $short ) {
+			return null;
+		}
+
+		global $wpdb;
+		$option_prefix = '_transient_' . self::review_transient_key( $short );
+		$option_name   = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $wpdb->options is the table name, not user input
+				$wpdb->esc_like( $option_prefix ) . '%'
+			)
+		);
+
+		if ( ! $option_name ) {
+			return null;
+		}
+
+		$full_token = substr( $option_name, strlen( '_transient_' . self::review_transient_key( '' ) ) );
+
+		return '' === $full_token ? null : $full_token;
+	}
+
+	public function handle_import_ofx_confirm(): void {
+		check_admin_referer( self::IMPORT_OFX_CONFIRM_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$token  = isset( $_POST['essf_review_token'] ) ? sanitize_text_field( wp_unslash( $_POST['essf_review_token'] ) ) : '';
+		$staged = $token ? get_transient( self::review_transient_key( $token ) ) : false;
+
+		if ( ! is_array( $staged ) || (int) ( $staged['user_id'] ?? 0 ) !== get_current_user_id() ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		// Only the description and include flag are trusted from the client —
+		// amount/date/FITID/memo are re-read from the transient, never from
+		// resubmitted form fields. resolve_ofx_confirm_rows() trims/
+		// sanitizes the description; include is boolean-checked.
+		$posted_rows = isset( $_POST['essf_rows'] ) && is_array( $_POST['essf_rows'] ) ? wp_unslash( $_POST['essf_rows'] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- values are trimmed/checked downstream in resolve_ofx_confirm_rows() and sanitize_text_field()'d again before insert
+		$resolved    = self::resolve_ofx_confirm_rows( $staged['rows'], $posted_rows );
+
+		$imported = 0;
+		foreach ( $resolved['insert'] as $row ) {
+			$description = sanitize_text_field( $row['description'] );
+			$due_dt      = $row['due_date'] ? DateTime::createFromFormat( 'Y-m-d', $row['due_date'] ) : false;
+			$due_gmt     = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+
+			// A bank statement transaction has already cleared, so OFX
+			// imports always land paid — there's no pending state to review.
+			$post_id = $this->insert_entry( $description, (float) $row['amount'], $due_gmt, $due_gmt, 'paid' );
+			if ( ! $post_id ) {
+				continue;
+			}
+			if ( $row['fitid'] ) {
+				update_post_meta( $post_id, '_essf_fitid', $row['fitid'] );
+			}
+			$raw_memo = $row['memo'] ?: $row['name'];
+			if ( $raw_memo ) {
+				update_post_meta( $post_id, '_essf_ofx_memo', $raw_memo );
+			}
+			if ( ! empty( $row['transfer_detail'] ) ) {
+				update_post_meta( $post_id, '_essf_ofx_detail', $row['transfer_detail'] );
+			}
+			++$imported;
+		}
+
+		$this->remember_excluded_memos( $resolved['excluded'] );
+		$this->backfill_duplicate_memos( $resolved['excluded'] );
+		delete_transient( self::review_transient_key( $token ) );
+
+		wp_safe_redirect(
+			add_query_arg(
+				[
+					'essf_msg'      => 'imported',
+					'essf_imported' => $imported,
+					'essf_skipped'  => (int) ( $staged['skipped'] ?? 0 ) + $resolved['skipped'],
+				],
+				admin_url( 'admin.php?page=essfinance' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Merge the operator's review-grid edits (description/include) onto the
+	 * server-trusted staged rows. Pure logic, no WordPress calls. Excluded
+	 * rows are returned in full (not just counted) so the caller can learn
+	 * from them — see remember_excluded_memos().
+	 *
+	 * @param array $staged_rows Rows from the transient, indexed 0..n-1.
+	 * @param array $posted_rows `$_POST['essf_rows']`, same indices.
+	 * @return array{insert: array<int, array>, excluded: array<int, array>, skipped: int}
+	 */
+	public static function resolve_ofx_confirm_rows( array $staged_rows, array $posted_rows ): array {
+		$to_insert = [];
+		$excluded  = [];
+
+		foreach ( $staged_rows as $i => $row ) {
+			$posted = $posted_rows[ $i ] ?? null;
+			if ( ! $posted || empty( $posted['include'] ) ) {
+				$excluded[] = $row;
+				continue;
+			}
+
+			$description = trim( (string) ( $posted['description'] ?? '' ) );
+			if ( '' === $description ) {
+				$description = $row['description'];
+			}
+
+			$to_insert[] = array_merge( $row, [ 'description' => $description ] );
+		}
+
+		return [
+			'insert'   => $to_insert,
+			'excluded' => $excluded,
+			'skipped'  => count( $excluded ),
+		];
+	}
+
+	/**
+	 * Learn from rows the operator excluded this round so similar memos
+	 * (balance lines, internal transfers, etc.) default to excluded on
+	 * future imports too — see ESSF_OFX_Suggestions::matches_excluded().
+	 *
+	 * @param array $excluded_rows Rows the operator left unchecked, from resolve_ofx_confirm_rows().
+	 */
+	private function remember_excluded_memos( array $excluded_rows ): void {
+		if ( ! $excluded_rows ) {
+			return;
+		}
+
+		$memos = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
+		if ( ! is_array( $memos ) ) {
+			$memos = [];
+		}
+
+		foreach ( $excluded_rows as $row ) {
+			$raw_memo = ( $row['name'] ?? '' ) ?: ( $row['memo'] ?? '' );
+			if ( ! $raw_memo ) {
+				continue;
+			}
+			$normalized = ESSF_OFX_Suggestions::normalize( $raw_memo );
+			if ( '' === $normalized || in_array( $normalized, $memos, true ) ) {
+				continue;
+			}
+			$memos[] = $normalized;
+		}
+
+		if ( count( $memos ) > self::EXCLUDED_MEMOS_LIMIT ) {
+			$memos = array_slice( $memos, -self::EXCLUDED_MEMOS_LIMIT );
+		}
+
+		update_option( self::EXCLUDED_MEMOS_OPTION, $memos, false );
+	}
+
+	/**
+	 * When the operator leaves a `possible_duplicate` row excluded, they've
+	 * implicitly confirmed it's the same real-world transaction as the
+	 * existing entry it matched — so tag that existing entry with the raw
+	 * memo (if it doesn't already have one) rather than only ever learning
+	 * from newly-inserted rows. Without this, an entry created before this
+	 * feature existed (or by hand, or via CSV) never feeds
+	 * ESSF_OFX_Suggestions, even after we've just proven its memo pattern.
+	 *
+	 * Only applies to possible_duplicate matches, not suggested_exclude
+	 * (noise like balance lines) — those have no matched post to tag, and
+	 * are already learned via remember_excluded_memos().
+	 *
+	 * @param array $excluded_rows Rows the operator left excluded, from resolve_ofx_confirm_rows().
+	 */
+	private function backfill_duplicate_memos( array $excluded_rows ): void {
+		foreach ( $excluded_rows as $row ) {
+			$dupe = $row['possible_duplicate'] ?? null;
+			if ( empty( $dupe['id'] ) ) {
+				continue;
+			}
+
+			$raw_memo = ( $row['name'] ?? '' ) ?: ( $row['memo'] ?? '' );
+			if ( ! $raw_memo ) {
+				continue;
+			}
+
+			if ( get_post_meta( $dupe['id'], '_essf_ofx_memo', true ) ) {
+				continue;
+			}
+
+			update_post_meta( $dupe['id'], '_essf_ofx_memo', $raw_memo );
+		}
+	}
+
+	/* ── OFX glossary (learned suggestions) ──────────────── */
+
+	/**
+	 * Every essf_cashflow post currently feeding ESSF_OFX_Suggestions —
+	 * i.e. one row per _essf_ofx_memo, for the glossary admin page. Unlike
+	 * ofx_memo_history() (which only returns what suggest() itself needs),
+	 * this also carries the post ID so each row can be individually
+	 * "forgotten".
+	 *
+	 * @return array<int, array{id: int, title: string, memo: string, detail: string}>
+	 */
+	private function ofx_glossary_entries(): array {
+		$posts = get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+				'meta_key'       => '_essf_ofx_memo',
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+			]
+		);
+
+		$entries = [];
+		foreach ( $posts as $post ) {
+			$memo = get_post_meta( $post->ID, '_essf_ofx_memo', true );
+			if ( ! $memo ) {
+				continue;
+			}
+			$entries[] = [
+				'id'     => $post->ID,
+				'title'  => $post->post_title,
+				'memo'   => $memo,
+				'detail' => (string) get_post_meta( $post->ID, '_essf_ofx_detail', true ),
+			];
+		}
+
+		return $entries;
+	}
+
+	public function render_glossary_page(): void {
+		$msg = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'OFX Glossary', 'essfinance' ); ?></h1>
+			<hr class="wp-header-end">
+
+			<?php if ( 'forgotten' === $msg ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Entry forgotten.', 'essfinance' ); ?></p></div>
+			<?php endif; ?>
+
+			<p class="description">
+				<?php esc_html_e( 'These are the raw bank memos EssFinance has learned to recognize during OFX review, and what each currently suggests. "Forget" clears the learned mapping only — the underlying entry stays exactly as it is.', 'essfinance' ); ?>
+			</p>
+
+			<h2><?php esc_html_e( 'Learned descriptions', 'essfinance' ); ?></h2>
+			<?php $glossary = $this->ofx_glossary_entries(); ?>
+			<?php if ( ! $glossary ) : ?>
+				<p><?php esc_html_e( 'Nothing learned yet — this fills in as you confirm OFX imports.', 'essfinance' ); ?></p>
+			<?php else : ?>
+				<table class="wp-list-table widefat fixed striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Raw Memo', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Detail', 'essfinance' ); ?></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $glossary as $entry ) : ?>
+							<tr>
+								<td><?php echo esc_html( $entry['title'] ); ?></td>
+								<td><?php echo esc_html( $entry['memo'] ); ?></td>
+								<td><?php echo esc_html( $entry['detail'] ); ?></td>
+								<td>
+									<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_forget_memo&entry=' . $entry['id'] ), self::FORGET_MEMO_NONCE . '_' . $entry['id'] ) ); ?>"
+										onclick="return confirm('<?php echo esc_js( __( 'Forget this mapping? The entry itself will not be changed.', 'essfinance' ) ); ?>')">
+										<?php esc_html_e( 'Forget', 'essfinance' ); ?>
+									</a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+
+			<h2><?php esc_html_e( 'Excluded patterns', 'essfinance' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Memo patterns you\'ve excluded during review before (e.g. balances, internal transfers) — future imports matching one of these default to excluded too.', 'essfinance' ); ?>
+			</p>
+			<?php $excluded = get_option( self::EXCLUDED_MEMOS_OPTION, [] ); ?>
+			<?php if ( ! is_array( $excluded ) || ! $excluded ) : ?>
+				<p><?php esc_html_e( 'Nothing excluded yet.', 'essfinance' ); ?></p>
+			<?php else : ?>
+				<table class="wp-list-table widefat fixed striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Pattern', 'essfinance' ); ?></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $excluded as $pattern ) : ?>
+							<tr>
+								<td><?php echo esc_html( $pattern ); ?></td>
+								<td>
+									<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_forget_excluded&pattern=' . rawurlencode( $pattern ) ), self::FORGET_EXCLUDED_NONCE ) ); ?>">
+										<?php esc_html_e( 'Forget', 'essfinance' ); ?>
+									</a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	public function handle_forget_memo(): void {
+		$post_id = absint( $_GET['entry'] ?? 0 );
+		check_admin_referer( self::FORGET_MEMO_NONCE . '_' . $post_id );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$post = get_post( $post_id );
+		if ( $post && 'essf_cashflow' === $post->post_type ) {
+			delete_post_meta( $post_id, '_essf_ofx_memo' );
+			delete_post_meta( $post_id, '_essf_ofx_detail' );
+		}
+
+		wp_safe_redirect( add_query_arg( 'essf_msg', 'forgotten', admin_url( 'admin.php?page=essfinance-ofx-glossary' ) ) );
+		exit;
+	}
+
+	public function handle_forget_excluded(): void {
+		check_admin_referer( self::FORGET_EXCLUDED_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$pattern = isset( $_GET['pattern'] ) ? sanitize_text_field( wp_unslash( $_GET['pattern'] ) ) : '';
+		if ( '' !== $pattern ) {
+			$excluded = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
+			if ( is_array( $excluded ) ) {
+				$excluded = array_values( array_diff( $excluded, [ $pattern ] ) );
+				update_option( self::EXCLUDED_MEMOS_OPTION, $excluded, false );
+			}
+		}
+
+		wp_safe_redirect( add_query_arg( 'essf_msg', 'forgotten', admin_url( 'admin.php?page=essfinance-ofx-glossary' ) ) );
+		exit;
 	}
 
 	private function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status ): int {
@@ -649,6 +1168,17 @@ class ESSF_Admin_Page {
 	public function render_dashboard(): void {
 		$msg = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
 
+		if ( ! empty( $_GET['essf_review'] ) && current_user_can( 'manage_options' ) ) {
+			$short  = sanitize_text_field( wp_unslash( $_GET['essf_review'] ) );
+			$token  = $this->resolve_review_token( $short );
+			$staged = $token ? get_transient( self::review_transient_key( $token ) ) : false;
+			if ( $token && is_array( $staged ) && (int) ( $staged['user_id'] ?? 0 ) === get_current_user_id() ) {
+				$this->render_review_page( $token, $staged );
+				return;
+			}
+			$msg = 'import_error';
+		}
+
 		if ( ! empty( $_GET['entry'] ) && current_user_can( 'manage_options' ) ) {
 			$post = get_post( absint( $_GET['entry'] ) );
 			if ( $post && 'essf_cashflow' === $post->post_type ) {
@@ -722,6 +1252,198 @@ class ESSF_Admin_Page {
 		<?php
 	}
 
+	/**
+	 * Review-and-confirm page for a staged OFX import. Presented as a modal
+	 * `<dialog>` backed by a real page (the staged rows live in the
+	 * transient, not JS state, so a reload doesn't lose them).
+	 *
+	 * @param string $token  The `essf_review` token.
+	 * @param array  $staged Transient payload: user_id, skipped, rows.
+	 */
+	private function render_review_page( string $token, array $staged ): void {
+		$back_url = admin_url( 'admin.php?page=essfinance' );
+		$history  = $this->ofx_memo_history();
+
+		// The From/To pickers are only worth showing (and only get a real
+		// min/max) when the batch actually spans more than one date — a
+		// single-day statement has nothing to filter. Bounding the native
+		// date input to the batch's own range also means a single-month
+		// statement opens its picker already scoped to that month, without
+		// needing a separate day-only widget.
+		$staged_dates = array_filter( array_column( $staged['rows'], 'due_date' ) );
+		$date_min     = $staged_dates ? min( $staged_dates ) : '';
+		$date_max     = $staged_dates ? max( $staged_dates ) : '';
+		$show_filter  = $date_min && $date_max && $date_min !== $date_max;
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Review OFX Import', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( $back_url ); ?>" class="page-title-action">
+				&larr; <?php esc_html_e( 'Cash Flow', 'essfinance' ); ?>
+			</a>
+			<hr class="wp-header-end">
+
+			<?php if ( ! empty( $staged['skipped'] ) ) : ?>
+				<div class="notice notice-info">
+					<p>
+						<?php
+						/* translators: %d: number of duplicate transactions skipped automatically. */
+						$dupe_notice = _n(
+							'%d duplicate transaction was skipped automatically.',
+							'%d duplicate transactions were skipped automatically.',
+							(int) $staged['skipped'],
+							'essfinance'
+						);
+						printf( esc_html( $dupe_notice ), absint( $staged['skipped'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $dupe_notice is pre-escaped via esc_html()
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<?php
+			/* translators: %s is replaced client-side (assets/js/admin.js) with the description being offered, not by PHP. */
+			$apply_label = __( 'Use "%s"', 'essfinance' );
+			?>
+			<dialog id="essf-ofx-review-modal" class="essf-ofx-review-modal" data-token="<?php echo esc_attr( $token ); ?>" data-apply-label="<?php echo esc_attr( $apply_label ); ?>" open>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="essf_import_ofx_confirm">
+					<input type="hidden" name="essf_review_token" value="<?php echo esc_attr( $token ); ?>">
+					<?php wp_nonce_field( self::IMPORT_OFX_CONFIRM_NONCE ); ?>
+
+					<h2><?php esc_html_e( 'Confirm entries to import', 'essfinance' ); ?></h2>
+					<p class="description">
+						<?php esc_html_e( 'Hover a description to see the raw bank memo, or click it to edit before these transactions are saved. Click the ✕ to exclude a row (e.g. balances, internal transfers) — click again to bring it back.', 'essfinance' ); ?>
+					</p>
+
+					<?php if ( $show_filter ) : ?>
+						<div class="essf-ofx-review-filter">
+							<label for="essf-ofx-filter-from"><?php esc_html_e( 'From', 'essfinance' ); ?></label>
+							<input type="date" id="essf-ofx-filter-from" class="essf-ofx-filter-input" data-filter="from"
+								min="<?php echo esc_attr( $date_min ); ?>" max="<?php echo esc_attr( $date_max ); ?>">
+							<label for="essf-ofx-filter-to"><?php esc_html_e( 'To', 'essfinance' ); ?></label>
+							<input type="date" id="essf-ofx-filter-to" class="essf-ofx-filter-input" data-filter="to"
+								min="<?php echo esc_attr( $date_min ); ?>" max="<?php echo esc_attr( $date_max ); ?>">
+							<span class="essf-ofx-filter-count" aria-live="polite"></span>
+						</div>
+					<?php endif; ?>
+
+					<div class="essf-ofx-review-table-wrap">
+						<table class="essf-ofx-review-table">
+							<thead>
+								<tr>
+									<th class="check-column"></th>
+									<th><?php esc_html_e( 'Date', 'essfinance' ); ?></th>
+									<th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th>
+									<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $staged['rows'] as $i => $row ) : ?>
+									<?php
+									$raw_memo    = $row['memo'] ?: $row['name'];
+									$suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $history );
+									$is_dupe     = ! empty( $row['possible_duplicate'] );
+									$is_learned  = ! empty( $row['suggested_exclude'] );
+									$is_income   = $row['amount'] > 0;
+
+									if ( $is_dupe ) {
+										$dupe_title = $row['possible_duplicate']['title'];
+										$has_dupe   = false;
+										foreach ( $suggestions as $s ) {
+											if ( $s['title'] === $dupe_title ) {
+												$has_dupe = true;
+												break;
+											}
+										}
+										if ( ! $has_dupe ) {
+											array_unshift(
+												$suggestions,
+												[
+													'title' => $dupe_title,
+													'score' => 100.0,
+												]
+											);
+										}
+									}
+									$default        = $suggestions[0]['title'] ?? $row['description'];
+									$has_suggestion = ! empty( $suggestions );
+
+									$datalist_id  = 'essf-ofx-suggestions-' . $i;
+									$excluded_row = $is_dupe || $is_learned;
+									?>
+									<tr class="<?php echo $excluded_row ? 'is-excluded' : ''; ?>" data-row="<?php echo esc_attr( (string) $i ); ?>" data-date="<?php echo esc_attr( $row['due_date'] ); ?>">
+										<td class="essf-ofx-row-action">
+											<input type="hidden" class="essf-ofx-include-input" name="essf_rows[<?php echo esc_attr( (string) $i ); ?>][include]" value="<?php echo $excluded_row ? '0' : '1'; ?>">
+											<button type="button" class="essf-ofx-row-toggle"
+												aria-label="<?php echo $excluded_row ? esc_attr__( 'Include this transaction', 'essfinance' ) : esc_attr__( 'Exclude this transaction', 'essfinance' ); ?>"
+												data-include-label="<?php esc_attr_e( 'Include this transaction', 'essfinance' ); ?>"
+												data-exclude-label="<?php esc_attr_e( 'Exclude this transaction', 'essfinance' ); ?>">
+												<?php echo $excluded_row ? '↺' : '✕'; ?>
+											</button>
+										</td>
+										<td><?php echo esc_html( $row['due_date'] ); ?></td>
+										<td>
+											<span class="essf-amount--<?php echo $is_income ? 'income' : 'expense'; ?>">
+												<?php echo esc_html( ESSF_Settings::format_amount( $row['amount'] ) ); ?>
+											</span>
+										</td>
+										<td class="essf-ofx-review-desc">
+											<input type="hidden" class="essf-ofx-desc-value"
+												name="essf_rows[<?php echo esc_attr( (string) $i ); ?>][description]"
+												value="<?php echo esc_attr( $default ); ?>">
+
+											<button type="button" class="essf-ofx-desc-display" title="<?php echo esc_attr( $raw_memo ); ?>">
+												<span class="essf-ofx-desc-text"><?php echo esc_html( $default ); ?></span>
+												<?php if ( $has_suggestion ) : ?>
+													<span class="essf-ofx-desc-indicator essf-ofx-desc-indicator--match" title="<?php esc_attr_e( 'Suggested from a previous import — click to change', 'essfinance' ); ?>">✓</span>
+												<?php else : ?>
+													<span class="essf-ofx-desc-indicator essf-ofx-desc-indicator--needs-input" title="<?php esc_attr_e( 'No match found — please review this description', 'essfinance' ); ?>">✎</span>
+												<?php endif; ?>
+											</button>
+
+											<?php if ( $is_dupe ) : ?>
+												<p class="essf-ofx-review-warning">
+													<?php
+													printf(
+														/* translators: 1: existing entry title, 2: existing entry date. */
+														esc_html__( 'Possibly matches "%1$s" on %2$s.', 'essfinance' ),
+														esc_html( $row['possible_duplicate']['title'] ),
+														esc_html( $row['possible_duplicate']['date'] )
+													);
+													?>
+												</p>
+											<?php elseif ( $is_learned ) : ?>
+												<p class="essf-ofx-review-warning">
+													<?php esc_html_e( 'Looks like a transaction you\'ve excluded before.', 'essfinance' ); ?>
+												</p>
+											<?php endif; ?>
+
+											<span class="essf-ofx-desc-edit" hidden>
+												<input type="text" class="essf-ofx-desc-input" list="<?php echo esc_attr( $datalist_id ); ?>" value="<?php echo esc_attr( $default ); ?>">
+												<datalist id="<?php echo esc_attr( $datalist_id ); ?>">
+													<?php foreach ( $suggestions as $s ) : ?>
+														<option value="<?php echo esc_attr( $s['title'] ); ?>"></option>
+													<?php endforeach; ?>
+												</datalist>
+												<button type="button" class="essf-ofx-desc-confirm" aria-label="<?php esc_attr_e( 'Confirm description', 'essfinance' ); ?>">✓</button>
+												<button type="button" class="essf-ofx-desc-cancel" aria-label="<?php esc_attr_e( 'Cancel edit', 'essfinance' ); ?>">✕</button>
+											</span>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
+
+					<p class="submit">
+						<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Finish', 'essfinance' ); ?>">
+						<a href="<?php echo esc_url( $back_url ); ?>" class="button button-secondary"><?php esc_html_e( 'Cancel', 'essfinance' ); ?></a>
+					</p>
+				</form>
+			</dialog>
+		</div>
+		<?php
+	}
+
 	public function render_add_page(): void {
 		?>
 		<div class="wrap">
@@ -746,7 +1468,7 @@ class ESSF_Admin_Page {
 				<div class="form-field form-required">
 					<label for="essf_csv_file"><?php esc_html_e( 'File', 'essfinance' ); ?></label>
 					<input type="file" id="essf_csv_file" name="essf_csv_file" accept=".csv,.ofx,.qfx">
-					<p class="description"><?php esc_html_e( 'Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically.', 'essfinance' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically. OFX files open a review step before anything is saved.', 'essfinance' ); ?></p>
 				</div>
 				<p class="submit">
 					<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Import', 'essfinance' ); ?>">

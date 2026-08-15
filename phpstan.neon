@@ -12,6 +12,8 @@ parameters:
         - node_modules/
     bootstrapFiles:
         - phpstan-bootstrap.php
+    scanFiles:
+        - vendor/php-stubs/wp-cli-stubs/wp-cli-stubs.php
     parallel:
         maximumNumberOfProcesses: 1
     treatPhpDocTypesAsCertain: false
