@@ -32,12 +32,13 @@ class ESSF_List_Table extends WP_List_Table {
 
 	public function get_columns(): array {
 		return [
-			'cb'          => '<input type="checkbox">',
-			'description' => __( 'Description', 'essfinance' ),
-			'essf_type'   => __( 'Type', 'essfinance' ),
-			'essf_amount' => __( 'Amount', 'essfinance' ),
-			'essf_due'    => __( 'Date', 'essfinance' ),
-			'essf_status' => __( 'Status', 'essfinance' ),
+			'cb'            => '<input type="checkbox">',
+			'description'   => __( 'Description', 'essfinance' ),
+			'essf_type'     => __( 'Type', 'essfinance' ),
+			'essf_category' => __( 'Category', 'essfinance' ),
+			'essf_amount'   => __( 'Amount', 'essfinance' ),
+			'essf_due'      => __( 'Date', 'essfinance' ),
+			'essf_status'   => __( 'Status', 'essfinance' ),
 		];
 	}
 
@@ -147,6 +148,7 @@ class ESSF_List_Table extends WP_List_Table {
 		$current_status = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
 		$current_type   = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
 		$current_m      = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
+		$current_cat    = isset( $_REQUEST['essf_cat'] ) ? sanitize_key( $_REQUEST['essf_cat'] ) : '';
 		?>
 		<div class="alignleft actions">
 			<label for="essf_status" class="screen-reader-text"><?php esc_html_e( 'Filter by status', 'essfinance' ); ?></label>
@@ -162,6 +164,16 @@ class ESSF_List_Table extends WP_List_Table {
 				<option value=""><?php esc_html_e( 'All types', 'essfinance' ); ?></option>
 				<option value="income" <?php selected( $current_type, 'income' ); ?>><?php esc_html_e( 'Income', 'essfinance' ); ?></option>
 				<option value="expense" <?php selected( $current_type, 'expense' ); ?>><?php esc_html_e( 'Expense', 'essfinance' ); ?></option>
+			</select>
+
+			<label for="essf_cat" class="screen-reader-text"><?php esc_html_e( 'Filter by category', 'essfinance' ); ?></label>
+			<select name="essf_cat" id="essf_cat">
+				<option value=""><?php esc_html_e( 'All categories', 'essfinance' ); ?></option>
+				<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
+					<option value="<?php echo esc_attr( $term->slug ); ?>" <?php selected( $current_cat, $term->slug ); ?>>
+						<?php echo esc_html( $term->name ); ?>
+					</option>
+				<?php endforeach; ?>
 			</select>
 
 			<?php $this->render_months_dropdown( $current_m ); ?>
@@ -237,6 +249,7 @@ class ESSF_List_Table extends WP_List_Table {
 		$status_filter = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
 		$type_filter   = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
 		$month_filter  = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
+		$cat_filter    = isset( $_REQUEST['essf_cat'] ) ? sanitize_key( $_REQUEST['essf_cat'] ) : '';
 		$orderby       = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : '';
 		$order         = isset( $_REQUEST['order'] ) && 'asc' === strtolower( sanitize_key( $_REQUEST['order'] ) ) ? 'ASC' : 'DESC';
 		$today         = (string) date_i18n( 'Y-m-d' );
@@ -271,6 +284,16 @@ class ESSF_List_Table extends WP_List_Table {
 
 		if ( $type_filter || $month_filter ) {
 			$args['posts_per_page'] = -1;
+		}
+
+		if ( $cat_filter ) {
+			$args['tax_query'] = [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_tax_query
+				[
+					'taxonomy' => ESSF_Category::TAXONOMY,
+					'field'    => 'slug',
+					'terms'    => [ $cat_filter ],
+				],
+			];
 		}
 
 		if ( 'essf_amount' === $orderby ) {
@@ -422,6 +445,11 @@ class ESSF_List_Table extends WP_List_Table {
 		$cls    = $is_inc ? 'essf-badge--income' : 'essf-badge--expense';
 		$lbl    = $is_inc ? __( 'Income', 'essfinance' ) : __( 'Expense', 'essfinance' );
 		return '<span class="essf-badge ' . esc_attr( $cls ) . '">' . esc_html( $lbl ) . '</span>';
+	}
+
+	public function column_essf_category( $item ): string {
+		$terms = wp_get_post_terms( $item->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'names' ] );
+		return esc_html( $terms[0] ?? __( 'Uncategorized', 'essfinance' ) );
 	}
 
 	public function column_essf_amount( $item ): string {
