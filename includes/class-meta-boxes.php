@@ -36,6 +36,9 @@ class ESSF_Meta_Boxes {
 		$due_date = '0000-00-00' !== substr( $post->post_date_gmt, 0, 10 ) ? substr( $post->post_date_gmt, 0, 10 ) : '';
 		$pay_date = '0000-00-00' !== substr( $post->post_modified_gmt, 0, 10 ) ? substr( $post->post_modified_gmt, 0, 10 ) : '';
 		$status   = $post->post_status;
+
+		$entry_terms = wp_get_post_terms( $post->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
+		$category    = $entry_terms[0] ?? 'uncategorized';
 		?>
 		<div class="essf-meta-box">
 			<div class="essf-field">
@@ -78,6 +81,17 @@ class ESSF_Meta_Boxes {
 					<?php foreach ( ESSF_CPT::$statuses as $val => $label ) : ?>
 						<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $status, $val ); ?>>
 							<?php echo esc_html( $label ); ?>
+						</option>
+					<?php endforeach; ?>
+				</select>
+			</div>
+
+			<div class="essf-field">
+				<label for="essf_category"><?php esc_html_e( 'Category', 'essfinance' ); ?></label>
+				<select id="essf_category" name="essf_category">
+					<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
+						<option value="<?php echo esc_attr( $term->slug ); ?>" <?php selected( $category, $term->slug ); ?>>
+							<?php echo esc_html( $term->name ); ?>
 						</option>
 					<?php endforeach; ?>
 				</select>
@@ -131,5 +145,8 @@ class ESSF_Meta_Boxes {
 
 		$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
 		update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
+
+		$category = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
+		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
 	}
 }
