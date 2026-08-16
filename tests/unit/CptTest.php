@@ -79,6 +79,15 @@ class CptTest extends TestCase {
 		$this->addToAssertionCount( 1 );
 	}
 
+	public function test_constructor_hooks_default_admin_post_status_to_pre_get_posts(): void {
+		Monkey\Actions\expectAdded( 'pre_get_posts' )
+			->once()
+			->with( \Mockery::type( 'array' ) );
+
+		new \ESSF_CPT();
+		$this->addToAssertionCount( 1 );
+	}
+
 	public function test_activate_calls_flush_rewrite_rules(): void {
 		Functions\expect( 'register_post_type' )->once();
 		Functions\expect( 'register_post_status' )->twice();

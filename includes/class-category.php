@@ -10,8 +10,10 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Category {
 
-	const TAXONOMY      = 'essf_cashflow_cat';
-	const SEEDED_OPTION = 'essf_category_seeded';
+	const TAXONOMY            = 'essf_cashflow_cat';
+	const SEEDED_OPTION       = 'essf_category_seeded';
+	const RELABEL_CRON_HOOK   = 'essf_relabel_categories';
+	const COUNTS_FIXED_OPTION = 'essf_category_counts_fixed';
 
 	/**
 	 * Canonical category list, order and slugs sourced from documents/categories.md.
@@ -128,6 +130,20 @@ class ESSF_Category {
 
 	public function __construct() {
 		add_action( 'init', [ $this, 'register' ] );
+		// Fixes already-wrong stored term counts on existing installs — see
+		// maybe_fix_term_counts(). Priority 20 so it always runs after
+		// register() (10) has registered the taxonomy on this same request.
+		add_action( 'init', [ __CLASS__, 'maybe_fix_term_counts' ], 20 );
+
+		// WPLANG is the site-language option (Settings → General). Existing
+		// installs have it as an empty string (en_US default), so a first-time
+		// language change is an update, not an add — but add_option_WPLANG is
+		// hooked too for safety, in case that option row doesn't pre-exist.
+		// Renaming 25 terms is cheap, but it's deferred to WP-Cron rather than
+		// run inline here so saving Settings → General never waits on it.
+		add_action( 'add_option_WPLANG', [ __CLASS__, 'schedule_relabel' ] );
+		add_action( 'update_option_WPLANG', [ __CLASS__, 'schedule_relabel' ] );
+		add_action( self::RELABEL_CRON_HOOK, [ __CLASS__, 'relabel_terms' ] );
 	}
 
 	public function register() {
@@ -135,7 +151,7 @@ class ESSF_Category {
 			self::TAXONOMY,
 			'essf_cashflow',
 			[
-				'labels'             => [
+				'labels'                => [
 					'name'          => __( 'Categories', 'essfinance' ),
 					'singular_name' => __( 'Category', 'essfinance' ),
 					'search_items'  => __( 'Search Categories', 'essfinance' ),
@@ -146,18 +162,31 @@ class ESSF_Category {
 					'new_item_name' => __( 'New Category Name', 'essfinance' ),
 					'menu_name'     => __( 'Categories', 'essfinance' ),
 				],
-				'hierarchical'       => false,
-				'public'             => false,
-				'show_ui'            => true,
-				'show_in_menu'       => false,
-				'show_admin_column'  => false,
-				'show_in_quick_edit' => true,
-				'show_in_rest'       => false,
-				'meta_box_cb'        => false,
-				'query_var'          => false,
-				'rewrite'            => false,
+				'hierarchical'          => false,
+				'public'                => false,
+				'show_ui'               => true,
+				'show_in_menu'          => false,
+				'show_admin_column'     => false,
+				'show_in_quick_edit'    => true,
+				'show_in_rest'          => false,
+				'meta_box_cb'           => false,
+				'query_var'             => false,
+				'rewrite'               => false,
+				// essf_cashflow entries are never post_status 'publish' (only
+				// the custom 'pending'/'paid'), but WordPress's default term-
+				// count callback hardcodes post_status = 'publish' in its
+				// query — every count would stay stuck at zero otherwise.
+				// _update_generic_term_count() is a WP core callback made
+				// exactly for this: it counts term_relationships without
+				// filtering by post_status at all.
+				'update_count_callback' => '_update_generic_term_count',
 			]
 		);
+	}
+
+	/** 'pt_BR' or 'en', the same rule seed_terms()/label_for_slug()/relabel_terms() all use. */
+	private static function seed_lang(): string {
+		return ( 0 === strpos( get_locale(), 'pt_BR' ) ) ? 'pt_BR' : 'en';
 	}
 
 	/**
@@ -170,7 +199,7 @@ class ESSF_Category {
 			return;
 		}
 
-		$lang = ( 0 === strpos( get_locale(), 'pt_BR' ) ) ? 'pt_BR' : 'en';
+		$lang = self::seed_lang();
 
 		foreach ( self::term_definitions() as $slug => $labels ) {
 			if ( ! term_exists( $slug, self::TAXONOMY ) ) {
@@ -179,6 +208,64 @@ class ESSF_Category {
 		}
 
 		update_option( self::SEEDED_OPTION, true, false );
+	}
+
+	/**
+	 * Rename every seeded term still present to its label in the site's
+	 * *current* language — hooked to the WPLANG option so switching the site
+	 * language (Settings → General) relabels the 25 standard categories
+	 * in place, rather than only affecting terms seeded from then on. Only
+	 * touches the known slugs from term_definitions(); a category the admin
+	 * added themselves has no translation to relabel to and is left alone.
+	 * Renaming only changes the term's display name — the slug (and
+	 * therefore every post's assignment to it) never changes.
+	 */
+	public static function relabel_terms(): void {
+		$lang = self::seed_lang();
+
+		foreach ( self::term_definitions() as $slug => $labels ) {
+			$term = get_term_by( 'slug', $slug, self::TAXONOMY );
+			if ( $term && $term->name !== $labels[ $lang ] ) {
+				wp_update_term( $term->term_id, self::TAXONOMY, [ 'name' => $labels[ $lang ] ] );
+			}
+		}
+	}
+
+	/**
+	 * Queue relabel_terms() on WP-Cron instead of running it inline, so a
+	 * site-language change (Settings → General) never waits on it — hooked
+	 * to the WPLANG option rather than called directly.
+	 */
+	public static function schedule_relabel(): void {
+		if ( ! wp_next_scheduled( self::RELABEL_CRON_HOOK ) ) {
+			wp_schedule_single_event( time(), self::RELABEL_CRON_HOOK );
+		}
+	}
+
+	/**
+	 * One-time fix for term counts stored before update_count_callback was
+	 * set on this taxonomy — WordPress's default counter never counted an
+	 * essf_cashflow entry (see register()), so any term used before this fix
+	 * shipped is stuck showing 0 until recounted here. Idempotent, like
+	 * seed_terms() — runs once per site, not on every request.
+	 */
+	public static function maybe_fix_term_counts(): void {
+		if ( get_option( self::COUNTS_FIXED_OPTION ) ) {
+			return;
+		}
+
+		$term_ids = get_terms(
+			[
+				'taxonomy'   => self::TAXONOMY,
+				'hide_empty' => false,
+				'fields'     => 'ids',
+			]
+		);
+		if ( ! is_wp_error( $term_ids ) && $term_ids ) {
+			wp_update_term_count_now( $term_ids, self::TAXONOMY );
+		}
+
+		update_option( self::COUNTS_FIXED_OPTION, true, false );
 	}
 
 	public static function activate(): void {
@@ -219,8 +306,7 @@ class ESSF_Category {
 			return $slug;
 		}
 
-		$lang = ( 0 === strpos( get_locale(), 'pt_BR' ) ) ? 'pt_BR' : 'en';
-		return $labels[ $lang ];
+		return $labels[ self::seed_lang() ];
 	}
 
 	/**

@@ -17,6 +17,32 @@ class ESSF_CPT {
 
 	public function __construct() {
 		add_action( 'init', [ $this, 'register' ] );
+		add_action( 'pre_get_posts', [ $this, 'default_admin_post_status' ] );
+	}
+
+	/**
+	 * `essf_cashflow` entries never use WordPress's default 'publish' status
+	 * (only the custom 'pending'/'paid' — see $statuses), but WP_Query
+	 * defaults to 'publish' whenever a query doesn't set post_status
+	 * explicitly. Every query this plugin's own admin/frontend code builds
+	 * already passes post_status explicitly and is unaffected — this only
+	 * fills the gap for WordPress's own native `edit.php` fallback screen
+	 * (including its taxonomy/term-filtered views), which doesn't know about
+	 * this post type's custom statuses and would otherwise always show zero
+	 * results.
+	 */
+	public function default_admin_post_status( WP_Query $query ): void {
+		if ( ! is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+		if ( 'essf_cashflow' !== $query->get( 'post_type' ) ) {
+			return;
+		}
+		if ( '' !== $query->get( 'post_status' ) ) {
+			return; // Don't override an explicit filter (e.g. the Trash view).
+		}
+
+		$query->set( 'post_status', array_keys( self::$statuses ) );
 	}
 
 	public function register() {

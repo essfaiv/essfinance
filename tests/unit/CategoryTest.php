@@ -50,6 +50,94 @@ class CategoryTest extends TestCase {
 		$this->addToAssertionCount( 1 );
 	}
 
+	public function test_constructor_hooks_relabel_to_language_option_changes_via_cron(): void {
+		Monkey\Actions\expectAdded( 'add_option_WPLANG' )
+			->once()
+			->with( [ 'ESSF_Category', 'schedule_relabel' ] );
+		Monkey\Actions\expectAdded( 'update_option_WPLANG' )
+			->once()
+			->with( [ 'ESSF_Category', 'schedule_relabel' ] );
+		Monkey\Actions\expectAdded( \ESSF_Category::RELABEL_CRON_HOOK )
+			->once()
+			->with( [ 'ESSF_Category', 'relabel_terms' ] );
+
+		new \ESSF_Category();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_constructor_hooks_term_count_fix_to_init(): void {
+		Monkey\Actions\expectAdded( 'init' )
+			->once()
+			->with( [ 'ESSF_Category', 'maybe_fix_term_counts' ], 20 );
+
+		new \ESSF_Category();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_schedule_relabel_schedules_when_not_already_scheduled(): void {
+		Functions\expect( 'wp_next_scheduled' )
+			->once()
+			->with( \ESSF_Category::RELABEL_CRON_HOOK )
+			->andReturn( false );
+		Functions\expect( 'wp_schedule_single_event' )
+			->once()
+			->with( \Mockery::type( 'int' ), \ESSF_Category::RELABEL_CRON_HOOK );
+
+		\ESSF_Category::schedule_relabel();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_schedule_relabel_does_not_double_schedule(): void {
+		Functions\expect( 'wp_next_scheduled' )
+			->once()
+			->with( \ESSF_Category::RELABEL_CRON_HOOK )
+			->andReturn( 12345 );
+		Functions\expect( 'wp_schedule_single_event' )->never();
+
+		\ESSF_Category::schedule_relabel();
+		$this->addToAssertionCount( 1 );
+	}
+
+	// ── maybe_fix_term_counts() ──────────────────────────────────────────
+
+	public function test_maybe_fix_term_counts_noop_when_already_fixed(): void {
+		Functions\expect( 'get_option' )
+			->once()
+			->with( \ESSF_Category::COUNTS_FIXED_OPTION )
+			->andReturn( true );
+		Functions\expect( 'get_terms' )->never();
+		Functions\expect( 'wp_update_term_count_now' )->never();
+
+		\ESSF_Category::maybe_fix_term_counts();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_maybe_fix_term_counts_recounts_and_sets_flag(): void {
+		Functions\expect( 'get_option' )->once()->andReturn( false );
+		Functions\expect( 'get_terms' )->once()->andReturn( [ 1, 2, 3 ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+		Functions\expect( 'wp_update_term_count_now' )
+			->once()
+			->with( [ 1, 2, 3 ], 'essf_cashflow_cat' );
+		Functions\expect( 'update_option' )
+			->once()
+			->with( \ESSF_Category::COUNTS_FIXED_OPTION, true, false );
+
+		\ESSF_Category::maybe_fix_term_counts();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_maybe_fix_term_counts_skips_recount_on_wp_error(): void {
+		Functions\expect( 'get_option' )->once()->andReturn( false );
+		Functions\expect( 'get_terms' )->once()->andReturn( new \stdClass() );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( true );
+		Functions\expect( 'wp_update_term_count_now' )->never();
+		Functions\expect( 'update_option' )->once();
+
+		\ESSF_Category::maybe_fix_term_counts();
+		$this->addToAssertionCount( 1 );
+	}
+
 	public function test_seed_terms_noop_when_already_seeded(): void {
 		Functions\expect( 'get_option' )
 			->once()
