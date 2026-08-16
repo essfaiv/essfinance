@@ -1407,6 +1407,9 @@ class ESSF_Admin_Page {
 		}
 
 		$category = sanitize_key( wp_unslash( $post['essf_category'] ?? 'uncategorized' ) );
+		if ( ESSF_Category::AUTO_SLUG === $category ) {
+			$category = ESSF_Category::guess_slug( $title, ESSF_Category::category_glossary_history() );
+		}
 
 		$order_date = '0000-00-00 00:00:00' !== $pay_gmt
 			? substr( $pay_gmt, 0, 10 )
@@ -1765,9 +1768,9 @@ class ESSF_Admin_Page {
 		$description = $due_date = $pay_date = $status = '';
 		$amount      = '';
 		$is_income   = false;
-		// A new entry's default is a canonical key, not necessarily a live
-		// slug — normalize it so it matches a $term->slug below.
-		$category = ESSF_Category::normalize_slug( 'uncategorized' );
+		// A new entry defaults to the Auto-categorize sentinel rather than a
+		// real term, so it doesn't need normalize_slug() below.
+		$category = ESSF_Category::AUTO_SLUG;
 
 		if ( $is_edit ) {
 			$amount_val  = (float) $entry->post_content;
@@ -1782,7 +1785,7 @@ class ESSF_Admin_Page {
 			$pay_date = ( $pay_raw && '0000-00-00' !== $pay_raw ) ? $pay_raw : '';
 
 			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
-			$category    = $entry_terms[0] ?? $category; // already-normalized default set above
+			$category    = $entry_terms[0] ?? $category; // every entry has exactly one category, so this always resolves
 		}
 
 		if ( 'pay_date' === $focus ) {
@@ -1851,6 +1854,9 @@ class ESSF_Admin_Page {
 				<div class="form-field">
 					<label for="essf_category"><?php esc_html_e( 'Category', 'essfinance' ); ?></label>
 					<select id="essf_category" name="essf_category">
+						<option value="<?php echo esc_attr( ESSF_Category::AUTO_SLUG ); ?>" <?php selected( $category, ESSF_Category::AUTO_SLUG ); ?>>
+							<?php esc_html_e( 'Auto-categorize', 'essfinance' ); ?>
+						</option>
 						<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
 							<option value="<?php echo esc_attr( $term->slug ); ?>" <?php selected( $category, $term->slug ); ?>>
 								<?php echo esc_html( $term->name ); ?>

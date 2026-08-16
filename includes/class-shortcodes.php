@@ -153,6 +153,9 @@ class ESSF_Shortcodes {
 		$due_raw     = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
 		$pay_raw     = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
 		$category    = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
+		if ( ESSF_Category::AUTO_SLUG === $category ) {
+			$category = ESSF_Category::guess_slug( $description, ESSF_Category::category_glossary_history() );
+		}
 
 		if ( '' === $due_raw && 'edit_entry' !== $action ) {
 			$due_raw = current_time( 'Y-m-d' );
@@ -1038,9 +1041,9 @@ class ESSF_Shortcodes {
 		$status_val = $entry ? $entry->post_status : 'pending';
 		$due_val    = ( $entry && '0000-00-00' !== substr( $entry->post_date_gmt, 0, 10 ) ) ? substr( $entry->post_date_gmt, 0, 10 ) : '';
 		$pay_val    = ( $entry && '0000-00-00' !== substr( $entry->post_modified_gmt, 0, 10 ) ) ? substr( $entry->post_modified_gmt, 0, 10 ) : '';
-		// A new entry's default is a canonical key, not necessarily a live
-		// slug — normalize it so it matches a $term->slug below.
-		$cat_val = ESSF_Category::normalize_slug( 'uncategorized' );
+		// A new entry defaults to the Auto-categorize sentinel rather than a
+		// real term, so it doesn't need normalize_slug() below.
+		$cat_val = ESSF_Category::AUTO_SLUG;
 		if ( $entry ) {
 			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
 			$cat_val     = $entry_terms[0] ?? $cat_val;
@@ -1083,6 +1086,7 @@ class ESSF_Shortcodes {
 				</select></label></p>
 				<p><label><?php esc_html_e( 'Category', 'essfinance' ); ?><br>
 				<select name="essf_category">
+					<option value="<?php echo esc_attr( ESSF_Category::AUTO_SLUG ); ?>"<?php selected( $cat_val, ESSF_Category::AUTO_SLUG ); ?>><?php esc_html_e( 'Auto-categorize', 'essfinance' ); ?></option>
 					<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
 						<option value="<?php echo esc_attr( $term->slug ); ?>"<?php selected( $cat_val, $term->slug ); ?>><?php echo esc_html( $term->name ); ?></option>
 					<?php endforeach; ?>

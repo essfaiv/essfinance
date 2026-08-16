@@ -17,6 +17,14 @@ class ESSF_Category {
 	const GLOSSARY_EXCLUDED_META = '_essf_category_glossary_excluded';
 
 	/**
+	 * Sentinel category <select> value meaning "run guess_slug() at save
+	 * time" instead of a real taxonomy slug — never passed to
+	 * term_id_for_slug() as-is (it would self-heal into a bogus real term
+	 * named "Auto"), always resolved to a real slug by the caller first.
+	 */
+	const AUTO_SLUG = 'auto';
+
+	/**
 	 * Canonical category list, order and slugs sourced from documents/categories.md.
 	 * Slugs are always English-derived and stable regardless of which label
 	 * language gets seeded — CSV import/export and any future re-seed keys off
