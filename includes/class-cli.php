@@ -124,7 +124,7 @@ class ESSF_CLI {
 			WP_CLI::error( 'Invalid --format. Use csv or md.' );
 		}
 
-		$rows = self::replay_suggestions( self::query_ofx_history() );
+		$rows = self::replay_suggestions( self::query_ofx_history(), ESSF_Category::category_glossary_history() );
 
 		if ( isset( $assoc_args['only-opportunities'] ) ) {
 			$rows = array_values(
@@ -258,25 +258,37 @@ class ESSF_CLI {
 
 	/**
 	 * Predict what category the import-review pipeline would suggest for a raw
-	 * OFX memo today: a learned suggestion first (matched against the raw
-	 * memo, same as ESSF_Admin_Page::render_review_page()), then
-	 * ESSF_Category::guess_slug_from_description() against the *resolved*
-	 * description (same as ESSF_Admin_Page::build_ofx_stage_rows() — a
-	 * keyword guess runs on the cleaned title, not the noisy raw memo), then
-	 * 'Uncategorized'.
+	 * OFX memo today: a learned OFX-memo suggestion first (matched against
+	 * the raw memo, same as ESSF_Admin_Page::render_review_page()), then the
+	 * category glossary (ESSF_Category::match_glossary() — descriptions the
+	 * operator has categorized before, regardless of whether via OFX or
+	 * not), then ESSF_Category::guess_slug_from_description() (keyword
+	 * classifier) against the *resolved* description (same as
+	 * ESSF_Admin_Page::build_ofx_stage_rows() — runs on the cleaned title,
+	 * not the noisy raw memo), then 'Uncategorized'.
 	 *
-	 * @param string $raw_memo    Raw OFX NAME/MEMO text.
-	 * @param string $description Resolved description for this entry (predict_description()'s title).
-	 * @param array  $history     Prior entries, shape per ESSF_OFX_Suggestions::suggest().
+	 * @param string $raw_memo         Raw OFX NAME/MEMO text.
+	 * @param string $description      Resolved description for this entry (predict_description()'s title).
+	 * @param array  $history          Prior OFX-memo entries, shape per ESSF_OFX_Suggestions::suggest().
+	 * @param array  $glossary_history From ESSF_Category::category_glossary_history(), built once by the caller — see replay_suggestions()'s note on why this one isn't chronologically replayed.
 	 * @return array{title: string, source: string, score: string}
 	 */
-	public static function predict_category( string $raw_memo, string $description, array $history ): array {
+	public static function predict_category( string $raw_memo, string $description, array $history, array $glossary_history = [] ): array {
 		$suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $history, 1 );
 		if ( $suggestions ) {
 			return [
 				'title'  => $suggestions[0]['title'],
 				'source' => 'suggestion',
 				'score'  => number_format( $suggestions[0]['score'], 1 ),
+			];
+		}
+
+		$glossary_match = ESSF_Category::match_glossary( $description, $glossary_history );
+		if ( $glossary_match ) {
+			return [
+				'title'  => ESSF_Category::label_for_slug( $glossary_match['slug'] ),
+				'source' => 'glossary',
+				'score'  => number_format( $glossary_match['score'], 1 ),
 			];
 		}
 
@@ -303,12 +315,19 @@ class ESSF_CLI {
 	 * chosen for it.
 	 *
 	 * Pure/dependency-free, mirroring ESSF_OFX_Suggestions's own design, so
-	 * it's unit-testable without WordPress.
+	 * it's unit-testable without WordPress — $glossary_history is passed in
+	 * (not fetched here) for the same reason: the caller (ofx_audit()) is
+	 * where a real WordPress query belongs. Unlike $history (the OFX-memo
+	 * suggestion history), the glossary is intentionally *not* replayed
+	 * chronologically — it's built once from the *current* state of every
+	 * categorized entry, since it represents the user's corrections as they
+	 * stand today, not a point-in-time snapshot.
 	 *
-	 * @param array $entries Chronologically ordered (oldest first) rows: {id: int, date: string, title: string, memo: string, category: string}.
+	 * @param array $entries          Chronologically ordered (oldest first) rows: {id: int, date: string, title: string, memo: string, category: string}.
+	 * @param array $glossary_history From ESSF_Category::category_glossary_history().
 	 * @return array<int, array{ID: int, Date: string, Title: string, 'Raw Memo': string, Predicted: string, Source: string, Score: string, 'Auto-fill': string, Category: string, 'Predicted Category': string, 'Category Auto-fill': string}>
 	 */
-	public static function replay_suggestions( array $entries ): array {
+	public static function replay_suggestions( array $entries, array $glossary_history = [] ): array {
 		$rows        = [];
 		$history     = [];
 		$cat_history = [];
@@ -316,7 +335,7 @@ class ESSF_CLI {
 		foreach ( $entries as $entry ) {
 			$category      = $entry['category'] ?? __( 'Uncategorized', 'essfinance' );
 			$predicted     = self::predict_description( $entry['memo'], $history );
-			$predicted_cat = self::predict_category( $entry['memo'], $predicted['title'], $cat_history );
+			$predicted_cat = self::predict_category( $entry['memo'], $predicted['title'], $cat_history, $glossary_history );
 
 			$rows[] = [
 				'ID'                 => $entry['id'],

@@ -10,10 +10,11 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Category {
 
-	const TAXONOMY            = 'essf_cashflow_cat';
-	const SEEDED_OPTION       = 'essf_category_seeded';
-	const RELABEL_CRON_HOOK   = 'essf_relabel_categories';
-	const COUNTS_FIXED_OPTION = 'essf_category_counts_fixed';
+	const TAXONOMY               = 'essf_cashflow_cat';
+	const SEEDED_OPTION          = 'essf_category_seeded';
+	const RELABEL_CRON_HOOK      = 'essf_relabel_categories';
+	const COUNTS_FIXED_OPTION    = 'essf_category_counts_fixed';
+	const GLOSSARY_EXCLUDED_META = '_essf_category_glossary_excluded';
 
 	/**
 	 * Canonical category list, order and slugs sourced from documents/categories.md.
@@ -577,5 +578,100 @@ class ESSF_Category {
 		}
 
 		return '' !== $best_slug ? $best_slug : 'uncategorized';
+	}
+
+	/**
+	 * Prior (description, category) pairs to learn from — any post with a
+	 * real (non-Uncategorized) category, however it got one (typed
+	 * manually, a bulk action, a previous auto-guess, or OFX import), minus
+	 * any post the admin has explicitly "forgotten" via the Category
+	 * Glossary page. One DB query — call once per request and reuse across
+	 * a whole loop of guesses (see guess_slug()), the same way
+	 * ESSF_Admin_Page::ofx_memo_history()/ofx_category_history() are
+	 * fetched once outside their per-row loop rather than per row. Carries
+	 * the post ID too (ESSF_OFX_Suggestions::suggest() ignores the extra
+	 * key) so the same array doubles as the Category Glossary admin page's
+	 * data source, each row individually "forgettable".
+	 *
+	 * @return array<int, array{id: int, memo: string, title: string, date: string}>
+	 */
+	public static function category_glossary_history(): array {
+		$posts = get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- small taxonomy-adjacent table, cost is negligible
+					[
+						'key'     => self::GLOSSARY_EXCLUDED_META,
+						'compare' => 'NOT EXISTS',
+					],
+				],
+			]
+		);
+
+		$uncategorized_id = self::uncategorized_term_id();
+		$history          = [];
+
+		foreach ( $posts as $post ) {
+			$terms = wp_get_post_terms( $post->ID, self::TAXONOMY );
+			if ( empty( $terms ) || is_wp_error( $terms ) ) {
+				continue;
+			}
+			$term = $terms[0];
+			if ( $term->term_id === $uncategorized_id ) {
+				continue; // No signal — an Uncategorized post teaches nothing.
+			}
+
+			$history[] = [
+				'id'    => $post->ID,
+				'memo'  => $post->post_title,
+				'title' => $term->name,
+				'date'  => (string) get_post_meta( $post->ID, '_order_date', true ),
+			];
+		}
+
+		return $history;
+	}
+
+	/**
+	 * Match a description against a pre-fetched glossary history (see
+	 * category_glossary_history()), reusing ESSF_OFX_Suggestions' generic
+	 * similarity/frequency/recency ranking — the same engine that already
+	 * powers OFX description and category suggestions, just fed a
+	 * description-keyed history instead of a raw-bank-memo-keyed one.
+	 *
+	 * @param array $glossary_history From category_glossary_history().
+	 * @return array{slug: string, score: float}|null
+	 */
+	public static function match_glossary( string $description, array $glossary_history ): ?array {
+		$suggestions = ESSF_OFX_Suggestions::suggest( $description, $glossary_history, 1 );
+		if ( ! $suggestions ) {
+			return null;
+		}
+
+		foreach ( self::get_ordered_terms() as $term ) {
+			if ( $term->name === $suggestions[0]['title'] ) {
+				return [
+					'slug'  => $term->slug,
+					'score' => $suggestions[0]['score'],
+				];
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The combined guesser "Auto Set Category" and the OFX review flow use:
+	 * the glossary (repetition-learned from real corrections) first, falling
+	 * back to the keyword classifier when nothing in the glossary is similar
+	 * enough. $glossary_history is required, not fetched internally, so
+	 * callers looping over many descriptions fetch it once and pass it in —
+	 * see category_glossary_history()'s docblock.
+	 */
+	public static function guess_slug( string $description, array $glossary_history ): string {
+		$match = self::match_glossary( $description, $glossary_history );
+		return $match ? $match['slug'] : self::guess_slug_from_description( $description );
 	}
 }

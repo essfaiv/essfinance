@@ -147,26 +147,19 @@ class ESSF_List_Table extends WP_List_Table {
 		if ( 'top' !== $which ) {
 			return;
 		}
-		$current_status = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
-		$current_type   = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
-		$current_m      = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
-		$current_cat    = isset( $_REQUEST['essf_cat'] ) ? sanitize_key( $_REQUEST['essf_cat'] ) : '';
+		$current_type = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
+		$current_m    = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
+		$current_cat  = isset( $_REQUEST['essf_cat'] ) ? sanitize_key( $_REQUEST['essf_cat'] ) : '';
 		?>
 		<div class="alignleft actions">
-			<label for="essf_status" class="screen-reader-text"><?php esc_html_e( 'Filter by status', 'essfinance' ); ?></label>
-			<select name="essf_status" id="essf_status">
-				<option value=""><?php esc_html_e( 'All statuses', 'essfinance' ); ?></option>
-				<option value="paid" <?php selected( $current_status, 'paid' ); ?>><?php esc_html_e( 'Paid', 'essfinance' ); ?></option>
-				<option value="pending" <?php selected( $current_status, 'pending' ); ?>><?php esc_html_e( 'Pending', 'essfinance' ); ?></option>
-				<option value="overdue" <?php selected( $current_status, 'overdue' ); ?>><?php esc_html_e( 'Overdue', 'essfinance' ); ?></option>
-			</select>
-
-			<label for="essf_type" class="screen-reader-text"><?php esc_html_e( 'Filter by type', 'essfinance' ); ?></label>
-			<select name="essf_type" id="essf_type">
-				<option value=""><?php esc_html_e( 'All types', 'essfinance' ); ?></option>
-				<option value="income" <?php selected( $current_type, 'income' ); ?>><?php esc_html_e( 'Income', 'essfinance' ); ?></option>
-				<option value="expense" <?php selected( $current_type, 'expense' ); ?>><?php esc_html_e( 'Expense', 'essfinance' ); ?></option>
-			</select>
+			<?php if ( ESSF_Settings::show_type_filter() ) : ?>
+				<label for="essf_type" class="screen-reader-text"><?php esc_html_e( 'Filter by type', 'essfinance' ); ?></label>
+				<select name="essf_type" id="essf_type">
+					<option value=""><?php esc_html_e( 'All types', 'essfinance' ); ?></option>
+					<option value="income" <?php selected( $current_type, 'income' ); ?>><?php esc_html_e( 'Income', 'essfinance' ); ?></option>
+					<option value="expense" <?php selected( $current_type, 'expense' ); ?>><?php esc_html_e( 'Expense', 'essfinance' ); ?></option>
+				</select>
+			<?php endif; ?>
 
 			<label for="essf_cat" class="screen-reader-text"><?php esc_html_e( 'Filter by category', 'essfinance' ); ?></label>
 			<select name="essf_cat" id="essf_cat">
@@ -181,13 +174,6 @@ class ESSF_List_Table extends WP_List_Table {
 			<?php $this->render_months_dropdown( $current_m ); ?>
 
 			<input type="submit" class="button" value="<?php esc_attr_e( 'Filter', 'essfinance' ); ?>">
-
-			<label for="essf_bulk_category" class="screen-reader-text"><?php esc_html_e( 'Category to apply with Set Category', 'essfinance' ); ?></label>
-			<select name="essf_bulk_category" id="essf_bulk_category">
-				<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
-					<option value="<?php echo esc_attr( $term->slug ); ?>"><?php echo esc_html( $term->name ); ?></option>
-				<?php endforeach; ?>
-			</select>
 		</div>
 		<?php
 	}

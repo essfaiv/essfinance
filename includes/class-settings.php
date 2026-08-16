@@ -10,16 +10,17 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Settings {
 
-	const OPTION_STATUS_BADGE    = 'essf_show_status_badge';
-	const OPTION_STATUS_ICONS    = 'essf_show_status_icons';
-	const OPTION_AMOUNT_COLORS   = 'essf_show_amount_colors';
-	const OPTION_POSITIVE_PREFIX = 'essf_show_positive_prefix';
-	const OPTION_NEGATIVE_PREFIX = 'essf_show_negative_prefix';
-	const OPTION_CURRENCY        = 'essf_currency';
-	const OPTION_CURRENCY_POS    = 'essf_currency_pos';
-	const OPTION_THOUSANDS_SEP   = 'essf_thousands_sep';
-	const OPTION_DECIMAL_SEP     = 'essf_decimal_sep';
-	const OPTION_NUM_DECIMALS    = 'essf_num_decimals';
+	const OPTION_STATUS_BADGE     = 'essf_show_status_badge';
+	const OPTION_STATUS_ICONS     = 'essf_show_status_icons';
+	const OPTION_AMOUNT_COLORS    = 'essf_show_amount_colors';
+	const OPTION_POSITIVE_PREFIX  = 'essf_show_positive_prefix';
+	const OPTION_NEGATIVE_PREFIX  = 'essf_show_negative_prefix';
+	const OPTION_SHOW_TYPE_FILTER = 'essf_show_type_filter';
+	const OPTION_CURRENCY         = 'essf_currency';
+	const OPTION_CURRENCY_POS     = 'essf_currency_pos';
+	const OPTION_THOUSANDS_SEP    = 'essf_thousands_sep';
+	const OPTION_DECIMAL_SEP      = 'essf_decimal_sep';
+	const OPTION_NUM_DECIMALS     = 'essf_num_decimals';
 
 	/* @var array<string,string> */
 	private static $icons = [
@@ -389,11 +390,12 @@ class ESSF_Settings {
 	public function register_settings(): void {
 		/* ── Display ── */
 		foreach ( [
-			self::OPTION_STATUS_BADGE    => false,
-			self::OPTION_STATUS_ICONS    => true,
-			self::OPTION_AMOUNT_COLORS   => false,
-			self::OPTION_POSITIVE_PREFIX => true,
-			self::OPTION_NEGATIVE_PREFIX => false,
+			self::OPTION_STATUS_BADGE     => false,
+			self::OPTION_STATUS_ICONS     => true,
+			self::OPTION_AMOUNT_COLORS    => false,
+			self::OPTION_POSITIVE_PREFIX  => true,
+			self::OPTION_NEGATIVE_PREFIX  => false,
+			self::OPTION_SHOW_TYPE_FILTER => false,
 		] as $option => $default ) {
 			register_setting(
 				'essf_settings',
@@ -412,6 +414,7 @@ class ESSF_Settings {
 		add_settings_field( self::OPTION_AMOUNT_COLORS, __( 'Show amount with colors', 'essfinance' ), [ $this, 'field_amount_colors' ], 'essf_settings', 'essf_display' );
 		add_settings_field( self::OPTION_POSITIVE_PREFIX, __( 'Show positive prefix', 'essfinance' ), [ $this, 'field_positive_prefix' ], 'essf_settings', 'essf_display' );
 		add_settings_field( self::OPTION_NEGATIVE_PREFIX, __( 'Show negative prefix', 'essfinance' ), [ $this, 'field_negative_prefix' ], 'essf_settings', 'essf_display' );
+		add_settings_field( self::OPTION_SHOW_TYPE_FILTER, __( 'Show type filter', 'essfinance' ), [ $this, 'field_show_type_filter' ], 'essf_settings', 'essf_display' );
 
 		/* ── Currency options ── */
 		register_setting(
@@ -532,6 +535,16 @@ class ESSF_Settings {
 			document.addEventListener( 'DOMContentLoaded', toggle );
 		} )();
 		</script>
+		<?php
+	}
+
+	public function field_show_type_filter(): void {
+		$value = get_option( self::OPTION_SHOW_TYPE_FILTER, false );
+		?>
+		<label>
+			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_SHOW_TYPE_FILTER ); ?>" value="1" <?php checked( $value ); ?>>
+			<?php esc_html_e( 'Show the Income/Expense filter dropdown above the entries list', 'essfinance' ); ?>
+		</label>
 		<?php
 	}
 
@@ -795,6 +808,15 @@ class ESSF_Settings {
 				</form>
 			</div>
 
+			<div class="postbox" style="margin-bottom:20px;padding:0 16px 16px;">
+				<h2 class="hndle" style="padding:12px 0 8px;"><?php esc_html_e( 'Glossaries', 'essfinance' ); ?></h2>
+				<p><?php esc_html_e( 'Review or forget what EssFinance has learned to suggest automatically.', 'essfinance' ); ?></p>
+				<p>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance-ofx-glossary' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'OFX Glossary', 'essfinance' ); ?></a>
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance-category-glossary' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Category Glossary', 'essfinance' ); ?></a>
+				</p>
+			</div>
+
 			<form method="post" action="options.php">
 				<?php
 				settings_fields( 'essf_settings' );
@@ -830,6 +852,10 @@ class ESSF_Settings {
 
 	public static function show_status_badge(): bool {
 		return (bool) get_option( self::OPTION_STATUS_BADGE, false );
+	}
+
+	public static function show_type_filter(): bool {
+		return (bool) get_option( self::OPTION_SHOW_TYPE_FILTER, false );
 	}
 
 	public static function show_status_icons(): bool {

@@ -223,6 +223,18 @@ class CliTest extends TestCase {
 		$this->assertSame( 'keyword', $prediction['source'] );
 	}
 
+	public function test_predict_category_skips_glossary_and_falls_to_keyword_when_glossary_history_empty(): void {
+		// Positive glossary-match coverage lives in CategoryTest (it needs
+		// get_terms() mocked to resolve the matched name back to a term,
+		// which this pure/mockless test file deliberately avoids) — this
+		// just confirms the new $glossary_history param defaults safely and
+		// the priority chain still reaches 'keyword' when it's empty.
+		$prediction = \ESSF_CLI::predict_category( 'Juros cartão de crédito', 'Juros cartão de crédito', [], [] );
+
+		$this->assertSame( 'Financial fees', $prediction['title'] );
+		$this->assertSame( 'keyword', $prediction['source'] );
+	}
+
 	public function test_predict_category_falls_back_to_uncategorized_when_nothing_matches(): void {
 		$prediction = \ESSF_CLI::predict_category( 'Trimania', 'Trimania', [] );
 

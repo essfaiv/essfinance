@@ -109,6 +109,24 @@ class AdminPageOfxStagingTest extends TestCase {
 		$this->assertSame( 'uncategorized', $result['rows'][0]['category'] );
 	}
 
+	public function test_build_stage_rows_prefers_glossary_match_over_uncategorized(): void {
+		$transactions      = [
+			[ 'fitid' => 'TXN022', 'amount' => -20.0, 'due_date' => '2026-08-01', 'name' => '', 'memo' => 'Trimania' ],
+		];
+		$glossary_history  = [
+			[ 'id' => 1, 'memo' => 'Trimania', 'title' => 'Miscellaneous expenses', 'date' => '2026-07-01' ],
+		];
+
+		Functions\expect( 'get_terms' )
+			->once()
+			->andReturn( [ (object) [ 'term_id' => 13, 'slug' => 'miscellaneous-expenses', 'name' => 'Miscellaneous expenses' ] ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], $glossary_history );
+
+		$this->assertSame( 'miscellaneous-expenses', $result['rows'][0]['category'] );
+	}
+
 	public function test_build_stage_rows_resolves_description_via_parse_boleto(): void {
 		$transactions = [
 			[

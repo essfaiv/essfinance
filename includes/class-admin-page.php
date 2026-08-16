@@ -10,14 +10,15 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Admin_Page {
 
-	const ADD_NONCE                = 'essf_add';
-	const UPDATE_NONCE             = 'essf_update';
-	const DELETE_NONCE             = 'essf_delete';
-	const PAID_TODAY_NONCE         = 'essf_paid_today';
-	const TOGGLE_TYPE_NONCE        = 'essf_toggle_type';
-	const IMPORT_OFX_CONFIRM_NONCE = 'essf_import_ofx_confirm';
-	const FORGET_MEMO_NONCE        = 'essf_forget_memo';
-	const FORGET_EXCLUDED_NONCE    = 'essf_forget_excluded';
+	const ADD_NONCE                      = 'essf_add';
+	const UPDATE_NONCE                   = 'essf_update';
+	const DELETE_NONCE                   = 'essf_delete';
+	const PAID_TODAY_NONCE               = 'essf_paid_today';
+	const TOGGLE_TYPE_NONCE              = 'essf_toggle_type';
+	const IMPORT_OFX_CONFIRM_NONCE       = 'essf_import_ofx_confirm';
+	const FORGET_MEMO_NONCE              = 'essf_forget_memo';
+	const FORGET_EXCLUDED_NONCE          = 'essf_forget_excluded';
+	const FORGET_CATEGORY_GLOSSARY_NONCE = 'essf_forget_category_glossary';
 
 	/** Option storing normalized memos of rows the operator has excluded before (FIFO-capped). */
 	const EXCLUDED_MEMOS_OPTION = 'essf_ofx_excluded_memos';
@@ -54,6 +55,7 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_import_ofx_confirm', [ $this, 'handle_import_ofx_confirm' ] );
 		add_action( 'admin_post_essf_forget_memo', [ $this, 'handle_forget_memo' ] );
 		add_action( 'admin_post_essf_forget_excluded', [ $this, 'handle_forget_excluded' ] );
+		add_action( 'admin_post_essf_forget_category_glossary', [ $this, 'handle_forget_category_glossary' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
@@ -79,8 +81,53 @@ class ESSF_Admin_Page {
 			[ $this, 'render_dashboard' ]
 		);
 
+		// Custom read-only listing instead of linking straight to the native
+		// edit-tags.php taxonomy screen — category names/slugs are managed
+		// by ESSF_Category's seed/relabel logic (see relabel_terms()), so
+		// letting admins freely rename/delete/bulk-edit them here would
+		// fight that automation. The native screen is still reachable by a
+		// direct URL for anyone with the taxonomy's manage_categories
+		// capability; this page just isn't the front door to it anymore.
 		add_submenu_page(
 			'essfinance',
+			__( 'Categories', 'essfinance' ),
+			__( 'Categories', 'essfinance' ),
+			'manage_options',
+			'essfinance-categories',
+			[ $this, 'render_categories_page' ]
+		);
+
+		// Both glossaries are reachable only from the Settings screen (see
+		// ESSF_Settings::render()), not as their own EssFinance submenu — an
+		// empty parent registers the page (URL, nonce actions, capability
+		// check) without adding a visible nav item, WordPress's standard
+		// technique for a "hidden" admin page (add_submenu_page() treats ''
+		// the same as null; '' keeps the param typed as string for static
+		// analysis). Registering under the real 'essfinance' parent and
+		// calling remove_submenu_page() looks equivalent but isn't: this
+		// plugin's own top-level menu registers itself into
+		// $admin_page_hooks, so removing the submenu entry changes what
+		// get_admin_page_parent() resolves at request time and breaks
+		// user_can_access_admin_page()'s hookname lookup — the page 404s
+		// with "Sorry, you are not allowed to access this page."
+		$hidden_pages = [
+			'essfinance-ofx-glossary'      => __( 'OFX Glossary', 'essfinance' ),
+			'essfinance-category-glossary' => __( 'Category Glossary', 'essfinance' ),
+		];
+
+		// A '' parent also means get_admin_page_title() can't find this
+		// page's title (it only walks top-level $menu entries when the
+		// parent is empty) and leaves $title unset, which trips a
+		// strip_tags( null ) deprecation notice in wp-admin/admin-header.php.
+		// Pre-set it ourselves — get_admin_page_title() returns early once
+		// $title is non-empty.
+		$current_page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $hidden_pages[ $current_page ] ) ) {
+			$GLOBALS['title'] = $hidden_pages[ $current_page ]; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
+		}
+
+		add_submenu_page(
+			'',
 			__( 'OFX Glossary', 'essfinance' ),
 			__( 'OFX Glossary', 'essfinance' ),
 			'manage_options',
@@ -89,11 +136,12 @@ class ESSF_Admin_Page {
 		);
 
 		add_submenu_page(
-			'essfinance',
-			__( 'Categories', 'essfinance' ),
-			__( 'Categories', 'essfinance' ),
+			'',
+			__( 'Category Glossary', 'essfinance' ),
+			__( 'Category Glossary', 'essfinance' ),
 			'manage_options',
-			'edit-tags.php?taxonomy=' . ESSF_Category::TAXONOMY . '&post_type=essf_cashflow'
+			'essfinance-category-glossary',
+			[ $this, 'render_category_glossary_page' ]
 		);
 	}
 
@@ -143,8 +191,9 @@ class ESSF_Admin_Page {
 			return;
 		}
 
-		$ids   = isset( $_REQUEST['entries'] ) ? array_map( 'absint', (array) $_REQUEST['entries'] ) : [];
-		$today = current_time( 'mysql', true );
+		$ids              = isset( $_REQUEST['entries'] ) ? array_map( 'absint', (array) $_REQUEST['entries'] ) : [];
+		$today            = current_time( 'mysql', true );
+		$glossary_history = null;
 		global $wpdb;
 
 		foreach ( $ids as $id ) {
@@ -179,13 +228,16 @@ class ESSF_Admin_Page {
 					$wpdb->update( $wpdb->posts, [ 'post_content' => (string) ( -abs( (float) $post->post_content ) ) ], [ 'ID' => $id ], [ '%s' ], [ '%d' ] );
 					break;
 				case 'set_category':
-					$bulk_category = sanitize_key( wp_unslash( $_REQUEST['essf_bulk_category'] ?? '' ) );
+					// Reuses the category *filter* dropdown (essf_cat) as the
+					// bulk-apply target too — no separate dropdown.
+					$bulk_category = sanitize_key( wp_unslash( $_REQUEST['essf_cat'] ?? '' ) );
 					if ( $bulk_category ) {
 						wp_set_post_terms( $id, [ ESSF_Category::term_id_for_slug( $bulk_category ) ], ESSF_Category::TAXONOMY );
 					}
 					break;
 				case 'auto_set_category':
-					$guessed_slug = ESSF_Category::guess_slug_from_description( $post->post_title );
+					$glossary_history ??= ESSF_Category::category_glossary_history();
+					$guessed_slug       = ESSF_Category::guess_slug( $post->post_title, $glossary_history );
 					wp_set_post_terms( $id, [ ESSF_Category::term_id_for_slug( $guessed_slug ) ], ESSF_Category::TAXONOMY );
 					break;
 			}
@@ -220,6 +272,12 @@ class ESSF_Admin_Page {
 			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
 		}
 
+		if ( empty( $_POST['essf_due_date'] ) ) {
+			$_POST['essf_due_date'] = current_time( 'Y-m-d' );
+		}
+		if ( empty( $_POST['essf_pay_date'] ) && 'paid' === sanitize_key( wp_unslash( $_POST['essf_status'] ?? '' ) ) ) {
+			$_POST['essf_pay_date'] = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ) );
+		}
 		$data = $this->parse_form_data( $_POST );
 
 		$post_id = wp_insert_post(
@@ -496,8 +554,9 @@ class ESSF_Admin_Page {
 	 * @param array  $amount_index Amount→[id,date,title] index from build_dedup_lookups().
 	 */
 	private function stage_ofx_import( string $content, array $existing, array $fitid_lookup, array $amount_index ): void {
-		$excluded_memos = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
-		$staged         = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos );
+		$excluded_memos   = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
+		$glossary_history = ESSF_Category::category_glossary_history();
+		$staged           = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos, $glossary_history );
 
 		if ( ! $staged['rows'] ) {
 			wp_safe_redirect(
@@ -559,7 +618,7 @@ class ESSF_Admin_Page {
 	 * @param array $excluded_memos Normalized memos of previously-excluded rows.
 	 * @return array{rows: array<int, array>, skipped: int}
 	 */
-	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [] ): array {
+	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [], array $glossary_history = [] ): array {
 		$rows    = [];
 		$skipped = 0;
 
@@ -603,7 +662,7 @@ class ESSF_Admin_Page {
 				'name'               => $name,
 				'memo'               => $memo,
 				'description'        => $description,
-				'category'           => ESSF_Category::guess_slug_from_description( $description ),
+				'category'           => ESSF_Category::guess_slug( $description, $glossary_history ),
 				'transfer_detail'    => $transfer['detail'] ?? '',
 				'possible_duplicate' => self::find_possible_duplicate( $amount, $due_date, $amount_index ),
 				'suggested_exclude'  => ESSF_OFX_Suggestions::matches_excluded( $name ?: $memo, $excluded_memos ),
@@ -978,11 +1037,55 @@ class ESSF_Admin_Page {
 		return $entries;
 	}
 
+	public function render_categories_page(): void {
+		$dashboard_url = admin_url( 'admin.php?page=essfinance' );
+		$terms         = ESSF_Category::get_ordered_terms();
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Categories', 'essfinance' ); ?></h1>
+			<hr class="wp-header-end">
+
+			<?php if ( ! $terms ) : ?>
+				<p><?php esc_html_e( 'No categories found.', 'essfinance' ); ?></p>
+			<?php else : ?>
+				<table class="wp-list-table widefat fixed striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Name', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Slug', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Count', 'essfinance' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $terms as $term ) : ?>
+							<tr>
+								<td><?php echo esc_html( $term->name ); ?></td>
+								<td><?php echo $term->description ? esc_html( $term->description ) : '—'; ?></td>
+								<td><?php echo esc_html( $term->slug ); ?></td>
+								<td>
+									<a href="<?php echo esc_url( add_query_arg( 'essf_cat', $term->slug, $dashboard_url ) ); ?>">
+										<?php echo (int) $term->count; ?>
+									</a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
 	public function render_glossary_page(): void {
-		$msg = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
+		$msg          = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
+		$settings_url = admin_url( 'admin.php?page=essfinance-settings' );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'OFX Glossary', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( $settings_url ); ?>" class="page-title-action">
+				&larr; <?php esc_html_e( 'Settings', 'essfinance' ); ?>
+			</a>
 			<hr class="wp-header-end">
 
 			<?php if ( 'forgotten' === $msg ) : ?>
@@ -1072,6 +1175,75 @@ class ESSF_Admin_Page {
 		}
 
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'forgotten', admin_url( 'admin.php?page=essfinance-ofx-glossary' ) ) );
+		exit;
+	}
+
+	/* ── Category glossary (learned from repetition) ─────── */
+
+	public function render_category_glossary_page(): void {
+		$msg          = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
+		$settings_url = admin_url( 'admin.php?page=essfinance-settings' );
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Category Glossary', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( $settings_url ); ?>" class="page-title-action">
+				&larr; <?php esc_html_e( 'Settings', 'essfinance' ); ?>
+			</a>
+			<hr class="wp-header-end">
+
+			<?php if ( 'forgotten' === $msg ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Entry forgotten.', 'essfinance' ); ?></p></div>
+			<?php endif; ?>
+
+			<p class="description">
+				<?php esc_html_e( 'Every categorized entry teaches "Auto Set Category" by example — correct one and similar descriptions use that category from then on. "Forget" stops an entry from teaching by example; its own category is not changed.', 'essfinance' ); ?>
+			</p>
+
+			<?php $glossary = ESSF_Category::category_glossary_history(); ?>
+			<?php if ( ! $glossary ) : ?>
+				<p><?php esc_html_e( 'Nothing learned yet — this fills in as entries get categorized.', 'essfinance' ); ?></p>
+			<?php else : ?>
+				<table class="wp-list-table widefat fixed striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Category', 'essfinance' ); ?></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $glossary as $entry ) : ?>
+							<tr>
+								<td><?php echo esc_html( $entry['memo'] ); ?></td>
+								<td><?php echo esc_html( $entry['title'] ); ?></td>
+								<td>
+									<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_forget_category_glossary&entry=' . $entry['id'] ), self::FORGET_CATEGORY_GLOSSARY_NONCE . '_' . $entry['id'] ) ); ?>"
+										onclick="return confirm('<?php echo esc_js( __( 'Forget this mapping? The entry itself will not be changed.', 'essfinance' ) ); ?>')">
+										<?php esc_html_e( 'Forget', 'essfinance' ); ?>
+									</a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	public function handle_forget_category_glossary(): void {
+		$post_id = absint( $_GET['entry'] ?? 0 );
+		check_admin_referer( self::FORGET_CATEGORY_GLOSSARY_NONCE . '_' . $post_id );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$post = get_post( $post_id );
+		if ( $post && 'essf_cashflow' === $post->post_type ) {
+			update_post_meta( $post_id, ESSF_Category::GLOSSARY_EXCLUDED_META, '1' );
+		}
+
+		wp_safe_redirect( add_query_arg( 'essf_msg', 'forgotten', admin_url( 'admin.php?page=essfinance-category-glossary' ) ) );
 		exit;
 	}
 

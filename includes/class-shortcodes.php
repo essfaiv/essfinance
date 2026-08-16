@@ -154,6 +154,13 @@ class ESSF_Shortcodes {
 		$pay_raw     = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
 		$category    = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
 
+		if ( '' === $due_raw && 'edit_entry' !== $action ) {
+			$due_raw = current_time( 'Y-m-d' );
+		}
+		if ( '' === $pay_raw && 'paid' === $status && 'edit_entry' !== $action ) {
+			$pay_raw = $due_raw;
+		}
+
 		$amount  = $is_income ? abs( $amount ) : -abs( $amount );
 		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
 		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
@@ -330,6 +337,7 @@ class ESSF_Shortcodes {
 		}
 
 		global $wpdb;
+		$glossary_history = null;
 
 		foreach ( $ids as $post_id ) {
 			$post = get_post( $post_id );
@@ -385,7 +393,8 @@ class ESSF_Shortcodes {
 					}
 					break;
 				case 'auto_set_category':
-					$guessed_slug = ESSF_Category::guess_slug_from_description( $post->post_title );
+					$glossary_history ??= ESSF_Category::category_glossary_history();
+					$guessed_slug       = ESSF_Category::guess_slug( $post->post_title, $glossary_history );
 					wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $guessed_slug ) ], ESSF_Category::TAXONOMY );
 					break;
 			}

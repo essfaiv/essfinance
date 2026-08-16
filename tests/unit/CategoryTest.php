@@ -498,4 +498,78 @@ class CategoryTest extends TestCase {
 	public function test_guess_slug_never_returns_empty_string(): void {
 		$this->assertSame( 'uncategorized', \ESSF_Category::guess_slug_from_description( '' ) );
 	}
+
+	// ── match_glossary() / guess_slug() ──────────────────────────────────
+	//
+	// The user's own scenario: "Trimania" gets manually recategorized from
+	// Uncategorized to Miscellaneous expenses — the next similar
+	// description should propose that category, not fall through to the
+	// (keyword-blind) "uncategorized" default.
+
+	public function test_match_glossary_finds_similar_prior_description(): void {
+		$glossary_history = [
+			[
+				'id'    => 1,
+				'memo'  => 'Trimania',
+				'title' => 'Miscellaneous expenses',
+				'date'  => '2026-08-01',
+			],
+		];
+		Functions\expect( 'get_terms' )
+			->once()
+			->andReturn( [ (object) [ 'term_id' => 13, 'slug' => 'miscellaneous-expenses', 'name' => 'Miscellaneous expenses' ] ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+
+		$match = \ESSF_Category::match_glossary( 'Trimania', $glossary_history );
+
+		$this->assertNotNull( $match );
+		$this->assertSame( 'miscellaneous-expenses', $match['slug'] );
+	}
+
+	public function test_match_glossary_returns_null_with_empty_history(): void {
+		Functions\expect( 'get_terms' )->never();
+
+		$this->assertNull( \ESSF_Category::match_glossary( 'Trimania', [] ) );
+	}
+
+	public function test_match_glossary_returns_null_when_nothing_similar_enough(): void {
+		$glossary_history = [
+			[
+				'id'    => 1,
+				'memo'  => 'Completely unrelated text here',
+				'title' => 'Housing',
+				'date'  => '2026-08-01',
+			],
+		];
+		Functions\expect( 'get_terms' )->never();
+
+		$this->assertNull( \ESSF_Category::match_glossary( 'Trimania', $glossary_history ) );
+	}
+
+	public function test_guess_slug_prefers_glossary_match_over_keyword(): void {
+		// "Trimania" matches no keyword rule at all — without the glossary
+		// this would fall through to 'uncategorized'.
+		$glossary_history = [
+			[
+				'id'    => 1,
+				'memo'  => 'Trimania',
+				'title' => 'Miscellaneous expenses',
+				'date'  => '2026-08-01',
+			],
+		];
+		Functions\expect( 'get_terms' )
+			->once()
+			->andReturn( [ (object) [ 'term_id' => 13, 'slug' => 'miscellaneous-expenses', 'name' => 'Miscellaneous expenses' ] ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+
+		$this->assertSame( 'miscellaneous-expenses', \ESSF_Category::guess_slug( 'Trimania', $glossary_history ) );
+	}
+
+	public function test_guess_slug_falls_back_to_keyword_when_glossary_has_no_match(): void {
+		$this->assertSame( 'loans', \ESSF_Category::guess_slug( 'Empréstimo Lucia', [] ) );
+	}
+
+	public function test_guess_slug_falls_back_to_uncategorized_when_nothing_matches_at_all(): void {
+		$this->assertSame( 'uncategorized', \ESSF_Category::guess_slug( 'Trimania', [] ) );
+	}
 }
