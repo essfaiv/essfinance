@@ -133,7 +133,7 @@ class ESSF_Admin_Page {
 			? sanitize_key( $_REQUEST['action'] )
 			: ( isset( $_REQUEST['action2'] ) && '-1' !== $_REQUEST['action2'] ? sanitize_key( $_REQUEST['action2'] ) : '' );
 
-		$valid = [ 'delete', 'mark_paid', 'mark_pending', 'make_income', 'make_expense', 'set_category' ];
+		$valid = [ 'delete', 'mark_paid', 'mark_pending', 'make_income', 'make_expense', 'set_category', 'auto_set_category' ];
 		if ( ! in_array( $action, $valid, true ) ) {
 			return;
 		}
@@ -184,16 +184,21 @@ class ESSF_Admin_Page {
 						wp_set_post_terms( $id, [ ESSF_Category::term_id_for_slug( $bulk_category ) ], ESSF_Category::TAXONOMY );
 					}
 					break;
+				case 'auto_set_category':
+					$guessed_slug = ESSF_Category::guess_slug_from_description( $post->post_title );
+					wp_set_post_terms( $id, [ ESSF_Category::term_id_for_slug( $guessed_slug ) ], ESSF_Category::TAXONOMY );
+					break;
 			}
 		}
 
 		$msg_map = [
-			'delete'       => 'deleted',
-			'mark_paid'    => 'mark_paid',
-			'mark_pending' => 'mark_pending',
-			'make_income'  => 'make_income',
-			'make_expense' => 'make_expense',
-			'set_category' => 'set_category',
+			'delete'            => 'deleted',
+			'mark_paid'         => 'mark_paid',
+			'mark_pending'      => 'mark_pending',
+			'make_income'       => 'make_income',
+			'make_expense'      => 'make_expense',
+			'set_category'      => 'set_category',
+			'auto_set_category' => 'auto_set_category',
 		];
 
 		$carry = [ 'page' => 'essfinance' ];
@@ -1701,18 +1706,19 @@ class ESSF_Admin_Page {
 		}
 
 		$map = [
-			'added'        => [ 'success', __( 'Entry added.', 'essfinance' ) ],
-			'updated'      => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
-			'deleted'      => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
-			'paid_today'   => [ 'success', __( 'Entry marked as paid today.', 'essfinance' ) ],
-			'toggled'      => [ 'success', __( 'Entry type changed.', 'essfinance' ) ],
-			'mark_paid'    => [ 'success', __( 'Selected entries marked as paid today.', 'essfinance' ) ],
-			'mark_pending' => [ 'success', __( 'Selected entries marked as pending.', 'essfinance' ) ],
-			'make_income'  => [ 'success', __( 'Selected entries changed to income.', 'essfinance' ) ],
-			'make_expense' => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
-			'set_category' => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
-			'error'        => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
-			'import_error' => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
+			'added'             => [ 'success', __( 'Entry added.', 'essfinance' ) ],
+			'updated'           => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
+			'deleted'           => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
+			'paid_today'        => [ 'success', __( 'Entry marked as paid today.', 'essfinance' ) ],
+			'toggled'           => [ 'success', __( 'Entry type changed.', 'essfinance' ) ],
+			'mark_paid'         => [ 'success', __( 'Selected entries marked as paid today.', 'essfinance' ) ],
+			'mark_pending'      => [ 'success', __( 'Selected entries marked as pending.', 'essfinance' ) ],
+			'make_income'       => [ 'success', __( 'Selected entries changed to income.', 'essfinance' ) ],
+			'make_expense'      => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
+			'set_category'      => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
+			'auto_set_category' => [ 'success', __( 'Category auto-detected for selected entries.', 'essfinance' ) ],
+			'error'             => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
+			'import_error'      => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
 		];
 		if ( isset( $map[ $msg ] ) ) {
 			[ $type, $text ] = $map[ $msg ];

@@ -384,6 +384,10 @@ class ESSF_Shortcodes {
 						wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $bulk_category ) ], ESSF_Category::TAXONOMY );
 					}
 					break;
+				case 'auto_set_category':
+					$guessed_slug = ESSF_Category::guess_slug_from_description( $post->post_title );
+					wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $guessed_slug ) ], ESSF_Category::TAXONOMY );
+					break;
 			}
 		}
 
@@ -802,6 +806,7 @@ class ESSF_Shortcodes {
 								<option value="make_income"><?php esc_html_e( 'Make Income', 'essfinance' ); ?></option>
 								<option value="make_expense"><?php esc_html_e( 'Make Expense', 'essfinance' ); ?></option>
 								<option value="set_category"><?php esc_html_e( 'Set Category', 'essfinance' ); ?></option>
+								<option value="auto_set_category"><?php esc_html_e( 'Auto Set Category', 'essfinance' ); ?></option>
 								<option value="delete"><?php esc_html_e( 'Delete', 'essfinance' ); ?></option>
 							</select>
 							<select name="essf_bulk_category">

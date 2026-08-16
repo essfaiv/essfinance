@@ -57,12 +57,13 @@ class ESSF_List_Table extends WP_List_Table {
 
 	public function get_bulk_actions(): array {
 		return [
-			'mark_paid'    => __( 'Mark as Paid Today', 'essfinance' ),
-			'mark_pending' => __( 'Mark as Pending', 'essfinance' ),
-			'make_income'  => __( 'Make Income', 'essfinance' ),
-			'make_expense' => __( 'Make Expense', 'essfinance' ),
-			'set_category' => __( 'Set Category', 'essfinance' ),
-			'delete'       => __( 'Delete', 'essfinance' ),
+			'mark_paid'         => __( 'Mark as Paid Today', 'essfinance' ),
+			'mark_pending'      => __( 'Mark as Pending', 'essfinance' ),
+			'make_income'       => __( 'Make Income', 'essfinance' ),
+			'make_expense'      => __( 'Make Expense', 'essfinance' ),
+			'set_category'      => __( 'Set Category', 'essfinance' ),
+			'auto_set_category' => __( 'Auto Set Category', 'essfinance' ),
+			'delete'            => __( 'Delete', 'essfinance' ),
 		];
 	}
 
