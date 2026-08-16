@@ -17,8 +17,8 @@ msgstr ""
 #. Plugin Name of the plugin
 #. Author of the plugin
 #: essfinance.php
-#: includes/class-admin-page.php:66
-#: includes/class-admin-page.php:67
+#: includes/class-admin-page.php:74
+#: includes/class-admin-page.php:75
 msgid "EssFinance"
 msgstr "EssFinance"
 
@@ -27,65 +27,64 @@ msgstr "EssFinance"
 msgid "Simple personal finance management"
 msgstr "Gerenciamento financeiro pessoal simples"
 
-#: includes/class-admin-page.php:77
-#: includes/class-admin-page.php:78
-#: includes/class-admin-page.php:1441
-#: includes/class-admin-page.php:1487
-#: includes/class-admin-page.php:1528
+#: includes/class-admin-page.php:85
+#: includes/class-admin-page.php:86
+#: includes/class-admin-page.php:1447
+#: includes/class-admin-page.php:1493
+#: includes/class-admin-page.php:1534
 #: includes/class-cpt.php:79
 #: includes/class-settings.php:800
 #: includes/class-shortcodes.php:1393
 msgid "Cash Flow"
 msgstr "Fluxo de Caixa"
 
-#: includes/class-admin-page.php:114
-#: includes/class-admin-page.php:131
-#: includes/class-admin-page.php:132
-#: includes/class-admin-page.php:1085
+#: includes/class-admin-page.php:122
+#: includes/class-admin-page.php:139
+#: includes/class-admin-page.php:140
+#: includes/class-admin-page.php:1091
 #: includes/class-settings.php:815
 msgid "OFX Glossary"
 msgstr "Glossário OFX"
 
-#: includes/class-admin-page.php:155
+#: includes/class-admin-page.php:182
 msgid "Entries per page"
 msgstr "Itens por página"
 
-#: includes/class-admin-page.php:272
-#: includes/class-admin-page.php:322
-#: includes/class-admin-page.php:360
-#: includes/class-admin-page.php:407
-#: includes/class-admin-page.php:821
-#: includes/class-admin-page.php:1168
-#: includes/class-admin-page.php:1238
-#: includes/class-admin-page.php:1253
-#: includes/class-admin-page.php:1318
-#: includes/class-admin-page.php:1334
-#: includes/class-admin-page.php:1366
+#: includes/class-admin-page.php:299
+#: includes/class-admin-page.php:349
+#: includes/class-admin-page.php:387
+#: includes/class-admin-page.php:434
+#: includes/class-admin-page.php:848
+#: includes/class-admin-page.php:1174
+#: includes/class-admin-page.php:1244
+#: includes/class-admin-page.php:1259
+#: includes/class-admin-page.php:1324
+#: includes/class-admin-page.php:1340
+#: includes/class-admin-page.php:1372
 msgid "Unauthorized."
 msgstr "Não autorizado."
 
-#: includes/class-admin-page.php:1092
-#: includes/class-admin-page.php:1195
+#: includes/class-admin-page.php:1098
+#: includes/class-admin-page.php:1201
 msgid "Entry forgotten."
 msgstr "Mapeamento esquecido."
 
-#: includes/class-admin-page.php:1096
+#: includes/class-admin-page.php:1102
 msgid "These are the raw bank memos EssFinance has learned to recognize during OFX review, and what each currently suggests. \"Forget\" clears the learned mapping only — the underlying entry stays exactly as it is."
 msgstr "Estes são os memorandos bancários originais que o EssFinance aprendeu a reconhecer durante a revisão OFX, e o que cada um sugere atualmente. \"Esquecer\" apaga apenas o mapeamento aprendido — o lançamento em si permanece exatamente como está."
 
-#: includes/class-admin-page.php:1099
+#: includes/class-admin-page.php:1105
 msgid "Learned descriptions"
 msgstr "Descrições aprendidas"
 
-#: includes/class-admin-page.php:1102
+#: includes/class-admin-page.php:1108
 msgid "Nothing learned yet — this fills in as you confirm OFX imports."
 msgstr "Nada aprendido ainda — isso se preenche à medida que você confirma importações OFX."
 
-#: includes/class-admin-page.php:1055
-#: includes/class-admin-page.php:1107
-#: includes/class-admin-page.php:1209
-#: includes/class-admin-page.php:1583
-#: includes/class-admin-page.php:1802
+#: includes/class-admin-page.php:1113
+#: includes/class-admin-page.php:1215
+#: includes/class-admin-page.php:1589
+#: includes/class-admin-page.php:1808
 #: includes/class-list-table.php:36
 #: includes/class-meta-boxes.php:48
 #: includes/class-meta-boxes.php:51
@@ -94,77 +93,77 @@ msgstr "Nada aprendido ainda — isso se preenche à medida que você confirma i
 msgid "Description"
 msgstr "Descrição"
 
-#: includes/class-admin-page.php:1108
+#: includes/class-admin-page.php:1114
 msgid "Raw Memo"
 msgstr "Memorando Original"
 
-#: includes/class-admin-page.php:1109
+#: includes/class-admin-page.php:1115
 msgid "Detail"
 msgstr "Detalhe"
 
-#: includes/class-admin-page.php:1121
-#: includes/class-admin-page.php:1221
+#: includes/class-admin-page.php:1127
+#: includes/class-admin-page.php:1227
 msgid "Forget this mapping? The entry itself will not be changed."
 msgstr "Esquecer este mapeamento? O lançamento em si não será alterado."
 
-#: includes/class-admin-page.php:1122
-#: includes/class-admin-page.php:1152
-#: includes/class-admin-page.php:1222
+#: includes/class-admin-page.php:1128
+#: includes/class-admin-page.php:1158
+#: includes/class-admin-page.php:1228
 msgid "Forget"
 msgstr "Esquecer"
 
-#: includes/class-admin-page.php:1131
+#: includes/class-admin-page.php:1137
 msgid "Excluded patterns"
 msgstr "Padrões excluídos"
 
-#: includes/class-admin-page.php:1133
+#: includes/class-admin-page.php:1139
 msgid "Memo patterns you've excluded during review before (e.g. balances, internal transfers) — future imports matching one of these default to excluded too."
 msgstr "Padrões de memorando que você já excluiu durante a revisão antes (ex.: saldos, transferências internas) — futuras importações que corresponderem a um destes também ficam excluídas por padrão."
 
-#: includes/class-admin-page.php:1137
+#: includes/class-admin-page.php:1143
 msgid "Nothing excluded yet."
 msgstr "Nada excluído ainda."
 
-#: includes/class-admin-page.php:1142
+#: includes/class-admin-page.php:1148
 msgid "Pattern"
 msgstr "Padrão"
 
-#: includes/class-admin-page.php:1385
+#: includes/class-admin-page.php:1391
 #: includes/class-cpt.php:80
 msgid "Entry"
 msgstr "Lançamento"
 
-#: includes/class-admin-page.php:1443
+#: includes/class-admin-page.php:1449
 #: includes/class-shortcodes.php:770
 msgid "Export"
 msgstr "Exportar"
 
-#: includes/class-admin-page.php:1446
-#: includes/class-admin-page.php:1734
-#: includes/class-admin-page.php:1745
+#: includes/class-admin-page.php:1452
+#: includes/class-admin-page.php:1740
+#: includes/class-admin-page.php:1751
 #: includes/class-shortcodes.php:769
 #: includes/class-shortcodes.php:1299
 msgid "Import"
 msgstr "Importar"
 
-#: includes/class-admin-page.php:1469
+#: includes/class-admin-page.php:1475
 #: includes/class-cpt.php:86
 msgid "Search Entries"
 msgstr "Buscar Lançamentos"
 
-#: includes/class-admin-page.php:1485
-#: includes/class-admin-page.php:1790
+#: includes/class-admin-page.php:1491
+#: includes/class-admin-page.php:1796
 #: includes/class-cpt.php:83
 #: includes/class-shortcodes.php:1055
 msgid "Edit Entry"
 msgstr "Editar Lançamento"
 
-#: includes/class-admin-page.php:1526
+#: includes/class-admin-page.php:1532
 msgid "Review OFX Import"
 msgstr "Revisar Importação OFX"
 
 #. translators: %d: number of duplicate transactions skipped automatically.
-#: includes/class-admin-page.php:1537
+#: includes/class-admin-page.php:1543
 #, php-format
 msgid "%d duplicate transaction was skipped automatically."
 msgid_plural "%d duplicate transactions were skipped automatically."
@@ -172,37 +171,37 @@ msgstr[0] "%d transação duplicada foi ignorada automaticamente."
 msgstr[1] "%d transações duplicadas foram ignoradas automaticamente."
 
 #. translators: %s is replaced client-side (assets/js/admin.js) with the description being offered, not by PHP.
-#: includes/class-admin-page.php:1551
+#: includes/class-admin-page.php:1557
 #, php-format
 msgid "Use \"%s\""
 msgstr "Usar \"%s\""
 
-#: includes/class-admin-page.php:1559
+#: includes/class-admin-page.php:1565
 msgid "Confirm entries to import"
 msgstr "Confirmar lançamentos para importar"
 
-#: includes/class-admin-page.php:1561
+#: includes/class-admin-page.php:1567
 msgid "Hover a description to see the raw bank memo, or click it to edit before these transactions are saved. Click the ✕ to exclude a row (e.g. balances, internal transfers) — click again to bring it back."
 msgstr "Passe o mouse sobre uma descrição para ver o memorando bancário original, ou clique nela para editar antes que essas transações sejam salvas. Clique no ✕ para excluir uma linha (ex.: saldos, transferências internas) — clique novamente para trazê-la de volta."
 
-#: includes/class-admin-page.php:1566
+#: includes/class-admin-page.php:1572
 msgid "From"
 msgstr "De"
 
-#: includes/class-admin-page.php:1569
+#: includes/class-admin-page.php:1575
 msgid "To"
 msgstr "Até"
 
-#: includes/class-admin-page.php:1581
+#: includes/class-admin-page.php:1587
 #: includes/class-list-table.php:40
 #: includes/class-shortcodes.php:787
 #: includes/class-shortcodes.php:876
 msgid "Date"
 msgstr "Data"
 
-#: includes/class-admin-page.php:1582
-#: includes/class-admin-page.php:1822
-#: includes/class-admin-page.php:1915
+#: includes/class-admin-page.php:1588
+#: includes/class-admin-page.php:1828
+#: includes/class-admin-page.php:1921
 #: includes/class-list-table.php:39
 #: includes/class-meta-boxes.php:69
 #: includes/class-shortcodes.php:791
@@ -211,57 +210,57 @@ msgstr "Data"
 msgid "Amount"
 msgstr "Valor"
 
-#: includes/class-admin-page.php:1639
-#: includes/class-admin-page.php:1640
+#: includes/class-admin-page.php:1645
+#: includes/class-admin-page.php:1646
 msgid "Include this transaction"
 msgstr "Incluir esta transação"
 
-#: includes/class-admin-page.php:1639
-#: includes/class-admin-page.php:1641
+#: includes/class-admin-page.php:1645
+#: includes/class-admin-page.php:1647
 msgid "Exclude this transaction"
 msgstr "Excluir esta transação"
 
-#: includes/class-admin-page.php:1659
+#: includes/class-admin-page.php:1665
 msgid "Suggested from a previous import — click to change"
 msgstr "Sugerido a partir de uma importação anterior — clique para alterar"
 
-#: includes/class-admin-page.php:1661
+#: includes/class-admin-page.php:1667
 msgid "No match found — please review this description"
 msgstr "Nenhuma correspondência encontrada — revise esta descrição"
 
 #. translators: 1: existing entry title, 2: existing entry date.
-#: includes/class-admin-page.php:1670
+#: includes/class-admin-page.php:1676
 #, php-format
 msgid "Possibly matches \"%1$s\" on %2$s."
 msgstr "Possivelmente corresponde a \"%1$s\" em %2$s."
 
-#: includes/class-admin-page.php:1678
+#: includes/class-admin-page.php:1684
 msgid "Looks like a transaction you've excluded before."
 msgstr "Parece uma transação que você já excluiu antes."
 
-#: includes/class-admin-page.php:1689
+#: includes/class-admin-page.php:1695
 msgid "Confirm description"
 msgstr "Confirmar descrição"
 
-#: includes/class-admin-page.php:1690
+#: includes/class-admin-page.php:1696
 msgid "Cancel edit"
 msgstr "Cancelar edição"
 
-#: includes/class-admin-page.php:1709
+#: includes/class-admin-page.php:1715
 msgid "Finish"
 msgstr "Concluir"
 
-#: includes/class-admin-page.php:1710
-#: includes/class-admin-page.php:1746
-#: includes/class-admin-page.php:1858
+#: includes/class-admin-page.php:1716
+#: includes/class-admin-page.php:1752
+#: includes/class-admin-page.php:1864
 #: includes/class-shortcodes.php:1092
 #: includes/class-shortcodes.php:1300
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: includes/class-admin-page.php:1721
-#: includes/class-admin-page.php:1790
-#: includes/class-admin-page.php:1860
+#: includes/class-admin-page.php:1727
+#: includes/class-admin-page.php:1796
+#: includes/class-admin-page.php:1866
 #: includes/class-cpt.php:81
 #: includes/class-cpt.php:82
 #: includes/class-shortcodes.php:768
@@ -270,32 +269,32 @@ msgstr "Cancelar"
 msgid "Add Entry"
 msgstr "Adicionar Lançamento"
 
-#: includes/class-admin-page.php:1740
+#: includes/class-admin-page.php:1746
 msgid "File"
 msgstr "Arquivo"
 
-#: includes/class-admin-page.php:1742
+#: includes/class-admin-page.php:1748
 msgid "Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically. OFX files open a review step before anything is saved."
 msgstr "Suporta CSV (exportação do EssFinance) e OFX. Duplicatas são ignoradas automaticamente. Arquivos OFX abrem uma etapa de revisão antes de salvar qualquer coisa."
 
-#: includes/class-admin-page.php:1805
+#: includes/class-admin-page.php:1811
 msgid "A short label for this entry."
 msgstr "Um rótulo curto para este lançamento."
 
-#: includes/class-admin-page.php:1809
-#: includes/class-admin-page.php:1916
+#: includes/class-admin-page.php:1815
+#: includes/class-admin-page.php:1922
 #: includes/class-meta-boxes.php:56
 #: includes/class-shortcodes.php:1065
 msgid "Due Date"
 msgstr "Data de Vencimento"
 
-#: includes/class-admin-page.php:1815
+#: includes/class-admin-page.php:1821
 #: includes/class-meta-boxes.php:61
 #: includes/class-shortcodes.php:1067
 msgid "Pay Date"
 msgstr "Data de Pagamento"
 
-#: includes/class-admin-page.php:1829
+#: includes/class-admin-page.php:1835
 #: includes/class-list-table.php:159
 #: includes/class-list-table.php:441
 #: includes/class-meta-boxes.php:76
@@ -305,8 +304,8 @@ msgstr "Data de Pagamento"
 msgid "Income"
 msgstr "Receita"
 
-#: includes/class-admin-page.php:1834
-#: includes/class-admin-page.php:1917
+#: includes/class-admin-page.php:1840
+#: includes/class-admin-page.php:1923
 #: includes/class-list-table.php:41
 #: includes/class-meta-boxes.php:82
 #: includes/class-shortcodes.php:790
@@ -315,75 +314,75 @@ msgstr "Receita"
 msgid "Status"
 msgstr "Status"
 
-#: includes/class-admin-page.php:1857
+#: includes/class-admin-page.php:1863
 msgid "Update Entry"
 msgstr "Atualizar Lançamento"
 
 #. translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-#: includes/class-admin-page.php:1881
+#: includes/class-admin-page.php:1887
 #, php-format
 msgid "%1$d %2$s imported, %3$d skipped as duplicates."
 msgstr "%1$d %2$s importado(s), %3$d ignorado(s) como duplicata(s)."
 
 #. translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-#: includes/class-admin-page.php:1881
+#: includes/class-admin-page.php:1887
 msgid "entry"
 msgid_plural "entries"
 msgstr[0] "lançamento"
 msgstr[1] "lançamentos"
 
-#: includes/class-admin-page.php:1887
+#: includes/class-admin-page.php:1893
 #: includes/class-shortcodes.php:1375
 msgid "Entry added."
 msgstr "Lançamento adicionado."
 
-#: includes/class-admin-page.php:1888
+#: includes/class-admin-page.php:1894
 #: includes/class-shortcodes.php:1376
 msgid "Entry updated."
 msgstr "Lançamento atualizado."
 
-#: includes/class-admin-page.php:1889
+#: includes/class-admin-page.php:1895
 #: includes/class-shortcodes.php:1377
 msgid "Entry deleted."
 msgstr "Lançamento excluído."
 
-#: includes/class-admin-page.php:1890
+#: includes/class-admin-page.php:1896
 msgid "Entry marked as paid today."
 msgstr "Lançamento marcado como pago hoje."
 
-#: includes/class-admin-page.php:1891
+#: includes/class-admin-page.php:1897
 msgid "Entry type changed."
 msgstr "Tipo do lançamento alterado."
 
-#: includes/class-admin-page.php:1892
+#: includes/class-admin-page.php:1898
 msgid "Selected entries marked as paid today."
 msgstr "Lançamentos selecionados marcados como pagos hoje."
 
-#: includes/class-admin-page.php:1893
+#: includes/class-admin-page.php:1899
 msgid "Selected entries marked as pending."
 msgstr "Lançamentos selecionados marcados como pendentes."
 
-#: includes/class-admin-page.php:1894
+#: includes/class-admin-page.php:1900
 msgid "Selected entries changed to income."
 msgstr "Lançamentos selecionados alterados para receita."
 
-#: includes/class-admin-page.php:1895
+#: includes/class-admin-page.php:1901
 msgid "Selected entries changed to expense."
 msgstr "Lançamentos selecionados alterados para despesa."
 
-#: includes/class-admin-page.php:1898
+#: includes/class-admin-page.php:1904
 msgid "Something went wrong. Please try again."
 msgstr "Algo deu errado. Tente novamente."
 
-#: includes/class-admin-page.php:1899
+#: includes/class-admin-page.php:1905
 msgid "Import failed. Please upload a valid CSV file."
 msgstr "Falha na importação. Envie um arquivo CSV válido."
 
-#: includes/class-admin-page.php:1912
+#: includes/class-admin-page.php:1918
 msgid "Title"
 msgstr "Título"
 
-#: includes/class-admin-page.php:1913
+#: includes/class-admin-page.php:1919
 #: includes/class-list-table.php:37
 #: includes/class-shortcodes.php:788
 #: includes/class-shortcodes.php:873
@@ -1165,8 +1164,8 @@ msgstr "Falha na verificação de segurança."
 msgid "EssFinance Settings"
 msgstr "Configurações do EssFinance"
 
-#: includes/class-admin-page.php:1087
-#: includes/class-admin-page.php:1190
+#: includes/class-admin-page.php:1093
+#: includes/class-admin-page.php:1196
 #: includes/class-settings.php:383
 #: includes/class-settings.php:841
 msgid "Settings"
@@ -1529,16 +1528,16 @@ msgstr "Lançamento marcado como pago."
 msgid "Bulk action applied."
 msgstr "Ação em massa aplicada."
 
-#: includes/class-admin-page.php:93
-#: includes/class-admin-page.php:94
-#: includes/class-admin-page.php:1045
+#: includes/class-admin-page.php:101
+#: includes/class-admin-page.php:102
+#: includes/class-admin-page.php:1072
 #: includes/class-category.php:156
 #: includes/class-category.php:164
 msgid "Categories"
 msgstr "Categorias"
 
-#: includes/class-admin-page.php:772
-#: includes/class-admin-page.php:1942
+#: includes/class-admin-page.php:799
+#: includes/class-admin-page.php:1948
 #: includes/class-cli.php:184
 #: includes/class-cli.php:305
 #: includes/class-cli.php:336
@@ -1547,10 +1546,10 @@ msgstr "Categorias"
 msgid "Uncategorized"
 msgstr "Não categorizado"
 
-#: includes/class-admin-page.php:1210
-#: includes/class-admin-page.php:1584
-#: includes/class-admin-page.php:1845
-#: includes/class-admin-page.php:1914
+#: includes/class-admin-page.php:1216
+#: includes/class-admin-page.php:1590
+#: includes/class-admin-page.php:1851
+#: includes/class-admin-page.php:1920
 #: includes/class-category.php:157
 #: includes/class-list-table.php:38
 #: includes/class-meta-boxes.php:93
@@ -1560,10 +1559,11 @@ msgstr "Não categorizado"
 msgid "Category"
 msgstr "Categoria"
 
-#: includes/class-admin-page.php:1896
+#: includes/class-admin-page.php:1902
 msgid "Category updated for selected entries."
 msgstr "Categoria atualizada para os lançamentos selecionados."
 
+#: includes/class-admin-page.php:1078
 #: includes/class-category.php:158
 msgid "Search Categories"
 msgstr "Buscar Categorias"
@@ -1606,7 +1606,7 @@ msgstr "Todas as categorias"
 msgid "Upload a CSV with columns: due_date, pay_date, description, type (income/expense), amount, status, category (optional)."
 msgstr "Envie um CSV com as colunas: due_date, pay_date, description, type (income/expense), amount, status, category (opcional)."
 
-#: includes/class-admin-page.php:1897
+#: includes/class-admin-page.php:1903
 msgid "Category auto-detected for selected entries."
 msgstr "Categoria detectada automaticamente para os lançamentos selecionados."
 
@@ -1939,19 +1939,19 @@ msgstr "hospedagem"
 msgid "Auto Set Category"
 msgstr "Auto Categorizar"
 
-#: includes/class-admin-page.php:115
-#: includes/class-admin-page.php:140
-#: includes/class-admin-page.php:141
-#: includes/class-admin-page.php:1188
+#: includes/class-admin-page.php:123
+#: includes/class-admin-page.php:148
+#: includes/class-admin-page.php:149
+#: includes/class-admin-page.php:1194
 #: includes/class-settings.php:816
 msgid "Category Glossary"
 msgstr "Glossário de Categorias"
 
-#: includes/class-admin-page.php:1199
+#: includes/class-admin-page.php:1205
 msgid "Every categorized entry teaches \"Auto Set Category\" by example — correct one and similar descriptions use that category from then on. \"Forget\" stops an entry from teaching by example; its own category is not changed."
 msgstr "Cada lançamento categorizado ensina o \"Auto Categorizar\" por exemplo — corrija um e descrições semelhantes passarão a usar essa categoria a partir de então. \"Esquecer\" impede que um lançamento continue ensinando por exemplo; sua própria categoria não é alterada."
 
-#: includes/class-admin-page.php:1204
+#: includes/class-admin-page.php:1210
 msgid "Nothing learned yet — this fills in as entries get categorized."
 msgstr "Nada aprendido ainda — isso se preenche à medida que os lançamentos são categorizados."
 
@@ -1971,18 +1971,30 @@ msgstr "Exibir filtro de tipo"
 msgid "Show the Income/Expense filter dropdown above the entries list"
 msgstr "Exibe o filtro de Receita/Despesa acima da lista de lançamentos"
 
-#: includes/class-admin-page.php:1049
+#: includes/class-category-list-table.php:54
 msgid "No categories found."
 msgstr "Nenhuma categoria encontrada."
 
-#: includes/class-admin-page.php:1054
+#: includes/class-category-list-table.php:35
 msgid "Name"
 msgstr "Nome"
 
-#: includes/class-admin-page.php:1056
+#: includes/class-category-list-table.php:36
 msgid "Slug"
 msgstr "Slug"
 
-#: includes/class-admin-page.php:1057
+#: includes/class-category-list-table.php:37
 msgid "Count"
 msgstr "Contagem"
+
+#: includes/class-admin-page.php:161
+msgid "Categories per page"
+msgstr "Categorias por página"
+
+#: includes/class-admin-page.php:169
+msgid "Overview"
+msgstr "Visão geral"
+
+#: includes/class-admin-page.php:170
+msgid "This is a read-only view of the categories entries can be filed under. Names and slugs are managed automatically and change with the site language."
+msgstr "Esta é uma visualização somente leitura das categorias em que os lançamentos podem ser classificados. Nomes e slugs são gerenciados automaticamente e mudam com o idioma do site."

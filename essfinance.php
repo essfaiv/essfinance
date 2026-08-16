@@ -61,6 +61,7 @@ function essf_boot() {
 	if ( is_admin() ) {
 		require_once ESSF_PATH . 'includes/class-meta-boxes.php';
 		require_once ESSF_PATH . 'includes/class-list-table.php';
+		require_once ESSF_PATH . 'includes/class-category-list-table.php';
 		require_once ESSF_PATH . 'includes/class-admin-page.php';
 		require_once ESSF_PATH . 'includes/class-assets.php';
 

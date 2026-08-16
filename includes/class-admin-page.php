@@ -35,11 +35,19 @@ class ESSF_Admin_Page {
 			10,
 			3
 		);
+		add_filter(
+			'set_screen_option_essf_categories_per_page',
+			function ( $s, $o, $v ) {
+				return absint( $v );
+			},
+			10,
+			3
+		);
 		// WP < 5.4.2 fallback (set-screen-option with hyphen).
 		add_filter(
 			'set-screen-option',
 			function ( $s, $o, $v ) {
-				return 'essf_entries_per_page' === $o ? absint( $v ) : $s;
+				return in_array( $o, [ 'essf_entries_per_page', 'essf_categories_per_page' ], true ) ? absint( $v ) : $s;
 			},
 			10,
 			3
@@ -146,6 +154,26 @@ class ESSF_Admin_Page {
 	}
 
 	public function register_screen_options( WP_Screen $screen ): void {
+		if ( 'essfinance_page_essfinance-categories' === $screen->id ) {
+			add_screen_option(
+				'per_page',
+				[
+					'label'   => __( 'Categories per page', 'essfinance' ),
+					'default' => 20,
+					'option'  => 'essf_categories_per_page',
+				]
+			);
+			register_column_headers( $screen, ( new ESSF_Category_List_Table() )->get_columns() );
+			$screen->add_help_tab(
+				[
+					'id'      => 'essf-categories-overview',
+					'title'   => __( 'Overview', 'essfinance' ),
+					'content' => '<p>' . esc_html__( 'This is a read-only view of the categories entries can be filed under. Names and slugs are managed automatically and change with the site language.', 'essfinance' ) . '</p>',
+				]
+			);
+			return;
+		}
+
 		if ( 'toplevel_page_essfinance' !== $screen->id ) {
 			return;
 		}
@@ -1038,41 +1066,20 @@ class ESSF_Admin_Page {
 	}
 
 	public function render_categories_page(): void {
-		$dashboard_url = admin_url( 'admin.php?page=essfinance' );
-		$terms         = ESSF_Category::get_ordered_terms();
+		$table = new ESSF_Category_List_Table();
+		$table->prepare_items();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Categories', 'essfinance' ); ?></h1>
 			<hr class="wp-header-end">
 
-			<?php if ( ! $terms ) : ?>
-				<p><?php esc_html_e( 'No categories found.', 'essfinance' ); ?></p>
-			<?php else : ?>
-				<table class="wp-list-table widefat fixed striped">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Name', 'essfinance' ); ?></th>
-							<th><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
-							<th><?php esc_html_e( 'Slug', 'essfinance' ); ?></th>
-							<th><?php esc_html_e( 'Count', 'essfinance' ); ?></th>
-						</tr>
-					</thead>
-					<tbody>
-						<?php foreach ( $terms as $term ) : ?>
-							<tr>
-								<td><?php echo esc_html( $term->name ); ?></td>
-								<td><?php echo $term->description ? esc_html( $term->description ) : '—'; ?></td>
-								<td><?php echo esc_html( $term->slug ); ?></td>
-								<td>
-									<a href="<?php echo esc_url( add_query_arg( 'essf_cat', $term->slug, $dashboard_url ) ); ?>">
-										<?php echo (int) $term->count; ?>
-									</a>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					</tbody>
-				</table>
-			<?php endif; ?>
+			<form method="get">
+				<input type="hidden" name="page" value="essfinance-categories">
+				<?php
+				$table->search_box( __( 'Search Categories', 'essfinance' ), 'essf-categories' );
+				$table->display();
+				?>
+			</form>
 		</div>
 		<?php
 	}
