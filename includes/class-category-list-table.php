@@ -100,7 +100,7 @@ class ESSF_Category_List_Table extends WP_List_Table {
 			case 'count':
 				return sprintf(
 					'<a href="%s">%d</a>',
-					esc_url( add_query_arg( 'essf_cat', $item->slug, admin_url( 'admin.php?page=essfinance' ) ) ),
+					esc_url( add_query_arg( 'category_name', $item->slug, admin_url( 'admin.php?page=essfinance' ) ) ),
 					(int) $item->count
 				);
 			default:

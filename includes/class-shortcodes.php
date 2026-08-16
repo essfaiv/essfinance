@@ -21,12 +21,47 @@ class ESSF_Shortcodes {
 		add_shortcode( 'essfinance_cashflow', [ $this, 'shortcode_cashflow' ] );
 		add_action( 'template_redirect', [ $this, 'handle_forms' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'maybe_enqueue_dashicons' ] );
+		add_filter( 'request', [ $this, 'strip_reserved_query_vars' ] );
 	}
 
 	public function maybe_enqueue_dashicons(): void {
 		if ( ESSF_Settings::show_status_icons() ) {
 			wp_enqueue_style( 'dashicons' );
 		}
+	}
+
+	/**
+	 * `m`/`category_name` are WordPress's own date/category-archive query
+	 * vars. This plugin reuses those names for its own Cash Flow page
+	 * filters (read straight from $_GET in render_cashflow_list(), never
+	 * via get_query_var()), so left alone WP's main query would try to
+	 * honor them too — ANDing a date/category condition onto the page's
+	 * own pagename lookup, which almost never matches and 404s the page
+	 * instead of rendering it. Strip them (and the date-part vars WP
+	 * derives from `m`) before WP_Query ever parses them, but only when
+	 * the request is actually for our page, so other pages/archives on
+	 * the site are unaffected.
+	 *
+	 * @param array $query_vars Raw request query vars, before WP_Query sees them.
+	 * @return array
+	 */
+	public function strip_reserved_query_vars( array $query_vars ): array {
+		$page_id = (int) get_option( self::OPTION_CASHFLOW_PAGE );
+		if ( ! $page_id ) {
+			return $query_vars;
+		}
+
+		$is_cashflow_page = isset( $query_vars['pagename'] )
+			? get_post_field( 'post_name', $page_id ) === $query_vars['pagename']
+			: ( isset( $query_vars['page_id'] ) && $page_id === (int) $query_vars['page_id'] );
+
+		if ( $is_cashflow_page ) {
+			foreach ( [ 'm', 'category_name', 'year', 'monthnum', 'day', 'cat' ] as $key ) {
+				unset( $query_vars[ $key ] );
+			}
+		}
+
+		return $query_vars;
 	}
 
 	/* ── URL helpers ─────────────────────────────────── */
@@ -404,7 +439,7 @@ class ESSF_Shortcodes {
 		}
 
 		$carry = [];
-		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'essf_cat', 'paged', 'essf_search' ] as $key ) {
+		foreach ( [ 'essf_status', 'essf_type', 'm', 'category_name', 'paged', 'essf_search' ] as $key ) {
 			$val = sanitize_key( wp_unslash( $_POST[ $key ] ?? '' ) );
 			if ( '' !== $val ) {
 				$carry[ $key ] = $val;
@@ -653,8 +688,8 @@ class ESSF_Shortcodes {
 		$paged         = max( 1, absint( wp_unslash( $_GET['paged'] ?? 1 ) ) );
 		$status_filter = sanitize_key( wp_unslash( $_GET['essf_status'] ?? '' ) );
 		$type_filter   = sanitize_key( wp_unslash( $_GET['essf_type'] ?? '' ) );
-		$month_filter  = sanitize_key( wp_unslash( $_GET['essf_m'] ?? '' ) );
-		$cat_filter    = sanitize_key( wp_unslash( $_GET['essf_cat'] ?? '' ) );
+		$month_filter  = sanitize_key( wp_unslash( $_GET['m'] ?? '' ) );
+		$cat_filter    = sanitize_key( wp_unslash( $_GET['category_name'] ?? '' ) );
 		$search        = sanitize_text_field( wp_unslash( $_GET['essf_search'] ?? '' ) );
 		$msg           = sanitize_key( wp_unslash( $_GET['essf_msg'] ?? '' ) );
 		$imported      = isset( $_GET['essf_imported'] ) ? (int) $_GET['essf_imported'] : -1;
@@ -776,8 +811,8 @@ class ESSF_Shortcodes {
 					<form method="get" action="<?php echo esc_url( self::get_cashflow_url() ); ?>" class="essf-search-form">
 						<input type="hidden" name="essf_status" value="<?php echo esc_attr( $status_filter ); ?>">
 						<input type="hidden" name="essf_type" value="<?php echo esc_attr( $type_filter ); ?>">
-						<input type="hidden" name="essf_m" value="<?php echo esc_attr( $month_filter ); ?>">
-						<input type="hidden" name="essf_cat" value="<?php echo esc_attr( $cat_filter ); ?>">
+						<input type="hidden" name="m" value="<?php echo esc_attr( $month_filter ); ?>">
+						<input type="hidden" name="category_name" value="<?php echo esc_attr( $cat_filter ); ?>">
 						<input type="search" name="essf_search" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search entries…', 'essfinance' ); ?>">
 						<button type="submit" class="essf-btn essf-btn-secondary"><?php esc_html_e( 'Search', 'essfinance' ); ?></button>
 						<?php if ( $search ) : ?>
@@ -805,8 +840,8 @@ class ESSF_Shortcodes {
 					<input type="hidden" name="essf_action" value="bulk_action">
 					<input type="hidden" name="essf_status" value="<?php echo esc_attr( $status_filter ); ?>">
 					<input type="hidden" name="essf_type" value="<?php echo esc_attr( $type_filter ); ?>">
-					<input type="hidden" name="essf_m" value="<?php echo esc_attr( $month_filter ); ?>">
-					<input type="hidden" name="essf_cat" value="<?php echo esc_attr( $cat_filter ); ?>">
+					<input type="hidden" name="m" value="<?php echo esc_attr( $month_filter ); ?>">
+					<input type="hidden" name="category_name" value="<?php echo esc_attr( $cat_filter ); ?>">
 					<input type="hidden" name="essf_search" value="<?php echo esc_attr( $search ); ?>">
 					<input type="hidden" name="paged" value="<?php echo esc_attr( (string) $paged ); ?>">
 					<div class="essf-toolbar-row essf-toolbar-row2">
@@ -854,11 +889,11 @@ class ESSF_Shortcodes {
 								foreach ( ESSF_Category::get_ordered_terms() as $term ) {
 									$cat_options[ $term->slug ] = $term->name;
 								}
-								$this->render_filter_select( 'essf_cat', $cat_filter, $cat_options );
+								$this->render_filter_select( 'category_name', $cat_filter, $cat_options );
 								?>
 								<?php if ( ! empty( $months ) ) : ?>
 									<?php $this->render_filter_select(
-										'essf_m',
+										'm',
 										$month_filter,
 										[ '' => __( 'All months', 'essfinance' ) ] + $months
 									); ?>
@@ -1310,7 +1345,7 @@ class ESSF_Shortcodes {
 
 	private function cashflow_url_with_filters( array $extra = [] ): string {
 		$carry = [];
-		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'essf_cat', 'paged', 'essf_search' ] as $key ) {
+		foreach ( [ 'essf_status', 'essf_type', 'm', 'category_name', 'paged', 'essf_search' ] as $key ) {
 			$val = sanitize_key( wp_unslash( $_GET[ $key ] ?? '' ) );
 			if ( '' !== $val ) {
 				$carry[ $key ] = $val;

@@ -104,7 +104,7 @@ class ShortcodesHandlersTest extends TestCase {
 		$_GET = [
 			'essf_status' => 'paid',
 			'essf_type'   => 'income',
-			'essf_m'      => '202601',
+			'm'           => '202601',
 			'paged'       => '2',
 			'essf_search' => 'salary',
 		];
@@ -125,7 +125,7 @@ class ShortcodesHandlersTest extends TestCase {
 		$url = $method->invoke( $this->shortcodes, [ 'essf_msg' => 'paid' ] );
 
 		$this->assertStringContainsString( 'essf_status=paid', $url );
-		$this->assertStringContainsString( 'essf_m=202601', $url );
+		$this->assertStringContainsString( 'm=202601', $url );
 		$this->assertStringContainsString( 'paged=2', $url );
 	}
 
@@ -152,5 +152,50 @@ class ShortcodesHandlersTest extends TestCase {
 
 		$this->assertStringNotContainsString( 'essf_status', $url, 'Empty status must not appear in URL' );
 		$this->assertStringContainsString( 'essf_type=expense', $url );
+	}
+
+	// ── strip_reserved_query_vars: neutralize WP's own m/category_name ──────
+
+	public function test_strip_reserved_query_vars_removes_reserved_keys_on_cashflow_page(): void {
+		Functions\expect( 'get_option' )->once()->andReturn( 42 );
+		Functions\expect( 'get_post_field' )->once()->with( 'post_name', 42 )->andReturn( 'cash-flow' );
+
+		$query_vars = [
+			'pagename'      => 'cash-flow',
+			'm'             => '202601',
+			'category_name' => 'groceries',
+			'year'          => '2026',
+		];
+
+		$result = $this->shortcodes->strip_reserved_query_vars( $query_vars );
+
+		$this->assertArrayNotHasKey( 'm', $result );
+		$this->assertArrayNotHasKey( 'category_name', $result );
+		$this->assertArrayNotHasKey( 'year', $result );
+		$this->assertSame( 'cash-flow', $result['pagename'] );
+	}
+
+	public function test_strip_reserved_query_vars_leaves_other_pages_untouched(): void {
+		Functions\expect( 'get_option' )->once()->andReturn( 42 );
+		Functions\expect( 'get_post_field' )->once()->with( 'post_name', 42 )->andReturn( 'cash-flow' );
+
+		$query_vars = [
+			'pagename'      => 'some-other-page',
+			'category_name' => 'news',
+		];
+
+		$result = $this->shortcodes->strip_reserved_query_vars( $query_vars );
+
+		$this->assertSame( $query_vars, $result );
+	}
+
+	public function test_strip_reserved_query_vars_noop_when_cashflow_page_not_set_up(): void {
+		Functions\expect( 'get_option' )->once()->andReturn( 0 );
+
+		$query_vars = [ 'm' => '202601' ];
+
+		$result = $this->shortcodes->strip_reserved_query_vars( $query_vars );
+
+		$this->assertSame( $query_vars, $result );
 	}
 }

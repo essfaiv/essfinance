@@ -256,9 +256,9 @@ class ESSF_Admin_Page {
 					$wpdb->update( $wpdb->posts, [ 'post_content' => (string) ( -abs( (float) $post->post_content ) ) ], [ 'ID' => $id ], [ '%s' ], [ '%d' ] );
 					break;
 				case 'set_category':
-					// Reuses the category *filter* dropdown (essf_cat) as the
-					// bulk-apply target too — no separate dropdown.
-					$bulk_category = sanitize_key( wp_unslash( $_REQUEST['essf_cat'] ?? '' ) );
+					// Reuses the category *filter* dropdown (category_name) as
+					// the bulk-apply target too — no separate dropdown.
+					$bulk_category = sanitize_key( wp_unslash( $_REQUEST['category_name'] ?? '' ) );
 					if ( $bulk_category ) {
 						wp_set_post_terms( $id, [ ESSF_Category::term_id_for_slug( $bulk_category ) ], ESSF_Category::TAXONOMY );
 					}
@@ -282,7 +282,7 @@ class ESSF_Admin_Page {
 		];
 
 		$carry = [ 'page' => 'essfinance' ];
-		foreach ( [ 'essf_status', 'essf_type', 'essf_m', 'essf_cat', 'paged', 's' ] as $key ) {
+		foreach ( [ 'essf_status', 'essf_type', 'm', 'category_name', 'paged', 's' ] as $key ) {
 			$val = sanitize_key( wp_unslash( $_GET[ $key ] ?? '' ) );
 			if ( '' !== $val ) {
 				$carry[ $key ] = $val;

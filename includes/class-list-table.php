@@ -148,8 +148,8 @@ class ESSF_List_Table extends WP_List_Table {
 			return;
 		}
 		$current_type = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
-		$current_m    = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
-		$current_cat  = isset( $_REQUEST['essf_cat'] ) ? sanitize_key( $_REQUEST['essf_cat'] ) : '';
+		$current_m    = isset( $_REQUEST['m'] ) ? sanitize_key( $_REQUEST['m'] ) : '';
+		$current_cat  = isset( $_REQUEST['category_name'] ) ? sanitize_key( $_REQUEST['category_name'] ) : '';
 		?>
 		<div class="alignleft actions">
 			<?php if ( ESSF_Settings::show_type_filter() ) : ?>
@@ -161,8 +161,8 @@ class ESSF_List_Table extends WP_List_Table {
 				</select>
 			<?php endif; ?>
 
-			<label for="essf_cat" class="screen-reader-text"><?php esc_html_e( 'Filter by category', 'essfinance' ); ?></label>
-			<select name="essf_cat" id="essf_cat">
+			<label for="category_name" class="screen-reader-text"><?php esc_html_e( 'Filter by category', 'essfinance' ); ?></label>
+			<select name="category_name" id="category_name">
 				<option value=""><?php esc_html_e( 'All categories', 'essfinance' ); ?></option>
 				<?php foreach ( ESSF_Category::get_ordered_terms() as $term ) : ?>
 					<option value="<?php echo esc_attr( $term->slug ); ?>" <?php selected( $current_cat, $term->slug ); ?>>
@@ -184,8 +184,8 @@ class ESSF_List_Table extends WP_List_Table {
 			return;
 		}
 		?>
-		<label for="essf_m" class="screen-reader-text"><?php esc_html_e( 'Filter by month', 'essfinance' ); ?></label>
-		<select name="essf_m" id="essf_m">
+		<label for="m" class="screen-reader-text"><?php esc_html_e( 'Filter by month', 'essfinance' ); ?></label>
+		<select name="m" id="m">
 			<option value=""><?php esc_html_e( 'All months', 'essfinance' ); ?></option>
 			<?php foreach ( $months as $ym => $label ) : ?>
 				<option value="<?php echo esc_attr( $ym ); ?>" <?php selected( $current, $ym ); ?>>
@@ -243,8 +243,8 @@ class ESSF_List_Table extends WP_List_Table {
 		$search        = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 		$status_filter = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
 		$type_filter   = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
-		$month_filter  = isset( $_REQUEST['essf_m'] ) ? sanitize_key( $_REQUEST['essf_m'] ) : '';
-		$cat_filter    = isset( $_REQUEST['essf_cat'] ) ? sanitize_key( $_REQUEST['essf_cat'] ) : '';
+		$month_filter  = isset( $_REQUEST['m'] ) ? sanitize_key( $_REQUEST['m'] ) : '';
+		$cat_filter    = isset( $_REQUEST['category_name'] ) ? sanitize_key( $_REQUEST['category_name'] ) : '';
 		$orderby       = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : '';
 		$order         = isset( $_REQUEST['order'] ) && 'asc' === strtolower( sanitize_key( $_REQUEST['order'] ) ) ? 'ASC' : 'DESC';
 		$today         = (string) date_i18n( 'Y-m-d' );
