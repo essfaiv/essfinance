@@ -81,7 +81,7 @@ class ESSF_Meta_Boxes {
 			<div class="essf-field">
 				<label for="essf_status"><?php esc_html_e( 'Status', 'essfinance' ); ?></label>
 				<select id="essf_status" name="essf_status">
-					<?php foreach ( ESSF_CPT::$statuses as $val => $label ) : ?>
+					<?php foreach ( ESSF_CPT::labels() as $val => $label ) : ?>
 						<option value="<?php echo esc_attr( $val ); ?>" <?php selected( $status, $val ); ?>>
 							<?php echo esc_html( $label ); ?>
 						</option>
@@ -127,7 +127,7 @@ class ESSF_Meta_Boxes {
 		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
 		$status = sanitize_key( wp_unslash( $_POST['essf_status'] ?? 'pending' ) );
-		if ( ! array_key_exists( $status, ESSF_CPT::$statuses ) ) {
+		if ( ! array_key_exists( $status, ESSF_CPT::labels() ) ) {
 			$status = 'pending';
 		}
 

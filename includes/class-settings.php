@@ -896,6 +896,6 @@ class ESSF_Settings {
 		if ( ! $icon ) {
 			return '';
 		}
-		return '<span class="dashicons ' . esc_attr( $icon ) . '" title="' . esc_attr( ucfirst( $status ) ) . '"></span> ';
+		return '<span class="dashicons ' . esc_attr( $icon ) . '" title="' . esc_attr( ESSF_CPT::status_label( $status ) ) . '"></span> ';
 	}
 }

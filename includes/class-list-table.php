@@ -265,7 +265,7 @@ class ESSF_List_Table extends WP_List_Table {
 
 		if ( 'overdue' === $status_filter ) {
 			$post_statuses = [ 'pending' ];
-		} elseif ( $status_filter && array_key_exists( $status_filter, ESSF_CPT::$statuses ) ) {
+		} elseif ( $status_filter && array_key_exists( $status_filter, ESSF_CPT::labels() ) ) {
 			$post_statuses = [ $status_filter ];
 		} else {
 			$post_statuses = [ 'pending', 'paid' ];
@@ -497,7 +497,7 @@ class ESSF_List_Table extends WP_List_Table {
 			$status = 'overdue';
 		}
 
-		$label = ucfirst( $status );
+		$label = ESSF_CPT::status_label( $status );
 
 		if ( ESSF_Settings::show_status_badge() ) {
 			return '<span class="essf-badge essf-badge--' . esc_attr( $status ) . '">' . esc_html( $label ) . '</span>';

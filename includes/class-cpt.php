@@ -10,10 +10,36 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_CPT {
 
-	public static $statuses = [
-		'pending' => 'Pending',
-		'paid'    => 'Paid',
-	];
+	/**
+	 * Real post-status keys (never 'overdue' — that's a computed, never
+	 * stored, virtual status) mapped to their translated label. A method
+	 * rather than a property (like the old public static $statuses) so the
+	 * label is resolved fresh via __() on every call, in the site's *current*
+	 * language, instead of being fixed in English at class-load time (a
+	 * plain property's value is set once, before WordPress even finishes
+	 * booting — too early to translate anything).
+	 *
+	 * @return array<string, string>
+	 */
+	public static function labels(): array {
+		return [
+			'pending' => __( 'Pending', 'essfinance' ),
+			'paid'    => __( 'Paid', 'essfinance' ),
+		];
+	}
+
+	/**
+	 * Translated label for a status, including the virtual 'overdue' state
+	 * (pending + due date in the past — computed at render time, never
+	 * stored, so it isn't in labels()). Falls back to ucfirst() for
+	 * anything else, matching the previous untranslated behavior.
+	 */
+	public static function status_label( string $status ): string {
+		if ( 'overdue' === $status ) {
+			return __( 'Overdue', 'essfinance' );
+		}
+		return self::labels()[ $status ] ?? ucfirst( $status );
+	}
 
 	public function __construct() {
 		add_action( 'init', [ $this, 'register' ] );
@@ -22,7 +48,7 @@ class ESSF_CPT {
 
 	/**
 	 * `essf_cashflow` entries never use WordPress's default 'publish' status
-	 * (only the custom 'pending'/'paid' — see $statuses), but WP_Query
+	 * (only the custom 'pending'/'paid' — see labels()), but WP_Query
 	 * defaults to 'publish' whenever a query doesn't set post_status
 	 * explicitly. Every query this plugin's own admin/frontend code builds
 	 * already passes post_status explicitly and is unaffected — this only
@@ -42,7 +68,7 @@ class ESSF_CPT {
 			return; // Don't override an explicit filter (e.g. the Trash view).
 		}
 
-		$query->set( 'post_status', array_keys( self::$statuses ) );
+		$query->set( 'post_status', array_keys( self::labels() ) );
 	}
 
 	public function register() {

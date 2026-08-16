@@ -26,14 +26,59 @@ class CptTest extends TestCase {
 		parent::tearDown();
 	}
 
-	public function test_statuses_contains_pending_and_paid(): void {
-		$this->assertArrayHasKey( 'pending', \ESSF_CPT::$statuses );
-		$this->assertArrayHasKey( 'paid', \ESSF_CPT::$statuses );
+	public function test_labels_contains_pending_and_paid(): void {
+		Functions\expect( '__' )->andReturnFirstArg();
+
+		$labels = \ESSF_CPT::labels();
+
+		$this->assertArrayHasKey( 'pending', $labels );
+		$this->assertArrayHasKey( 'paid', $labels );
 	}
 
-	public function test_statuses_does_not_include_overdue(): void {
+	public function test_labels_does_not_include_overdue(): void {
 		// Overdue is a computed state, not a registered WP post status.
-		$this->assertArrayNotHasKey( 'overdue', \ESSF_CPT::$statuses );
+		Functions\expect( '__' )->andReturnFirstArg();
+
+		$this->assertArrayNotHasKey( 'overdue', \ESSF_CPT::labels() );
+	}
+
+	public function test_labels_are_translated_via_gettext(): void {
+		Functions\expect( '__' )
+			->once()
+			->with( 'Pending', 'essfinance' )
+			->andReturn( 'Pendente' );
+		Functions\expect( '__' )
+			->once()
+			->with( 'Paid', 'essfinance' )
+			->andReturn( 'Pago' );
+
+		$labels = \ESSF_CPT::labels();
+
+		$this->assertSame( 'Pendente', $labels['pending'] );
+		$this->assertSame( 'Pago', $labels['paid'] );
+	}
+
+	// ── status_label() ───────────────────────────────────────────────────
+
+	public function test_status_label_returns_translated_label_for_known_status(): void {
+		Functions\expect( '__' )->andReturnFirstArg();
+
+		$this->assertSame( 'Paid', \ESSF_CPT::status_label( 'paid' ) );
+	}
+
+	public function test_status_label_translates_the_virtual_overdue_status(): void {
+		Functions\expect( '__' )
+			->once()
+			->with( 'Overdue', 'essfinance' )
+			->andReturn( 'Atrasado' );
+
+		$this->assertSame( 'Atrasado', \ESSF_CPT::status_label( 'overdue' ) );
+	}
+
+	public function test_status_label_falls_back_to_ucfirst_for_unknown_status(): void {
+		Functions\expect( '__' )->andReturnFirstArg();
+
+		$this->assertSame( 'Draft', \ESSF_CPT::status_label( 'draft' ) );
 	}
 
 	public function test_register_calls_register_post_type(): void {

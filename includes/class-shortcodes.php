@@ -149,7 +149,7 @@ class ESSF_Shortcodes {
 		$amount      = (float) str_replace( ',', '.', wp_unslash( $_POST['essf_amount'] ?? '0' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cast to float immediately; value is never output
 		$is_income   = ! empty( $_POST['essf_is_income'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['essf_is_income'] ) );
 		$status_raw  = sanitize_key( wp_unslash( $_POST['essf_status'] ?? '' ) );
-		$status      = array_key_exists( $status_raw, ESSF_CPT::$statuses ) ? $status_raw : 'pending';
+		$status      = array_key_exists( $status_raw, ESSF_CPT::labels() ) ? $status_raw : 'pending';
 		$due_raw     = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
 		$pay_raw     = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
 		$category    = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
@@ -1016,7 +1016,7 @@ class ESSF_Shortcodes {
 			<td data-col="date"><?php echo esc_html( $date ); ?></td>
 			<td data-col="status"><span class="essf-status">
 			<?php echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped values in ESSF_Settings::status_icon()
-			echo esc_html( ucfirst( $display_status ) ); ?></span></td>
+			echo esc_html( ESSF_CPT::status_label( $display_status ) ); ?></span></td>
 		</tr>
 		<?php
 	}
@@ -1068,7 +1068,7 @@ class ESSF_Shortcodes {
 				</div>
 				<p><label><?php esc_html_e( 'Status', 'essfinance' ); ?><br>
 				<select name="essf_status">
-					<?php foreach ( ESSF_CPT::$statuses as $val => $label ) : ?>
+					<?php foreach ( ESSF_CPT::labels() as $val => $label ) : ?>
 						<option value="<?php echo esc_attr( $val ); ?>"<?php selected( $status_val, $val ); ?>><?php echo esc_html( $label ); ?></option>
 					<?php endforeach; ?>
 				</select></label></p>
@@ -1102,7 +1102,7 @@ class ESSF_Shortcodes {
 		$query = new WP_Query(
 			[
 				'post_type'      => 'essf_cashflow',
-				'post_status'    => array_keys( ESSF_CPT::$statuses ),
+				'post_status'    => array_keys( ESSF_CPT::labels() ),
 				'author'         => get_current_user_id(),
 				'posts_per_page' => -1,
 				'orderby'        => 'date',
@@ -1226,7 +1226,7 @@ class ESSF_Shortcodes {
 			$is_income = 'income' === $type;
 			$amount    = $is_income ? abs( (float) ( $row[ $col['amount'] ] ?? 0 ) ) : -abs( (float) ( $row[ $col['amount'] ] ?? 0 ) );
 			$status    = sanitize_key( $row[ $col['status'] ] ?? 'pending' );
-			if ( ! array_key_exists( $status, ESSF_CPT::$statuses ) ) {
+			if ( ! array_key_exists( $status, ESSF_CPT::labels() ) ) {
 				$status = 'pending';
 			}
 
