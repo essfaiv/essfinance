@@ -1415,10 +1415,14 @@ class ESSF_Admin_Page {
 							<tbody>
 								<?php foreach ( $staged['rows'] as $i => $row ) : ?>
 									<?php
-									$raw_memo              = $row['memo'] ?: $row['name'];
-									$suggestions           = ESSF_OFX_Suggestions::suggest( $raw_memo, $history );
-									$cat_suggestions       = ESSF_OFX_Suggestions::suggest( $raw_memo, $cat_history );
-									$default_category_slug = $row['category'];
+									$raw_memo        = $row['memo'] ?: $row['name'];
+									$suggestions     = ESSF_OFX_Suggestions::suggest( $raw_memo, $history );
+									$cat_suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $cat_history );
+									// $row['category'] is guess_slug_from_description()'s canonical
+									// key (e.g. 'transfers'), not necessarily a live slug — normalize
+									// it to that category's *current* live slug, so the selected()
+									// comparisons below against $term->slug work.
+									$default_category_slug = ESSF_Category::normalize_slug( $row['category'] );
 									if ( $cat_suggestions ) {
 										foreach ( $cat_terms as $cat_term ) {
 											if ( $cat_term->name === $cat_suggestions[0]['title'] ) {
@@ -1582,7 +1586,9 @@ class ESSF_Admin_Page {
 		$description = $due_date = $pay_date = $status = '';
 		$amount      = '';
 		$is_income   = false;
-		$category    = 'uncategorized';
+		// A new entry's default is a canonical key, not necessarily a live
+		// slug — normalize it so it matches a $term->slug below.
+		$category = ESSF_Category::normalize_slug( 'uncategorized' );
 
 		if ( $is_edit ) {
 			$amount_val  = (float) $entry->post_content;
@@ -1597,7 +1603,7 @@ class ESSF_Admin_Page {
 			$pay_date = ( $pay_raw && '0000-00-00' !== $pay_raw ) ? $pay_raw : '';
 
 			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
-			$category    = $entry_terms[0] ?? 'uncategorized';
+			$category    = $entry_terms[0] ?? $category; // already-normalized default set above
 		}
 
 		if ( 'pay_date' === $focus ) {

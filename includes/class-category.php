@@ -201,9 +201,9 @@ class ESSF_Category {
 
 		$lang = self::seed_lang();
 
-		foreach ( self::term_definitions() as $slug => $labels ) {
-			if ( ! term_exists( $slug, self::TAXONOMY ) ) {
-				wp_insert_term( $labels[ $lang ], self::TAXONOMY, [ 'slug' => $slug ] );
+		foreach ( self::term_definitions() as $key => $labels ) {
+			if ( ! term_exists( $key, self::TAXONOMY ) ) {
+				wp_insert_term( $labels[ $lang ], self::TAXONOMY, [ 'slug' => $key ] );
 			}
 		}
 
@@ -211,22 +211,61 @@ class ESSF_Category {
 	}
 
 	/**
-	 * Rename every seeded term still present to its label in the site's
-	 * *current* language — hooked to the WPLANG option so switching the site
-	 * language (Settings → General) relabels the 25 standard categories
-	 * in place, rather than only affecting terms seeded from then on. Only
-	 * touches the known slugs from term_definitions(); a category the admin
-	 * added themselves has no translation to relabel to and is left alone.
-	 * Renaming only changes the term's display name — the slug (and
-	 * therefore every post's assignment to it) never changes.
+	 * Find the live term for a term_definitions() key without relying on its
+	 * slug matching that key — the slug changes on every relabel_terms()
+	 * call (see below), so it can't be the lookup key across a language
+	 * switch. Instead this matches by *name* against either known language
+	 * variant, which — unlike slug — is never touched except by
+	 * relabel_terms() itself flipping it from one known value to the other.
+	 * Only meaningful for the 25 standard keys; returns null for anything
+	 * else (a custom category has no known name variants to match).
+	 *
+	 * @return WP_Term|null
+	 */
+	private static function find_term_by_key( string $key ) {
+		$labels = self::term_definitions()[ $key ] ?? null;
+		if ( ! $labels ) {
+			return null;
+		}
+
+		$term = get_term_by( 'name', $labels['en'], self::TAXONOMY );
+		if ( $term ) {
+			return $term;
+		}
+
+		$term = get_term_by( 'name', $labels['pt_BR'], self::TAXONOMY );
+		return $term ?: null;
+	}
+
+	/**
+	 * Rename *and* re-slug every seeded term still present to its label in
+	 * the site's *current* language — hooked to the WPLANG option so
+	 * switching the site language (Settings → General) relabels the 25
+	 * standard categories in place, rather than only affecting terms seeded
+	 * from then on. Only touches the known keys from term_definitions(); a
+	 * category the admin added themselves has no translation to relabel to
+	 * and is left alone.
+	 *
+	 * Every post's category assignment lives in wp_term_relationships keyed
+	 * by term ID, never by slug, so changing the slug here never touches —
+	 * or needs to touch — those rows; the object/term relationship is
+	 * already correct and stays correct regardless of how many times a term
+	 * gets relabeled back and forth.
 	 */
 	public static function relabel_terms(): void {
 		$lang = self::seed_lang();
 
-		foreach ( self::term_definitions() as $slug => $labels ) {
-			$term = get_term_by( 'slug', $slug, self::TAXONOMY );
+		foreach ( self::term_definitions() as $key => $labels ) {
+			$term = self::find_term_by_key( $key );
 			if ( $term && $term->name !== $labels[ $lang ] ) {
-				wp_update_term( $term->term_id, self::TAXONOMY, [ 'name' => $labels[ $lang ] ] );
+				wp_update_term(
+					$term->term_id,
+					self::TAXONOMY,
+					[
+						'name' => $labels[ $lang ],
+						'slug' => sanitize_title( $labels[ $lang ] ),
+					]
+				);
 			}
 		}
 	}
@@ -275,8 +314,17 @@ class ESSF_Category {
 
 	/**
 	 * Resolve a slug to its term ID, self-healing by recreating a seeded term
-	 * that was deleted (e.g. via edit-tags.php) so "every post has exactly one
-	 * category" stays true even after manual taxonomy cleanup.
+	 * that was deleted (e.g. via edit-tags.php) so "every post has exactly
+	 * one category" stays true even after manual taxonomy cleanup.
+	 *
+	 * $slug is usually a *live* slug (the common case — it came from a
+	 * freshly-rendered <select>), resolved directly. But callers also pass
+	 * one of the 25 canonical, English-derived keys as a fixed literal
+	 * (guess_slug_from_description()'s output, the 'uncategorized' default),
+	 * which only equals a live slug when nothing has been relabeled since
+	 * seeding — after a relabel_terms() call it no longer does, so this
+	 * falls back to find_term_by_key()'s name-based match before creating
+	 * anything, avoiding a self-healed duplicate of an already-relabeled term.
 	 */
 	public static function term_id_for_slug( string $slug ): int {
 		$term = get_term_by( 'slug', $slug, self::TAXONOMY );
@@ -284,15 +332,40 @@ class ESSF_Category {
 			return (int) $term->term_id;
 		}
 
+		$term = self::find_term_by_key( $slug );
+		if ( $term ) {
+			return (int) $term->term_id;
+		}
+
 		$labels  = self::term_definitions()[ $slug ] ?? null;
-		$name    = $labels['en'] ?? ucfirst( str_replace( '-', ' ', $slug ) );
-		$created = wp_insert_term( $name, self::TAXONOMY, [ 'slug' => $slug ] );
+		$name    = $labels[ self::seed_lang() ] ?? ucfirst( str_replace( '-', ' ', $slug ) );
+		$created = wp_insert_term( $name, self::TAXONOMY );
 
 		return is_wp_error( $created ) ? 0 : (int) $created['term_id'];
 	}
 
 	public static function uncategorized_term_id(): int {
 		return self::term_id_for_slug( 'uncategorized' );
+	}
+
+	/**
+	 * Normalize a possibly-stale category identifier — a hardcoded canonical
+	 * key like 'uncategorized', or a slug from before a relabel — to the
+	 * term's *current* live slug, so it can be compared against fresh
+	 * live-slug <option value>s in a render loop (selected($x, $term->slug))
+	 * without the render loop itself needing to know about canonical keys at
+	 * all. Returns $slug unchanged when it's already a live slug (the common
+	 * case, resolved with a single lookup) or when nothing resolves.
+	 */
+	public static function normalize_slug( string $slug ): string {
+		if ( get_term_by( 'slug', $slug, self::TAXONOMY ) ) {
+			return $slug;
+		}
+
+		$term_id = self::term_id_for_slug( $slug );
+		$term    = $term_id ? get_term( $term_id, self::TAXONOMY ) : null;
+
+		return ( $term && ! is_wp_error( $term ) ) ? $term->slug : $slug;
 	}
 
 	/**

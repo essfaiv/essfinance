@@ -1029,10 +1029,12 @@ class ESSF_Shortcodes {
 		$status_val = $entry ? $entry->post_status : 'pending';
 		$due_val    = ( $entry && '0000-00-00' !== substr( $entry->post_date_gmt, 0, 10 ) ) ? substr( $entry->post_date_gmt, 0, 10 ) : '';
 		$pay_val    = ( $entry && '0000-00-00' !== substr( $entry->post_modified_gmt, 0, 10 ) ) ? substr( $entry->post_modified_gmt, 0, 10 ) : '';
-		$cat_val    = 'uncategorized';
+		// A new entry's default is a canonical key, not necessarily a live
+		// slug — normalize it so it matches a $term->slug below.
+		$cat_val = ESSF_Category::normalize_slug( 'uncategorized' );
 		if ( $entry ) {
 			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
-			$cat_val     = $entry_terms[0] ?? 'uncategorized';
+			$cat_val     = $entry_terms[0] ?? $cat_val;
 		}
 
 		if ( 'pay_date' === $focus ) {

@@ -217,6 +217,8 @@ class CategoryTest extends TestCase {
 	}
 
 	public function test_term_id_for_slug_returns_existing_term_id(): void {
+		// Direct slug hit — the common case, e.g. a value posted from a
+		// freshly-rendered <select> — resolves without any name lookup.
 		Functions\expect( 'get_term_by' )
 			->once()
 			->with( 'slug', 'income', 'essf_cashflow_cat' )
@@ -225,11 +227,33 @@ class CategoryTest extends TestCase {
 		$this->assertSame( 42, \ESSF_Category::term_id_for_slug( 'income' ) );
 	}
 
+	public function test_term_id_for_slug_finds_relabeled_term_by_name(): void {
+		// Slug no longer matches (site was relabeled to pt_BR, so the
+		// 'income' term is now sluggeded 'renda') — falls back to matching
+		// by name against either known language variant.
+		Functions\expect( 'get_term_by' )
+			->once()
+			->with( 'slug', 'income', 'essf_cashflow_cat' )
+			->andReturn( false );
+		Functions\expect( 'get_term_by' )
+			->once()
+			->with( 'name', 'Income', 'essf_cashflow_cat' )
+			->andReturn( false );
+		Functions\expect( 'get_term_by' )
+			->once()
+			->with( 'name', 'Renda', 'essf_cashflow_cat' )
+			->andReturn( (object) [ 'term_id' => 55 ] );
+		Functions\expect( 'wp_insert_term' )->never();
+
+		$this->assertSame( 55, \ESSF_Category::term_id_for_slug( 'income' ) );
+	}
+
 	public function test_term_id_for_slug_self_heals_missing_term(): void {
-		Functions\expect( 'get_term_by' )->once()->andReturn( false );
+		Functions\expect( 'get_term_by' )->times( 3 )->andReturn( false );
+		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
 		Functions\expect( 'wp_insert_term' )
 			->once()
-			->with( 'Income', 'essf_cashflow_cat', \Mockery::type( 'array' ) )
+			->with( 'Income', 'essf_cashflow_cat' )
 			->andReturn( [ 'term_id' => 99 ] );
 		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
 
@@ -237,11 +261,29 @@ class CategoryTest extends TestCase {
 	}
 
 	public function test_term_id_for_slug_returns_zero_on_insert_error(): void {
-		Functions\expect( 'get_term_by' )->once()->andReturn( false );
+		Functions\expect( 'get_term_by' )->times( 3 )->andReturn( false );
+		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
 		Functions\expect( 'wp_insert_term' )->once()->andReturn( new \stdClass() );
 		Functions\expect( 'is_wp_error' )->once()->andReturn( true );
 
 		$this->assertSame( 0, \ESSF_Category::term_id_for_slug( 'income' ) );
+	}
+
+	public function test_term_id_for_slug_unknown_slug_skips_name_lookup_and_self_heals(): void {
+		// Not one of the 25 standard keys — find_term_by_key() has nothing to
+		// match by name, so this goes straight to self-heal creation.
+		Functions\expect( 'get_term_by' )
+			->once()
+			->with( 'slug', 'not-a-real-slug', 'essf_cashflow_cat' )
+			->andReturn( false );
+		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
+		Functions\expect( 'wp_insert_term' )
+			->once()
+			->with( 'Not a real slug', 'essf_cashflow_cat' )
+			->andReturn( [ 'term_id' => 12 ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+
+		$this->assertSame( 12, \ESSF_Category::term_id_for_slug( 'not-a-real-slug' ) );
 	}
 
 	public function test_uncategorized_term_id_looks_up_uncategorized_slug(): void {
@@ -251,6 +293,94 @@ class CategoryTest extends TestCase {
 			->andReturn( (object) [ 'term_id' => 7 ] );
 
 		$this->assertSame( 7, \ESSF_Category::uncategorized_term_id() );
+	}
+
+	// ── relabel_terms() ──────────────────────────────────────────────────
+
+	public function test_relabel_terms_renames_and_reslugs_term_found_by_name(): void {
+		Functions\expect( 'get_locale' )->once()->andReturn( 'pt_BR' );
+		Functions\expect( 'get_term_by' )->andReturnUsing(
+			static function ( $field, $value ) {
+				return 'Income' === $value ? (object) [
+					'term_id' => 42,
+					'name'    => 'Income',
+				] : false;
+			}
+		);
+		Functions\expect( 'sanitize_title' )->with( 'Renda' )->andReturn( 'renda' );
+		Functions\expect( 'wp_update_term' )
+			->once()
+			->with(
+				42,
+				'essf_cashflow_cat',
+				[
+					'name' => 'Renda',
+					'slug' => 'renda',
+				]
+			);
+
+		\ESSF_Category::relabel_terms();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_relabel_terms_skips_term_already_in_target_language(): void {
+		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
+		Functions\expect( 'get_term_by' )->andReturnUsing(
+			static function ( $field, $value ) {
+				return 'Income' === $value ? (object) [
+					'term_id' => 42,
+					'name'    => 'Income',
+				] : false;
+			}
+		);
+		Functions\expect( 'wp_update_term' )->never();
+
+		\ESSF_Category::relabel_terms();
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_relabel_terms_skips_key_with_no_matching_term(): void {
+		Functions\expect( 'get_locale' )->once()->andReturn( 'pt_BR' );
+		Functions\expect( 'get_term_by' )->andReturn( false );
+		Functions\expect( 'wp_update_term' )->never();
+
+		\ESSF_Category::relabel_terms();
+		$this->addToAssertionCount( 1 );
+	}
+
+	// ── normalize_slug() ─────────────────────────────────────────────────
+
+	public function test_normalize_slug_returns_unchanged_when_already_live(): void {
+		Functions\expect( 'get_term_by' )
+			->once()
+			->with( 'slug', 'income', 'essf_cashflow_cat' )
+			->andReturn( (object) [ 'term_id' => 1, 'slug' => 'income' ] );
+
+		$this->assertSame( 'income', \ESSF_Category::normalize_slug( 'income' ) );
+	}
+
+	public function test_normalize_slug_resolves_canonical_key_to_current_live_slug(): void {
+		Functions\expect( 'get_term_by' )->andReturnUsing(
+			static function ( $field, $value ) {
+				return 'Não categorizado' === $value ? (object) [ 'term_id' => 25 ] : false;
+			}
+		);
+		Functions\expect( 'get_term' )
+			->once()
+			->with( 25, 'essf_cashflow_cat' )
+			->andReturn( (object) [ 'term_id' => 25, 'slug' => 'nao-categorizado' ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+
+		$this->assertSame( 'nao-categorizado', \ESSF_Category::normalize_slug( 'uncategorized' ) );
+	}
+
+	public function test_normalize_slug_returns_original_when_nothing_resolves(): void {
+		Functions\expect( 'get_term_by' )->andReturn( false )->zeroOrMoreTimes();
+		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
+		Functions\expect( 'wp_insert_term' )->once()->andReturn( new \stdClass() );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( true );
+
+		$this->assertSame( 'garbage-value', \ESSF_Category::normalize_slug( 'garbage-value' ) );
 	}
 
 	public function test_activate_registers_and_seeds(): void {

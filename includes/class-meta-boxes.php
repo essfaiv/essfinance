@@ -38,7 +38,10 @@ class ESSF_Meta_Boxes {
 		$status   = $post->post_status;
 
 		$entry_terms = wp_get_post_terms( $post->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
-		$category    = $entry_terms[0] ?? 'uncategorized';
+		// A brand-new/unsaved post has no terms yet — 'uncategorized' is a
+		// canonical key, not necessarily a live slug, so normalize it to
+		// match against $term->slug below.
+		$category = $entry_terms[0] ?? ESSF_Category::normalize_slug( 'uncategorized' );
 		?>
 		<div class="essf-meta-box">
 			<div class="essf-field">
