@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-15T22:39:20+00:00\n"
+"POT-Creation-Date: 2026-08-16T00:04:07+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: essfinance\n"
@@ -29,18 +29,18 @@ msgstr ""
 
 #: includes/class-admin-page.php:75
 #: includes/class-admin-page.php:76
-#: includes/class-admin-page.php:1264
-#: includes/class-admin-page.php:1310
-#: includes/class-admin-page.php:1351
+#: includes/class-admin-page.php:1269
+#: includes/class-admin-page.php:1315
+#: includes/class-admin-page.php:1356
 #: includes/class-cpt.php:27
 #: includes/class-settings.php:787
-#: includes/class-shortcodes.php:1377
+#: includes/class-shortcodes.php:1382
 msgid "Cash Flow"
 msgstr ""
 
 #: includes/class-admin-page.php:84
 #: includes/class-admin-page.php:85
-#: includes/class-admin-page.php:980
+#: includes/class-admin-page.php:985
 msgid "OFX Glossary"
 msgstr ""
 
@@ -55,125 +55,125 @@ msgstr ""
 msgid "Entries per page"
 msgstr ""
 
-#: includes/class-admin-page.php:215
-#: includes/class-admin-page.php:259
-#: includes/class-admin-page.php:297
-#: includes/class-admin-page.php:344
-#: includes/class-admin-page.php:757
-#: includes/class-admin-page.php:1060
-#: includes/class-admin-page.php:1076
-#: includes/class-admin-page.php:1141
-#: includes/class-admin-page.php:1157
-#: includes/class-admin-page.php:1189
+#: includes/class-admin-page.php:220
+#: includes/class-admin-page.php:264
+#: includes/class-admin-page.php:302
+#: includes/class-admin-page.php:349
+#: includes/class-admin-page.php:762
+#: includes/class-admin-page.php:1065
+#: includes/class-admin-page.php:1081
+#: includes/class-admin-page.php:1146
+#: includes/class-admin-page.php:1162
+#: includes/class-admin-page.php:1194
 msgid "Unauthorized."
 msgstr ""
 
-#: includes/class-admin-page.php:708
-#: includes/class-admin-page.php:1758
+#: includes/class-admin-page.php:713
+#: includes/class-admin-page.php:1764
 #: includes/class-cli.php:184
-#: includes/class-cli.php:280
-#: includes/class-cli.php:304
-#: includes/class-list-table.php:460
-#: includes/class-shortcodes.php:994
+#: includes/class-cli.php:293
+#: includes/class-cli.php:317
+#: includes/class-list-table.php:461
+#: includes/class-shortcodes.php:999
 msgid "Uncategorized"
 msgstr ""
 
-#: includes/class-admin-page.php:984
+#: includes/class-admin-page.php:989
 msgid "Entry forgotten."
 msgstr ""
 
-#: includes/class-admin-page.php:988
+#: includes/class-admin-page.php:993
 msgid "These are the raw bank memos EssFinance has learned to recognize during OFX review, and what each currently suggests. \"Forget\" clears the learned mapping only — the underlying entry stays exactly as it is."
 msgstr ""
 
-#: includes/class-admin-page.php:991
+#: includes/class-admin-page.php:996
 msgid "Learned descriptions"
 msgstr ""
 
-#: includes/class-admin-page.php:994
+#: includes/class-admin-page.php:999
 msgid "Nothing learned yet — this fills in as you confirm OFX imports."
 msgstr ""
 
-#: includes/class-admin-page.php:999
-#: includes/class-admin-page.php:1406
-#: includes/class-admin-page.php:1619
+#: includes/class-admin-page.php:1004
+#: includes/class-admin-page.php:1411
+#: includes/class-admin-page.php:1624
 #: includes/class-list-table.php:36
 #: includes/class-meta-boxes.php:45
 #: includes/class-meta-boxes.php:48
-#: includes/class-shortcodes.php:858
-#: includes/class-shortcodes.php:1046
+#: includes/class-shortcodes.php:863
+#: includes/class-shortcodes.php:1051
 msgid "Description"
 msgstr ""
 
-#: includes/class-admin-page.php:1000
+#: includes/class-admin-page.php:1005
 msgid "Raw Memo"
 msgstr ""
 
-#: includes/class-admin-page.php:1001
+#: includes/class-admin-page.php:1006
 msgid "Detail"
 msgstr ""
 
-#: includes/class-admin-page.php:1013
+#: includes/class-admin-page.php:1018
 msgid "Forget this mapping? The entry itself will not be changed."
 msgstr ""
 
-#: includes/class-admin-page.php:1014
-#: includes/class-admin-page.php:1044
+#: includes/class-admin-page.php:1019
+#: includes/class-admin-page.php:1049
 msgid "Forget"
 msgstr ""
 
-#: includes/class-admin-page.php:1023
+#: includes/class-admin-page.php:1028
 msgid "Excluded patterns"
 msgstr ""
 
-#: includes/class-admin-page.php:1025
+#: includes/class-admin-page.php:1030
 msgid "Memo patterns you've excluded during review before (e.g. balances, internal transfers) — future imports matching one of these default to excluded too."
 msgstr ""
 
-#: includes/class-admin-page.php:1029
+#: includes/class-admin-page.php:1034
 msgid "Nothing excluded yet."
 msgstr ""
 
-#: includes/class-admin-page.php:1034
+#: includes/class-admin-page.php:1039
 msgid "Pattern"
 msgstr ""
 
-#: includes/class-admin-page.php:1208
+#: includes/class-admin-page.php:1213
 #: includes/class-cpt.php:28
 msgid "Entry"
 msgstr ""
 
-#: includes/class-admin-page.php:1266
-#: includes/class-shortcodes.php:757
+#: includes/class-admin-page.php:1271
+#: includes/class-shortcodes.php:761
 msgid "Export"
 msgstr ""
 
-#: includes/class-admin-page.php:1269
-#: includes/class-admin-page.php:1553
-#: includes/class-admin-page.php:1564
-#: includes/class-shortcodes.php:756
-#: includes/class-shortcodes.php:1283
+#: includes/class-admin-page.php:1274
+#: includes/class-admin-page.php:1558
+#: includes/class-admin-page.php:1569
+#: includes/class-shortcodes.php:760
+#: includes/class-shortcodes.php:1288
 msgid "Import"
 msgstr ""
 
-#: includes/class-admin-page.php:1292
+#: includes/class-admin-page.php:1297
 #: includes/class-cpt.php:34
 msgid "Search Entries"
 msgstr ""
 
-#: includes/class-admin-page.php:1308
-#: includes/class-admin-page.php:1607
+#: includes/class-admin-page.php:1313
+#: includes/class-admin-page.php:1612
 #: includes/class-cpt.php:31
-#: includes/class-shortcodes.php:1039
+#: includes/class-shortcodes.php:1044
 msgid "Edit Entry"
 msgstr ""
 
-#: includes/class-admin-page.php:1349
+#: includes/class-admin-page.php:1354
 msgid "Review OFX Import"
 msgstr ""
 
 #. translators: %d: number of duplicate transactions skipped automatically.
-#: includes/class-admin-page.php:1360
+#: includes/class-admin-page.php:1365
 #, php-format
 msgid "%d duplicate transaction was skipped automatically."
 msgid_plural "%d duplicate transactions were skipped automatically."
@@ -181,237 +181,241 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s is replaced client-side (assets/js/admin.js) with the description being offered, not by PHP.
-#: includes/class-admin-page.php:1374
+#: includes/class-admin-page.php:1379
 #, php-format
 msgid "Use \"%s\""
 msgstr ""
 
-#: includes/class-admin-page.php:1382
+#: includes/class-admin-page.php:1387
 msgid "Confirm entries to import"
 msgstr ""
 
-#: includes/class-admin-page.php:1384
+#: includes/class-admin-page.php:1389
 msgid "Hover a description to see the raw bank memo, or click it to edit before these transactions are saved. Click the ✕ to exclude a row (e.g. balances, internal transfers) — click again to bring it back."
 msgstr ""
 
-#: includes/class-admin-page.php:1389
+#: includes/class-admin-page.php:1394
 msgid "From"
 msgstr ""
 
-#: includes/class-admin-page.php:1392
+#: includes/class-admin-page.php:1397
 msgid "To"
 msgstr ""
 
-#: includes/class-admin-page.php:1404
+#: includes/class-admin-page.php:1409
 #: includes/class-list-table.php:40
-#: includes/class-shortcodes.php:774
-#: includes/class-shortcodes.php:862
+#: includes/class-shortcodes.php:778
+#: includes/class-shortcodes.php:867
 msgid "Date"
 msgstr ""
 
-#: includes/class-admin-page.php:1405
-#: includes/class-admin-page.php:1639
-#: includes/class-admin-page.php:1731
+#: includes/class-admin-page.php:1410
+#: includes/class-admin-page.php:1644
+#: includes/class-admin-page.php:1737
 #: includes/class-list-table.php:39
 #: includes/class-meta-boxes.php:66
-#: includes/class-shortcodes.php:778
-#: includes/class-shortcodes.php:861
-#: includes/class-shortcodes.php:1055
+#: includes/class-shortcodes.php:782
+#: includes/class-shortcodes.php:866
+#: includes/class-shortcodes.php:1060
 msgid "Amount"
 msgstr ""
 
-#: includes/class-admin-page.php:1407
-#: includes/class-admin-page.php:1662
-#: includes/class-admin-page.php:1730
+#: includes/class-admin-page.php:1412
+#: includes/class-admin-page.php:1667
+#: includes/class-admin-page.php:1736
 #: includes/class-category.php:140
 #: includes/class-list-table.php:38
 #: includes/class-meta-boxes.php:90
-#: includes/class-shortcodes.php:776
-#: includes/class-shortcodes.php:860
-#: includes/class-shortcodes.php:1068
+#: includes/class-shortcodes.php:780
+#: includes/class-shortcodes.php:865
+#: includes/class-shortcodes.php:1073
 msgid "Category"
 msgstr ""
 
-#: includes/class-admin-page.php:1458
-#: includes/class-admin-page.php:1459
+#: includes/class-admin-page.php:1463
+#: includes/class-admin-page.php:1464
 msgid "Include this transaction"
 msgstr ""
 
-#: includes/class-admin-page.php:1458
-#: includes/class-admin-page.php:1460
+#: includes/class-admin-page.php:1463
+#: includes/class-admin-page.php:1465
 msgid "Exclude this transaction"
 msgstr ""
 
-#: includes/class-admin-page.php:1478
+#: includes/class-admin-page.php:1483
 msgid "Suggested from a previous import — click to change"
 msgstr ""
 
-#: includes/class-admin-page.php:1480
+#: includes/class-admin-page.php:1485
 msgid "No match found — please review this description"
 msgstr ""
 
 #. translators: 1: existing entry title, 2: existing entry date.
-#: includes/class-admin-page.php:1489
+#: includes/class-admin-page.php:1494
 #, php-format
 msgid "Possibly matches \"%1$s\" on %2$s."
 msgstr ""
 
-#: includes/class-admin-page.php:1497
+#: includes/class-admin-page.php:1502
 msgid "Looks like a transaction you've excluded before."
 msgstr ""
 
-#: includes/class-admin-page.php:1508
+#: includes/class-admin-page.php:1513
 msgid "Confirm description"
 msgstr ""
 
-#: includes/class-admin-page.php:1509
+#: includes/class-admin-page.php:1514
 msgid "Cancel edit"
 msgstr ""
 
-#: includes/class-admin-page.php:1528
+#: includes/class-admin-page.php:1533
 msgid "Finish"
 msgstr ""
 
-#: includes/class-admin-page.php:1529
-#: includes/class-admin-page.php:1565
-#: includes/class-admin-page.php:1675
-#: includes/class-shortcodes.php:1076
-#: includes/class-shortcodes.php:1284
+#: includes/class-admin-page.php:1534
+#: includes/class-admin-page.php:1570
+#: includes/class-admin-page.php:1680
+#: includes/class-shortcodes.php:1081
+#: includes/class-shortcodes.php:1289
 msgid "Cancel"
 msgstr ""
 
-#: includes/class-admin-page.php:1540
-#: includes/class-admin-page.php:1607
-#: includes/class-admin-page.php:1677
+#: includes/class-admin-page.php:1545
+#: includes/class-admin-page.php:1612
+#: includes/class-admin-page.php:1682
 #: includes/class-cpt.php:29
 #: includes/class-cpt.php:30
-#: includes/class-shortcodes.php:755
-#: includes/class-shortcodes.php:1039
-#: includes/class-shortcodes.php:1075
+#: includes/class-shortcodes.php:759
+#: includes/class-shortcodes.php:1044
+#: includes/class-shortcodes.php:1080
 msgid "Add Entry"
 msgstr ""
 
-#: includes/class-admin-page.php:1559
+#: includes/class-admin-page.php:1564
 msgid "File"
 msgstr ""
 
-#: includes/class-admin-page.php:1561
+#: includes/class-admin-page.php:1566
 msgid "Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically. OFX files open a review step before anything is saved."
 msgstr ""
 
-#: includes/class-admin-page.php:1622
+#: includes/class-admin-page.php:1627
 msgid "A short label for this entry."
 msgstr ""
 
-#: includes/class-admin-page.php:1626
-#: includes/class-admin-page.php:1732
+#: includes/class-admin-page.php:1631
+#: includes/class-admin-page.php:1738
 #: includes/class-meta-boxes.php:53
-#: includes/class-shortcodes.php:1049
+#: includes/class-shortcodes.php:1054
 msgid "Due Date"
 msgstr ""
 
-#: includes/class-admin-page.php:1632
+#: includes/class-admin-page.php:1637
 #: includes/class-meta-boxes.php:58
-#: includes/class-shortcodes.php:1051
+#: includes/class-shortcodes.php:1056
 msgid "Pay Date"
 msgstr ""
 
-#: includes/class-admin-page.php:1646
-#: includes/class-list-table.php:166
-#: includes/class-list-table.php:454
+#: includes/class-admin-page.php:1651
+#: includes/class-list-table.php:167
+#: includes/class-list-table.php:455
 #: includes/class-meta-boxes.php:73
-#: includes/class-shortcodes.php:831
-#: includes/class-shortcodes.php:1008
-#: includes/class-shortcodes.php:1059
+#: includes/class-shortcodes.php:836
+#: includes/class-shortcodes.php:1013
+#: includes/class-shortcodes.php:1064
 msgid "Income"
 msgstr ""
 
-#: includes/class-admin-page.php:1651
-#: includes/class-admin-page.php:1733
+#: includes/class-admin-page.php:1656
+#: includes/class-admin-page.php:1739
 #: includes/class-list-table.php:41
 #: includes/class-meta-boxes.php:79
-#: includes/class-shortcodes.php:777
-#: includes/class-shortcodes.php:863
-#: includes/class-shortcodes.php:1062
+#: includes/class-shortcodes.php:781
+#: includes/class-shortcodes.php:868
+#: includes/class-shortcodes.php:1067
 msgid "Status"
 msgstr ""
 
-#: includes/class-admin-page.php:1674
+#: includes/class-admin-page.php:1679
 msgid "Update Entry"
 msgstr ""
 
 #. translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-#: includes/class-admin-page.php:1698
+#: includes/class-admin-page.php:1703
 #, php-format
 msgid "%1$d %2$s imported, %3$d skipped as duplicates."
 msgstr ""
 
 #. translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-#: includes/class-admin-page.php:1698
+#: includes/class-admin-page.php:1703
 msgid "entry"
 msgid_plural "entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-admin-page.php:1704
-#: includes/class-shortcodes.php:1359
+#: includes/class-admin-page.php:1709
+#: includes/class-shortcodes.php:1364
 msgid "Entry added."
 msgstr ""
 
-#: includes/class-admin-page.php:1705
-#: includes/class-shortcodes.php:1360
+#: includes/class-admin-page.php:1710
+#: includes/class-shortcodes.php:1365
 msgid "Entry updated."
 msgstr ""
 
-#: includes/class-admin-page.php:1706
-#: includes/class-shortcodes.php:1361
+#: includes/class-admin-page.php:1711
+#: includes/class-shortcodes.php:1366
 msgid "Entry deleted."
 msgstr ""
 
-#: includes/class-admin-page.php:1707
+#: includes/class-admin-page.php:1712
 msgid "Entry marked as paid today."
 msgstr ""
 
-#: includes/class-admin-page.php:1708
+#: includes/class-admin-page.php:1713
 msgid "Entry type changed."
 msgstr ""
 
-#: includes/class-admin-page.php:1709
+#: includes/class-admin-page.php:1714
 msgid "Selected entries marked as paid today."
 msgstr ""
 
-#: includes/class-admin-page.php:1710
+#: includes/class-admin-page.php:1715
 msgid "Selected entries marked as pending."
 msgstr ""
 
-#: includes/class-admin-page.php:1711
+#: includes/class-admin-page.php:1716
 msgid "Selected entries changed to income."
 msgstr ""
 
-#: includes/class-admin-page.php:1712
+#: includes/class-admin-page.php:1717
 msgid "Selected entries changed to expense."
 msgstr ""
 
-#: includes/class-admin-page.php:1713
+#: includes/class-admin-page.php:1718
 msgid "Category updated for selected entries."
 msgstr ""
 
-#: includes/class-admin-page.php:1714
+#: includes/class-admin-page.php:1719
+msgid "Category auto-detected for selected entries."
+msgstr ""
+
+#: includes/class-admin-page.php:1720
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/class-admin-page.php:1715
+#: includes/class-admin-page.php:1721
 msgid "Import failed. Please upload a valid CSV file."
 msgstr ""
 
-#: includes/class-admin-page.php:1728
+#: includes/class-admin-page.php:1734
 msgid "Title"
 msgstr ""
 
-#: includes/class-admin-page.php:1729
+#: includes/class-admin-page.php:1735
 #: includes/class-list-table.php:37
-#: includes/class-shortcodes.php:775
-#: includes/class-shortcodes.php:859
+#: includes/class-shortcodes.php:779
+#: includes/class-shortcodes.php:864
 msgid "Type"
 msgstr ""
 
@@ -439,6 +443,330 @@ msgstr ""
 msgid "New Category Name"
 msgstr ""
 
+#: includes/class-category.php:280
+msgid "loan"
+msgstr ""
+
+#: includes/class-category.php:281
+msgid "income received"
+msgstr ""
+
+#: includes/class-category.php:281
+msgid "salary"
+msgstr ""
+
+#: includes/class-category.php:281
+msgid "profit"
+msgstr ""
+
+#: includes/class-category.php:282
+msgid "transfer"
+msgstr ""
+
+#: includes/class-category.php:282
+msgid "refund"
+msgstr ""
+
+#: includes/class-category.php:283
+msgid "pet"
+msgstr ""
+
+#: includes/class-category.php:283
+msgid "grooming"
+msgstr ""
+
+#: includes/class-category.php:283
+msgid "veterinary"
+msgstr ""
+
+#: includes/class-category.php:283
+msgid "pet food"
+msgstr ""
+
+#: includes/class-category.php:284
+msgid "subscription"
+msgstr ""
+
+#: includes/class-category.php:285
+msgid "pharmacy"
+msgstr ""
+
+#: includes/class-category.php:285
+msgid "dentist"
+msgstr ""
+
+#: includes/class-category.php:285
+msgid "doctor"
+msgstr ""
+
+#: includes/class-category.php:285
+msgid "appointment"
+msgstr ""
+
+#: includes/class-category.php:285
+msgid "medical exam"
+msgstr ""
+
+#: includes/class-category.php:285
+msgid "health plan"
+msgstr ""
+
+#: includes/class-category.php:286
+msgid "insurance"
+msgstr ""
+
+#: includes/class-category.php:287
+msgid "tax"
+msgstr ""
+
+#: includes/class-category.php:287
+msgid "licensing"
+msgstr ""
+
+#: includes/class-category.php:288
+msgid "investment"
+msgstr ""
+
+#: includes/class-category.php:288
+msgid "treasury bond"
+msgstr ""
+
+#: includes/class-category.php:288
+msgid "stocks"
+msgstr ""
+
+#: includes/class-category.php:289
+msgid "housing"
+msgstr ""
+
+#: includes/class-category.php:289
+msgid "condo fee"
+msgstr ""
+
+#: includes/class-category.php:289
+msgid "rent"
+msgstr ""
+
+#: includes/class-category.php:289
+msgid "mortgage"
+msgstr ""
+
+#: includes/class-category.php:290
+msgid "groceries"
+msgstr ""
+
+#: includes/class-category.php:290
+msgid "supermarket"
+msgstr ""
+
+#: includes/class-category.php:290
+msgid "corner store"
+msgstr ""
+
+#: includes/class-category.php:290
+msgid "wholesale"
+msgstr ""
+
+#: includes/class-category.php:290
+msgid "produce market"
+msgstr ""
+
+#: includes/class-category.php:291
+msgid "movie theater"
+msgstr ""
+
+#: includes/class-category.php:291
+msgid "leisure"
+msgstr ""
+
+#: includes/class-category.php:291
+msgid "ticket"
+msgstr ""
+
+#: includes/class-category.php:291
+msgid "amusement park"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "food"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "restaurant"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "lunch"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "dinner"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "snack"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "coffee shop"
+msgstr ""
+
+#: includes/class-category.php:292
+msgid "bakery"
+msgstr ""
+
+#: includes/class-category.php:293
+msgid "school"
+msgstr ""
+
+#: includes/class-category.php:293
+msgid "college"
+msgstr ""
+
+#: includes/class-category.php:293
+msgid "course"
+msgstr ""
+
+#: includes/class-category.php:293
+msgid "entrance exam prep"
+msgstr ""
+
+#: includes/class-category.php:293
+msgid "university"
+msgstr ""
+
+#: includes/class-category.php:293
+msgid "enrollment"
+msgstr ""
+
+#: includes/class-category.php:294
+msgid "donation"
+msgstr ""
+
+#: includes/class-category.php:294
+msgid "tithe"
+msgstr ""
+
+#: includes/class-category.php:295
+msgid "gym"
+msgstr ""
+
+#: includes/class-category.php:295
+msgid "soccer"
+msgstr ""
+
+#: includes/class-category.php:296
+msgid "hairdresser"
+msgstr ""
+
+#: includes/class-category.php:296
+msgid "beauty salon"
+msgstr ""
+
+#: includes/class-category.php:296
+msgid "barbershop"
+msgstr ""
+
+#: includes/class-category.php:297
+msgid "lawyer"
+msgstr ""
+
+#: includes/class-category.php:297
+msgid "service"
+msgstr ""
+
+#: includes/class-category.php:297
+msgid "cleaning"
+msgstr ""
+
+#: includes/class-category.php:297
+msgid "plumber"
+msgstr ""
+
+#: includes/class-category.php:297
+msgid "electrician"
+msgstr ""
+
+#: includes/class-category.php:297
+msgid "maintenance"
+msgstr ""
+
+#: includes/class-category.php:298
+msgid "fee"
+msgstr ""
+
+#: includes/class-category.php:298
+msgid "account maintenance fee"
+msgstr ""
+
+#: includes/class-category.php:298
+msgid "bank fee"
+msgstr ""
+
+#: includes/class-category.php:298
+msgid "annual fee"
+msgstr ""
+
+#: includes/class-category.php:298
+msgid "interest"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "transportation"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "fuel"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "parking"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "toll"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "fine"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "collision"
+msgstr ""
+
+#: includes/class-category.php:299
+msgid "car"
+msgstr ""
+
+#: includes/class-category.php:300
+msgid "purchase"
+msgstr ""
+
+#: includes/class-category.php:301
+msgid "electricity"
+msgstr ""
+
+#: includes/class-category.php:301
+msgid "power bill"
+msgstr ""
+
+#: includes/class-category.php:301
+msgid "phone bill"
+msgstr ""
+
+#: includes/class-category.php:302
+msgid "travel"
+msgstr ""
+
+#: includes/class-category.php:302
+msgid "airfare"
+msgstr ""
+
+#: includes/class-category.php:302
+msgid "lodging"
+msgstr ""
+
 #: includes/class-cpt.php:32
 msgid "New Entry"
 msgstr ""
@@ -448,7 +776,7 @@ msgid "View Entry"
 msgstr ""
 
 #: includes/class-cpt.php:35
-#: includes/class-shortcodes.php:785
+#: includes/class-shortcodes.php:789
 msgid "No entries found."
 msgstr ""
 
@@ -457,129 +785,134 @@ msgid "No entries in trash."
 msgstr ""
 
 #: includes/class-cpt.php:52
-#: includes/class-list-table.php:121
-#: includes/class-list-table.php:159
-#: includes/class-shortcodes.php:822
+#: includes/class-list-table.php:122
+#: includes/class-list-table.php:160
+#: includes/class-shortcodes.php:827
 msgid "Pending"
 msgstr ""
 
 #: includes/class-cpt.php:62
-#: includes/class-list-table.php:122
-#: includes/class-list-table.php:158
-#: includes/class-shortcodes.php:821
+#: includes/class-list-table.php:123
+#: includes/class-list-table.php:159
+#: includes/class-shortcodes.php:826
 msgid "Paid"
 msgstr ""
 
 #: includes/class-list-table.php:60
-#: includes/class-shortcodes.php:800
+#: includes/class-shortcodes.php:804
 msgid "Mark as Paid Today"
 msgstr ""
 
 #: includes/class-list-table.php:61
-#: includes/class-shortcodes.php:801
+#: includes/class-shortcodes.php:805
 msgid "Mark as Pending"
 msgstr ""
 
 #: includes/class-list-table.php:62
-#: includes/class-list-table.php:443
-#: includes/class-shortcodes.php:802
+#: includes/class-list-table.php:444
+#: includes/class-shortcodes.php:806
 msgid "Make Income"
 msgstr ""
 
 #: includes/class-list-table.php:63
-#: includes/class-list-table.php:442
-#: includes/class-shortcodes.php:803
+#: includes/class-list-table.php:443
+#: includes/class-shortcodes.php:807
 msgid "Make Expense"
 msgstr ""
 
 #: includes/class-list-table.php:64
-#: includes/class-shortcodes.php:804
+#: includes/class-shortcodes.php:808
 msgid "Set Category"
 msgstr ""
 
 #: includes/class-list-table.php:65
-#: includes/class-list-table.php:444
-#: includes/class-shortcodes.php:805
-#: includes/class-shortcodes.php:1005
+#: includes/class-shortcodes.php:809
+msgid "Auto Set Category"
+msgstr ""
+
+#: includes/class-list-table.php:66
+#: includes/class-list-table.php:445
+#: includes/class-shortcodes.php:810
+#: includes/class-shortcodes.php:1010
 msgid "Delete"
 msgstr ""
 
-#: includes/class-list-table.php:90
+#: includes/class-list-table.php:91
 msgid "All"
 msgstr ""
 
-#: includes/class-list-table.php:123
-#: includes/class-list-table.php:160
-#: includes/class-shortcodes.php:823
+#: includes/class-list-table.php:124
+#: includes/class-list-table.php:161
+#: includes/class-shortcodes.php:828
 msgid "Overdue"
 msgstr ""
 
-#: includes/class-list-table.php:155
+#: includes/class-list-table.php:156
 msgid "Filter by status"
 msgstr ""
 
-#: includes/class-list-table.php:157
-#: includes/class-shortcodes.php:820
+#: includes/class-list-table.php:158
+#: includes/class-shortcodes.php:825
 msgid "All statuses"
 msgstr ""
 
-#: includes/class-list-table.php:163
+#: includes/class-list-table.php:164
 msgid "Filter by type"
 msgstr ""
 
-#: includes/class-list-table.php:165
-#: includes/class-shortcodes.php:830
+#: includes/class-list-table.php:166
+#: includes/class-shortcodes.php:835
 msgid "All types"
 msgstr ""
 
-#: includes/class-list-table.php:167
-#: includes/class-list-table.php:454
-#: includes/class-shortcodes.php:832
-#: includes/class-shortcodes.php:1008
+#: includes/class-list-table.php:168
+#: includes/class-list-table.php:455
+#: includes/class-shortcodes.php:837
+#: includes/class-shortcodes.php:1013
 msgid "Expense"
 msgstr ""
 
-#: includes/class-list-table.php:170
+#: includes/class-list-table.php:171
 msgid "Filter by category"
 msgstr ""
 
-#: includes/class-list-table.php:172
-#: includes/class-shortcodes.php:836
+#: includes/class-list-table.php:173
+#: includes/class-shortcodes.php:841
 msgid "All categories"
 msgstr ""
 
-#: includes/class-list-table.php:182
+#: includes/class-list-table.php:183
 msgid "Filter"
 msgstr ""
 
-#: includes/class-list-table.php:184
+#: includes/class-list-table.php:185
 msgid "Category to apply with Set Category"
 msgstr ""
 
-#: includes/class-list-table.php:200
+#: includes/class-list-table.php:201
 msgid "Filter by month"
 msgstr ""
 
-#: includes/class-list-table.php:202
-#: includes/class-shortcodes.php:846
+#: includes/class-list-table.php:203
+#: includes/class-shortcodes.php:851
 msgid "All months"
 msgstr ""
 
-#: includes/class-list-table.php:438
+#: includes/class-list-table.php:439
 #: includes/class-settings.php:667
-#: includes/class-shortcodes.php:1001
+#: includes/class-shortcodes.php:1006
 msgid "Edit"
 msgstr ""
 
-#: includes/class-list-table.php:439
+#: includes/class-list-table.php:440
 msgid "Paid Today"
 msgstr ""
 
-#: includes/class-list-table.php:440
+#: includes/class-list-table.php:441
 msgid "Paid Date"
 msgstr ""
 
-#: includes/class-list-table.php:444
+#: includes/class-list-table.php:445
 msgid "Delete this entry? This cannot be undone."
 msgstr ""
 
@@ -1399,7 +1732,7 @@ msgid "The following pages are used by EssFinance on the frontend:"
 msgstr ""
 
 #: includes/class-settings.php:783
-#: includes/class-shortcodes.php:1373
+#: includes/class-shortcodes.php:1378
 msgid "My Account"
 msgstr ""
 
@@ -1408,197 +1741,197 @@ msgid "Create pages"
 msgstr ""
 
 #. translators: %s is the user's display name.
-#: includes/class-shortcodes.php:511
+#: includes/class-shortcodes.php:515
 #, php-format
 msgid "Hello, %s"
 msgstr ""
 
-#: includes/class-shortcodes.php:514
+#: includes/class-shortcodes.php:518
 msgid "My Cash Flow"
 msgstr ""
 
-#: includes/class-shortcodes.php:517
+#: includes/class-shortcodes.php:521
 msgid "Log out"
 msgstr ""
 
-#: includes/class-shortcodes.php:533
+#: includes/class-shortcodes.php:537
 msgid "Login"
 msgstr ""
 
-#: includes/class-shortcodes.php:537
-#: includes/class-shortcodes.php:558
+#: includes/class-shortcodes.php:541
+#: includes/class-shortcodes.php:562
 msgid "Register"
 msgstr ""
 
-#: includes/class-shortcodes.php:547
+#: includes/class-shortcodes.php:551
 msgid "Registration successful. Check your email for your password."
 msgstr ""
 
-#: includes/class-shortcodes.php:554
+#: includes/class-shortcodes.php:558
 msgid "Username"
 msgstr ""
 
-#: includes/class-shortcodes.php:556
+#: includes/class-shortcodes.php:560
 msgid "Email address"
 msgstr ""
 
-#: includes/class-shortcodes.php:565
+#: includes/class-shortcodes.php:569
 msgid "Username or email address"
 msgstr ""
 
-#: includes/class-shortcodes.php:567
+#: includes/class-shortcodes.php:571
 msgid "Password"
 msgstr ""
 
-#: includes/class-shortcodes.php:570
+#: includes/class-shortcodes.php:574
 msgid "Remember me"
 msgstr ""
 
-#: includes/class-shortcodes.php:571
+#: includes/class-shortcodes.php:575
 msgid "Lost password?"
 msgstr ""
 
-#: includes/class-shortcodes.php:573
-#: includes/class-shortcodes.php:606
+#: includes/class-shortcodes.php:577
+#: includes/class-shortcodes.php:610
 msgid "Log in"
 msgstr ""
 
-#: includes/class-shortcodes.php:582
+#: includes/class-shortcodes.php:586
 msgid "Unknown username."
 msgstr ""
 
-#: includes/class-shortcodes.php:583
+#: includes/class-shortcodes.php:587
 msgid "Unknown email address."
 msgstr ""
 
-#: includes/class-shortcodes.php:584
+#: includes/class-shortcodes.php:588
 msgid "Incorrect password."
 msgstr ""
 
-#: includes/class-shortcodes.php:585
+#: includes/class-shortcodes.php:589
 msgid "Please enter your username."
 msgstr ""
 
-#: includes/class-shortcodes.php:586
+#: includes/class-shortcodes.php:590
 msgid "Please enter your password."
 msgstr ""
 
-#: includes/class-shortcodes.php:587
+#: includes/class-shortcodes.php:591
 msgid "User registration is currently not allowed."
 msgstr ""
 
-#: includes/class-shortcodes.php:588
+#: includes/class-shortcodes.php:592
 msgid "This username is already registered."
 msgstr ""
 
-#: includes/class-shortcodes.php:589
+#: includes/class-shortcodes.php:593
 msgid "This email is already registered."
 msgstr ""
 
-#: includes/class-shortcodes.php:590
+#: includes/class-shortcodes.php:594
 msgid "Security check failed. Please try again."
 msgstr ""
 
-#: includes/class-shortcodes.php:592
+#: includes/class-shortcodes.php:596
 msgid "An error occurred. Please try again."
 msgstr ""
 
-#: includes/class-shortcodes.php:607
+#: includes/class-shortcodes.php:611
 msgid "to view your cash flow."
 msgstr ""
 
 #. translators: %d is the number of imported entries.
-#: includes/class-shortcodes.php:750
+#: includes/class-shortcodes.php:754
 #, php-format
 msgid "%d entry imported."
 msgid_plural "%d entries imported."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-shortcodes.php:765
+#: includes/class-shortcodes.php:769
 msgid "Search entries…"
 msgstr ""
 
-#: includes/class-shortcodes.php:766
+#: includes/class-shortcodes.php:770
 msgid "Search"
 msgstr ""
 
-#: includes/class-shortcodes.php:772
+#: includes/class-shortcodes.php:776
 msgid "Columns"
 msgstr ""
 
-#: includes/class-shortcodes.php:799
+#: includes/class-shortcodes.php:803
 msgid "Bulk actions"
 msgstr ""
 
-#: includes/class-shortcodes.php:812
+#: includes/class-shortcodes.php:817
 msgid "Apply"
 msgstr ""
 
 #. translators: %d is the total number of entries.
-#: includes/class-shortcodes.php:851
+#: includes/class-shortcodes.php:856
 #, php-format
 msgid "%d entry"
 msgid_plural "%d entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-shortcodes.php:1002
+#: includes/class-shortcodes.php:1007
 msgid "Paid today"
 msgstr ""
 
-#: includes/class-shortcodes.php:1003
+#: includes/class-shortcodes.php:1008
 msgid "Paid date"
 msgstr ""
 
-#: includes/class-shortcodes.php:1004
+#: includes/class-shortcodes.php:1009
 msgid "Make expense"
 msgstr ""
 
-#: includes/class-shortcodes.php:1004
+#: includes/class-shortcodes.php:1009
 msgid "Make income"
 msgstr ""
 
-#: includes/class-shortcodes.php:1005
+#: includes/class-shortcodes.php:1010
 msgid "Delete this entry?"
 msgstr ""
 
-#: includes/class-shortcodes.php:1075
+#: includes/class-shortcodes.php:1080
 msgid "Update"
 msgstr ""
 
-#: includes/class-shortcodes.php:1265
+#: includes/class-shortcodes.php:1270
 msgid "Please select a CSV file to import."
 msgstr ""
 
-#: includes/class-shortcodes.php:1266
+#: includes/class-shortcodes.php:1271
 msgid "Could not read the uploaded file."
 msgstr ""
 
-#: includes/class-shortcodes.php:1267
+#: includes/class-shortcodes.php:1272
 msgid "The file appears to be empty or invalid."
 msgstr ""
 
-#: includes/class-shortcodes.php:1268
+#: includes/class-shortcodes.php:1273
 msgid "CSV must contain columns: description, type, amount, status."
 msgstr ""
 
-#: includes/class-shortcodes.php:1272
+#: includes/class-shortcodes.php:1277
 msgid "Import Entries"
 msgstr ""
 
-#: includes/class-shortcodes.php:1276
+#: includes/class-shortcodes.php:1281
 msgid "Upload a CSV with columns: due_date, pay_date, description, type (income/expense), amount, status, category (optional)."
 msgstr ""
 
-#: includes/class-shortcodes.php:1280
+#: includes/class-shortcodes.php:1285
 msgid "CSV File"
 msgstr ""
 
-#: includes/class-shortcodes.php:1362
+#: includes/class-shortcodes.php:1367
 msgid "Entry marked as paid."
 msgstr ""
 
-#: includes/class-shortcodes.php:1363
+#: includes/class-shortcodes.php:1368
 msgid "Bulk action applied."
 msgstr ""

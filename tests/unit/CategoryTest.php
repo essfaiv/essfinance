@@ -263,6 +263,16 @@ class CategoryTest extends TestCase {
 		$this->assertSame( 'pet-care', \ESSF_Category::guess_slug_from_description( 'Animais Agro Pet Shop Vila Nova' ) );
 	}
 
+	public function test_guess_slug_matches_english_descriptions_too(): void {
+		// keyword_map() stores English msgids (translated to PT-BR only in
+		// languages/essfinance-pt_BR.po, never as literal non-English text in
+		// this file) — so an English description matches directly against
+		// the untranslated msgid, with no .po lookup involved.
+		$this->assertSame( 'transfers', \ESSF_Category::guess_slug_from_description( __( 'Transfer Wife', 'essfinance' ) ) );
+		$this->assertSame( 'loans', \ESSF_Category::guess_slug_from_description( 'Loan from Lucia' ) );
+		$this->assertSame( 'groceries', \ESSF_Category::guess_slug_from_description( 'Groceries at the corner store' ) );
+	}
+
 	public function test_guess_slug_falls_back_to_uncategorized_when_nothing_matches(): void {
 		$this->assertSame( 'uncategorized', \ESSF_Category::guess_slug_from_description( 'Trimania' ) );
 	}

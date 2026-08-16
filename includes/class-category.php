@@ -244,15 +244,30 @@ class ESSF_Category {
 	}
 
 	/**
-	 * PT-BR keyword rules for guess_slug_from_description(), derived from a
-	 * real export of this plugin's own data. Declaration order only matters
-	 * as a tie-breaker (see guess_slug_from_description()) — a category
-	 * still matches regardless of where it's declared, so `groceries` is
-	 * placed before `food-and-drink` (e.g. "Comida...Bodega..." should read
-	 * as a market run, not a meal) and `entertainment` before
-	 * `food-and-drink` (e.g. "Lazer comida cinema..." should read as an
-	 * outing, not a meal) to resolve real equal-length ties found in that
-	 * export the way a human would.
+	 * Keyword rules for guess_slug_from_description(). Keywords are English
+	 * words routed through __() — like every other user-facing string in
+	 * this plugin — so the actual PT-BR keyword text lives only in
+	 * languages/essfinance-pt_BR.po, never as a literal non-English string in
+	 * this file. Brand names, acronyms, and loanwords that read identically
+	 * in both languages (Netflix, IPVA, CDB, Uber, hotel, …) are the
+	 * deliberate exception — they're identifiers, not language content, so
+	 * they're listed bare.
+	 *
+	 * `guess_slug_from_description()` matches each keyword's English form
+	 * *and* its PT-BR translation (see ptbr()) against the description, so
+	 * this works against both an English description (the untranslated
+	 * msgid) and a Portuguese one (the .po msgstr) — independent of the
+	 * site's active locale, since ptbr() reads the .po file directly rather
+	 * than relying on get_locale()/load_textdomain().
+	 *
+	 * Declaration order only matters as a tie-breaker (see
+	 * guess_slug_from_description()) — a category still matches regardless
+	 * of where it's declared, so `groceries` is placed before
+	 * `food-and-drink` (e.g. "Comida...Bodega..." should read as a market
+	 * run, not a meal) and `entertainment` before `food-and-drink` (e.g.
+	 * "Lazer comida cinema..." should read as an outing, not a meal) to
+	 * resolve real equal-length ties found in a sample export the way a
+	 * human would.
 	 *
 	 * `miscellaneous-expenses` and `uncategorized` intentionally have no
 	 * keywords: `miscellaneous-expenses` stays a manually-assigned catch-all,
@@ -262,30 +277,110 @@ class ESSF_Category {
 	 */
 	private static function keyword_map(): array {
 		return [
-			'loans'                 => [ 'emprestimo', 'empréstimo' ],
-			'income'                => [ 'recebimento', 'salario', 'salário', 'pro-labore', 'pró-labore', 'prolabore', 'lucro' ],
-			'transfers'             => [ 'transferencia', 'transferência', 'reembolso', 'pix enviado', 'pix recebido' ],
-			'pet-care'              => [ 'pet shop', 'petshop', 'animais', 'animal', 'cachorro', 'banho e tosa', 'banho cão', 'banho cao', 'veterinari', 'ração', 'racao' ],
-			'service-subscriptions' => [ 'assinatura', 'copilot', 'netflix', 'spotify', 'streaming', 'amazon prime', 'youtube premium' ],
-			'health'                => [ 'farmacia', 'farmácia', 'dentista', 'medico', 'médico', 'consulta', 'exame', 'plano de saude', 'plano de saúde', 'hospital' ],
-			'insurance'             => [ 'seguro' ],
-			'taxes'                 => [ 'ipva', 'imposto', 'iptu', 'irpf', 'licenciamento' ],
-			'investments'           => [ 'investimento', 'aplicação', 'aplicacao', 'tesouro direto', 'cdb', 'ações', 'acoes' ],
-			'housing'               => [ 'habitação', 'habitacao', 'condomínio', 'condominio', 'aluguel', 'financiamento imóvel', 'financiamento imovel', 'prestação casa', 'prestacao casa' ],
-			'groceries'             => [ 'mercado', 'supermercado', 'bodega', 'komprão', 'komprao', 'atacad', 'hortifruti' ],
-			'entertainment'         => [ 'cinema', 'lazer', 'ingresso', 'parque' ],
-			'food-and-drink'        => [ 'comida', 'restaurante', 'almoço', 'almoco', 'jantar', 'lanche', 'mcdonald', 'ifood', 'café', 'cafe', 'padaria' ],
-			'education'             => [ 'escola', 'faculdade', 'curso', 'vestibular', 'universidade', 'matrícula', 'matricula' ],
-			'donations'             => [ 'doação', 'doacao', 'dízimo', 'dizimo' ],
-			'sports'                => [ 'academia', 'gympass', 'personal trainer', 'futebol' ],
-			'personal-care'         => [ 'cabeleireiro', 'salão de beleza', 'salao de beleza', 'manicure', 'barbearia' ],
-			'services'              => [ 'advogado', 'serviço', 'servico', 'limpeza', 'encanador', 'eletricista', 'manutenção', 'manutencao' ],
-			'financial-fees'        => [ 'tarifa', 'tarifa de manutenção', 'tarifa de manutencao', 'taxa bancária', 'taxa bancaria', 'anuidade', 'iof', 'juros' ],
-			'transportation'        => [ 'transporte', 'uber', 'combustível', 'combustivel', 'estacionamento', 'pedágio', 'pedagio', 'multa', 'colisão', 'colisao', 'carro' ],
-			'shopping'              => [ 'mercado livre', 'compra', 'shopping', 'meli', 'aliexpress' ],
-			'bills'                 => [ 'eletricidade', 'energia elétrica', 'energia eletrica', 'internet', 'telefone' ],
-			'travel'                => [ 'viagem', 'hotel', 'passagem aérea', 'passagem aerea', 'hospedagem', 'airbnb' ],
+			'loans'                 => [ __( 'loan', 'essfinance' ) ],
+			'income'                => [ __( 'income received', 'essfinance' ), __( 'salary', 'essfinance' ), 'pro-labore', __( 'profit', 'essfinance' ) ],
+			'transfers'             => [ __( 'transfer', 'essfinance' ), __( 'refund', 'essfinance' ), 'pix' ],
+			'pet-care'              => [ 'pet shop', 'petshop', __( 'pet', 'essfinance' ), __( 'grooming', 'essfinance' ), __( 'veterinary', 'essfinance' ), __( 'pet food', 'essfinance' ) ],
+			'service-subscriptions' => [ __( 'subscription', 'essfinance' ), 'copilot', 'netflix', 'spotify', 'streaming', 'amazon prime', 'youtube premium' ],
+			'health'                => [ __( 'pharmacy', 'essfinance' ), __( 'dentist', 'essfinance' ), __( 'doctor', 'essfinance' ), __( 'appointment', 'essfinance' ), __( 'medical exam', 'essfinance' ), __( 'health plan', 'essfinance' ), 'hospital' ],
+			'insurance'             => [ __( 'insurance', 'essfinance' ) ],
+			'taxes'                 => [ 'ipva', __( 'tax', 'essfinance' ), 'iptu', 'irpf', __( 'licensing', 'essfinance' ) ],
+			'investments'           => [ __( 'investment', 'essfinance' ), __( 'treasury bond', 'essfinance' ), 'cdb', __( 'stocks', 'essfinance' ) ],
+			'housing'               => [ __( 'housing', 'essfinance' ), __( 'condo fee', 'essfinance' ), __( 'rent', 'essfinance' ), __( 'mortgage', 'essfinance' ) ],
+			'groceries'             => [ __( 'groceries', 'essfinance' ), __( 'supermarket', 'essfinance' ), __( 'corner store', 'essfinance' ), 'komprão', __( 'wholesale', 'essfinance' ), __( 'produce market', 'essfinance' ) ],
+			'entertainment'         => [ __( 'movie theater', 'essfinance' ), __( 'leisure', 'essfinance' ), __( 'ticket', 'essfinance' ), __( 'amusement park', 'essfinance' ) ],
+			'food-and-drink'        => [ __( 'food', 'essfinance' ), __( 'restaurant', 'essfinance' ), __( 'lunch', 'essfinance' ), __( 'dinner', 'essfinance' ), __( 'snack', 'essfinance' ), 'mcdonald', 'ifood', __( 'coffee shop', 'essfinance' ), __( 'bakery', 'essfinance' ) ],
+			'education'             => [ __( 'school', 'essfinance' ), __( 'college', 'essfinance' ), __( 'course', 'essfinance' ), __( 'entrance exam prep', 'essfinance' ), __( 'university', 'essfinance' ), __( 'enrollment', 'essfinance' ) ],
+			'donations'             => [ __( 'donation', 'essfinance' ), __( 'tithe', 'essfinance' ) ],
+			'sports'                => [ __( 'gym', 'essfinance' ), 'gympass', 'personal trainer', __( 'soccer', 'essfinance' ) ],
+			'personal-care'         => [ __( 'hairdresser', 'essfinance' ), __( 'beauty salon', 'essfinance' ), 'manicure', __( 'barbershop', 'essfinance' ) ],
+			'services'              => [ __( 'lawyer', 'essfinance' ), __( 'service', 'essfinance' ), __( 'cleaning', 'essfinance' ), __( 'plumber', 'essfinance' ), __( 'electrician', 'essfinance' ), __( 'maintenance', 'essfinance' ) ],
+			'financial-fees'        => [ __( 'fee', 'essfinance' ), __( 'account maintenance fee', 'essfinance' ), __( 'bank fee', 'essfinance' ), __( 'annual fee', 'essfinance' ), 'iof', __( 'interest', 'essfinance' ) ],
+			'transportation'        => [ __( 'transportation', 'essfinance' ), 'uber', __( 'fuel', 'essfinance' ), __( 'parking', 'essfinance' ), __( 'toll', 'essfinance' ), __( 'fine', 'essfinance' ), __( 'collision', 'essfinance' ), __( 'car', 'essfinance' ) ],
+			'shopping'              => [ 'mercado livre', 'meli', 'aliexpress', __( 'purchase', 'essfinance' ), 'shopping' ],
+			'bills'                 => [ __( 'electricity', 'essfinance' ), __( 'power bill', 'essfinance' ), 'internet', __( 'phone bill', 'essfinance' ) ],
+			'travel'                => [ __( 'travel', 'essfinance' ), 'hotel', __( 'airfare', 'essfinance' ), __( 'lodging', 'essfinance' ), 'airbnb' ],
 		];
+	}
+
+	/**
+	 * PT-BR translations of keyword_map()'s English msgids, read directly
+	 * from languages/essfinance-pt_BR.po — independent of get_locale()/
+	 * load_textdomain(), so matching against Portuguese descriptions works
+	 * regardless of the site's active locale (this plugin's users write
+	 * entries in whatever language they choose, not necessarily the site's
+	 * configured one). Pure file I/O + regex, no WordPress functions, so
+	 * this stays usable from guess_slug_from_description()'s pure context.
+	 *
+	 * @return array<string, string> msgid => msgstr, translated entries only.
+	 */
+	private static function ptbr_translations(): array {
+		static $translations = null;
+		if ( null !== $translations ) {
+			return $translations;
+		}
+
+		$translations = [];
+		$po_file      = defined( 'ESSF_PATH' ) ? ESSF_PATH . 'languages/essfinance-pt_BR.po' : '';
+		$content      = ( $po_file && is_readable( $po_file ) ) ? file_get_contents( $po_file ) : false;
+		if ( false === $content ) {
+			return $translations;
+		}
+
+		foreach ( preg_split( '/\n{2,}/', $content ) as $block ) {
+			if ( ! preg_match( '/^msgid\s+"((?:[^"\\\\]|\\\\.)*)"/m', $block, $id_match )
+				|| ! preg_match( '/^msgstr\s+"((?:[^"\\\\]|\\\\.)*)"/m', $block, $str_match ) ) {
+				continue;
+			}
+			$msgid  = stripcslashes( $id_match[1] );
+			$msgstr = stripcslashes( $str_match[1] );
+			if ( '' !== $msgid && '' !== $msgstr ) {
+				$translations[ $msgid ] = $msgstr;
+			}
+		}
+
+		return $translations;
+	}
+
+	/** PT-BR translation of an English keyword, or the keyword itself when untranslated. */
+	private static function ptbr( string $msgid ): string {
+		return self::ptbr_translations()[ $msgid ] ?? $msgid;
+	}
+
+	/**
+	 * Fold common Portuguese diacritics to their base letter, so a single
+	 * canonical keyword spelling (however it's written in the .po file)
+	 * matches both accented and unaccented real-world descriptions (e.g.
+	 * "condomínio" and "condominio") without listing every variant.
+	 */
+	private static function fold_accents( string $text ): string {
+		static $map = [
+			'á' => 'a',
+			'à' => 'a',
+			'ã' => 'a',
+			'â' => 'a',
+			'ä' => 'a',
+			'é' => 'e',
+			'è' => 'e',
+			'ê' => 'e',
+			'ë' => 'e',
+			'í' => 'i',
+			'ì' => 'i',
+			'î' => 'i',
+			'ï' => 'i',
+			'ó' => 'o',
+			'ò' => 'o',
+			'õ' => 'o',
+			'ô' => 'o',
+			'ö' => 'o',
+			'ú' => 'u',
+			'ù' => 'u',
+			'û' => 'u',
+			'ü' => 'u',
+			'ç' => 'c',
+			'ñ' => 'n',
+		];
+		return strtr( $text, $map );
 	}
 
 	/**
@@ -295,24 +390,29 @@ class ESSF_Category {
 	 * ESSF_Admin_Page::build_ofx_stage_rows(), which is deliberately
 	 * unit-testable without mocking WordPress.
 	 *
-	 * The *longest* matching keyword wins, not the first category checked —
-	 * e.g. "Compra Laptop Beatriz Mercado Livre" contains both "mercado"
-	 * (groceries) and the more specific "mercado livre" (shopping); picking
-	 * the longer match lets the more specific phrase win regardless of
-	 * keyword_map()'s declaration order. Equal-length ties fall back to
-	 * declaration order.
+	 * Each keyword is checked in both its English (msgid) and PT-BR (.po
+	 * msgstr) form, both accent-folded, against the accent-folded
+	 * description. The *longest* matching variant wins, not the first
+	 * category checked — e.g. "Compra Laptop Beatriz Mercado Livre" contains
+	 * both the brand "mercado livre" (shopping) and the substring "mercado"
+	 * (from "groceries" → "mercado"); picking the longer match lets the more
+	 * specific phrase win regardless of keyword_map()'s declaration order.
+	 * Equal-length ties fall back to declaration order.
 	 */
 	public static function guess_slug_from_description( string $description ): string {
-		$haystack  = mb_strtolower( $description );
+		$haystack  = self::fold_accents( mb_strtolower( $description ) );
 		$best_slug = '';
 		$best_len  = 0;
 
 		foreach ( self::keyword_map() as $slug => $keywords ) {
 			foreach ( $keywords as $keyword ) {
-				$len = mb_strlen( $keyword );
-				if ( $len > $best_len && false !== mb_stripos( $haystack, $keyword ) ) {
-					$best_slug = $slug;
-					$best_len  = $len;
+				foreach ( array_unique( [ $keyword, self::ptbr( $keyword ) ] ) as $variant ) {
+					$variant = self::fold_accents( mb_strtolower( $variant ) );
+					$len     = mb_strlen( $variant );
+					if ( $len > $best_len && false !== mb_stripos( $haystack, $variant ) ) {
+						$best_slug = $slug;
+						$best_len  = $len;
+					}
 				}
 			}
 		}
