@@ -66,6 +66,8 @@ class ESSF_List_Table extends WP_List_Table {
 			'make_expense'      => __( 'Make Expense', 'essfinance' ),
 			'set_category'      => __( 'Set Category', 'essfinance' ),
 			'auto_set_category' => __( 'Auto Set Category', 'essfinance' ),
+			'group_as_loan'     => __( 'Group as Loan', 'essfinance' ),
+			'split_installment' => __( 'Split into installments', 'essfinance' ),
 			'delete'            => __( 'Delete', 'essfinance' ),
 		];
 	}

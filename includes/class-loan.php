@@ -9,29 +9,37 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * A loan (e.g. "Loan to Lucia") is a term of `essf_loan_cat` — the term *is*
- * the loan, same shape as `essf_bill_cat`/`essf_financing_cat`; its
- * principal amount/counterparty/category live as term meta. Payments are
- * never pre-projected — they're `essf_cashflow` entries created as they
- * actually happen (via the "Add Payment" action on the term's edit screen,
- * or by hand/OFX import), discovered as belonging to this loan via
- * ESSF_CPT::find_entries_by_title() — any `essf_cashflow` entry whose
- * description matches the term's own name exactly. No stored link.
+ * A loan (e.g. "Lucia") is a term of `essf_loan_cat` — the term *is* the
+ * loan, same shape as `essf_bill_cat`/`essf_financing_cat`; its principal
+ * amount/counterparty/category live as term meta. The taxonomy context
+ * already says "this is a loan" — term names don't repeat "Loan"/
+ * "Empréstimo". Payments are never pre-projected — they're `essf_cashflow`
+ * entries created as they actually happen (via the "Add Payment" action on
+ * the term's edit screen, or by hand/OFX import), discovered as belonging
+ * to this loan via ESSF_CPT::find_entries_by_title() — any `essf_cashflow`
+ * entry whose description matches the term's own name exactly. No stored
+ * link.
  *
- * A plain name (e.g. "Loan to Lucia") isn't always unique — the same
- * counterparty can show up in several unrelated transactions. When that
- * happens, disambiguate by including the origin date directly in the term
- * name itself (e.g. "Loan to Lucia 20260816") — there's no separate
- * "origin date" field; the full term name *is* the exact match key, and any
- * future payment must repeat that same text to link to it.
+ * A plain name (e.g. "Lucia") isn't always unique — the same counterparty
+ * can show up in several unrelated transactions. When that happens,
+ * disambiguate by including the origin date directly in the term name
+ * itself (e.g. "Lucia 20260816") — there's no separate "origin date" field;
+ * the full term name *is* the exact match key, and any future payment must
+ * repeat that same text to link to it.
  *
- * "Paid off" is always computed from the matched sum vs. the principal,
- * never stored — same spirit as the virtual `overdue` status on
- * `essf_cashflow` itself.
+ * Matched entries are split by sign relative to the principal: entries with
+ * the SAME sign as the principal are the origin/disbursement(s) (shown for
+ * reference only), entries with the OPPOSITE sign are payments that count
+ * toward "paid so far". Without this split, the very entry that establishes
+ * the loan (e.g. the income entry recording money borrowed) would count as
+ * a payment against itself and immediately look "paid off". "Paid off" /
+ * "Outstanding" is always computed this way, never stored — same spirit as
+ * the virtual `overdue` status on `essf_cashflow` itself.
  *
- * No dedicated admin page: `essf_loan_cat` is registered with `show_ui` and
- * accessed only via WordPress's native taxonomy screen (see
- * register_menu()).
+ * No dedicated admin page for editing: `essf_loan_cat` is registered with
+ * `show_ui` and accessed only via WordPress's native taxonomy screen (see
+ * register_menu()). ESSF_Recurrence_Entries_Page provides a dedicated
+ * *listing* screen for the payments table (see render_payments_summary()).
  */
 class ESSF_Loan_CPT {
 
@@ -43,6 +51,30 @@ class ESSF_Loan_CPT {
 
 	const ADD_PAYMENT_ACTION = 'essf_loan_add_payment';
 	const ADD_PAYMENT_NONCE  = 'essf_loan_add_payment_nonce';
+
+	/**
+	 * Set only for the duration of create_term_from_detection() — lets
+	 * save_term_fields() read inferred meta instead of $_POST when a loan is
+	 * created programmatically by ESSF_Plan_Detector rather than through the
+	 * native "Add New" term form.
+	 */
+	private static ?array $detection_meta = null;
+
+	/**
+	 * Creates a Loan term with the given meta already applied (bypassing
+	 * $_POST — see $detection_meta above), used by ESSF_Plan_Detector for
+	 * both the one-click backfill and the on-insert auto-detect hook.
+	 *
+	 * @param array $meta essf_loan_principal, essf_loan_is_lender,
+	 *                    essf_counterparty, essf_loan_category — same shape
+	 *                    as the term form's $_POST.
+	 */
+	public static function create_term_from_detection( string $name, array $meta ): int {
+		self::$detection_meta = $meta;
+		$result               = wp_insert_term( $name, self::TAXONOMY );
+		self::$detection_meta = null;
+		return is_wp_error( $result ) ? 0 : (int) $result['term_id'];
+	}
 
 	public function __construct() {
 		add_action( 'init', [ $this, 'register' ] );
@@ -66,7 +98,7 @@ class ESSF_Loan_CPT {
 					'name'          => __( 'Loans', 'essfinance' ),
 					'singular_name' => __( 'Loan', 'essfinance' ),
 					'add_new_item'  => __( 'Add New Loan', 'essfinance' ),
-					'new_item_name' => __( 'New Loan Name (add a date if the name repeats, e.g. "Loan to Lucia 20260816")', 'essfinance' ),
+					'new_item_name' => __( 'New Loan Name (add a date if the name repeats, e.g. "Lucia 20260816")', 'essfinance' ),
 					'all_items'     => __( 'All Loans', 'essfinance' ),
 					'menu_name'     => __( 'Loans', 'essfinance' ),
 				],
@@ -148,8 +180,55 @@ class ESSF_Loan_CPT {
 		</tr>
 		<tr class="form-field">
 			<th scope="row"><?php esc_html_e( 'Payments', 'essfinance' ); ?></th>
-			<td><?php $this->render_payments_summary( $term, $principal ); ?></td>
+			<td>
+				<?php self::render_payments_overview( $term, $principal ); ?>
+				<p><a href="<?php echo esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ); ?>"><?php esc_html_e( 'View payments →', 'essfinance' ); ?></a></p>
+			</td>
 		</tr>
+		<?php
+	}
+
+	/** Short summary shown on the term edit screen — full table lives on ESSF_Recurrence_Entries_Page. */
+	private static function render_payments_overview( WP_Term $term, float $principal ): void {
+		[ , $payments ] = self::split_entries( $term, $principal );
+		$paid           = abs( ESSF_Totals::compute_from_posts( $payments )['net'] );
+		$remain         = abs( $principal ) - $paid;
+		$settled        = abs( $remain ) < 0.01;
+		?>
+		<p>
+			<strong><?php esc_html_e( 'Paid so far:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $paid ) ); ?>
+			&nbsp;·&nbsp;
+			<strong><?php esc_html_e( 'Remaining:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $remain ) ); ?>
+			&nbsp;·&nbsp;
+			<?php echo $settled ? esc_html__( 'Paid off', 'essfinance' ) : esc_html__( 'Outstanding', 'essfinance' ); ?>
+		</p>
+		<?php
+	}
+
+	/** @param WP_Post[] $entries */
+	private static function render_entries_table( array $entries ): void {
+		?>
+		<table class="widefat striped" style="max-width:500px;">
+			<thead><tr><th><?php esc_html_e( 'Date', 'essfinance' ); ?></th><th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th></tr></thead>
+			<tbody>
+			<?php foreach ( $entries as $entry ) : ?>
+				<?php
+				$date     = substr( 'paid' === $entry->post_status ? $entry->post_modified_gmt : $entry->post_date_gmt, 0, 10 );
+				$edit_url = add_query_arg(
+					[
+						'page'  => 'essfinance',
+						'entry' => $entry->ID,
+					],
+					admin_url( 'admin.php' )
+				);
+				?>
+				<tr>
+					<td><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $date ) ) ); ?></a></td>
+					<td><?php echo esc_html( ESSF_Settings::format_amount( (float) $entry->post_content ) ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
 		<?php
 	}
 
@@ -161,44 +240,52 @@ class ESSF_Loan_CPT {
 		echo '</select>';
 	}
 
-	private function render_payments_summary( WP_Term $term, float $principal ): void {
-		$entries = ESSF_CPT::find_entries_by_title( $term->name );
-		$totals  = ESSF_Totals::compute_from_posts( $entries );
-		$paid    = $totals['net'];
-		$remain  = $principal - $paid;
-		$settled = abs( $remain ) < 0.01;
-		?>
-		<p>
-			<strong><?php esc_html_e( 'Paid so far:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $paid ) ); ?>
-			&nbsp;·&nbsp;
-			<strong><?php esc_html_e( 'Remaining:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $remain ) ); ?>
-			&nbsp;·&nbsp;
-			<?php echo $settled ? esc_html__( 'Paid off', 'essfinance' ) : esc_html__( 'Outstanding', 'essfinance' ); ?>
-		</p>
-		<?php if ( $entries ) : ?>
-			<table class="widefat striped" style="max-width:500px;">
-				<thead><tr><th><?php esc_html_e( 'Date', 'essfinance' ); ?></th><th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th></tr></thead>
-				<tbody>
-				<?php foreach ( $entries as $entry ) : ?>
-					<?php
-					$date     = substr( 'paid' === $entry->post_status ? $entry->post_modified_gmt : $entry->post_date_gmt, 0, 10 );
-					$edit_url = add_query_arg(
-						[
-							'page'  => 'essfinance',
-							'entry' => $entry->ID,
-						],
-						admin_url( 'admin.php' )
-					);
-					?>
-					<tr>
-						<td><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $date ) ) ); ?></a></td>
-						<td><?php echo esc_html( ESSF_Settings::format_amount( (float) $entry->post_content ) ); ?></td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
+	/**
+	 * Splits entries matched by title into two buckets relative to the
+	 * loan's principal sign: same sign = the origin/disbursement(s) that
+	 * established the loan (shown for reference, never counted as a
+	 * payment — otherwise the very entry that creates the loan would look
+	 * like it immediately paid itself off); opposite sign = real payments
+	 * that reduce the outstanding balance.
+	 *
+	 * @return array{0: WP_Post[], 1: WP_Post[]} [ $origin, $payments ]
+	 */
+	private static function split_entries( WP_Term $term, float $principal ): array {
+		$entries        = ESSF_CPT::find_entries_by_title( $term->name );
+		$principal_sign = $principal >= 0 ? 1 : -1;
+		$origin         = [];
+		$payments       = [];
+		foreach ( $entries as $entry ) {
+			$sign = ( (float) $entry->post_content ) >= 0 ? 1 : -1;
+			if ( $sign === $principal_sign ) {
+				$origin[] = $entry;
+			} else {
+				$payments[] = $entry;
+			}
+		}
+		return [ $origin, $payments ];
+	}
 
+	/**
+	 * Full payments table — origin/disbursements, payments, and the Add
+	 * Payment form. Used by both the term edit screen and
+	 * ESSF_Recurrence_Entries_Page's dedicated listing.
+	 */
+	public static function render_payments_summary( WP_Term $term, float $principal ): void {
+		[ $origin, $payments ] = self::split_entries( $term, $principal );
+		self::render_payments_overview( $term, $principal );
+
+		if ( $origin ) {
+			echo '<h4>' . esc_html__( 'Origin', 'essfinance' ) . '</h4>';
+			self::render_entries_table( $origin );
+		}
+
+		if ( $payments ) {
+			echo '<h4>' . esc_html__( 'Payments', 'essfinance' ) . '</h4>';
+			self::render_entries_table( $payments );
+		}
+
+		?>
 		<?php
 		/*
 		 * The term edit screen renders inside WordPress's single edit-tag
@@ -252,10 +339,15 @@ class ESSF_Loan_CPT {
 	 * check needed here.
 	 */
 	public function save_term_fields( int $term_id ): void {
-		if ( ! isset( $_POST['essf_loan_principal'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
-			return;
+		$via_detection = null !== self::$detection_meta;
+		if ( $via_detection ) {
+			$post = self::$detection_meta;
+		} else {
+			if ( ! isset( $_POST['essf_loan_principal'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
+				return;
+			}
+			$post = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
 		}
-		$post = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
 
 		$amount = abs( (float) $post['essf_loan_principal'] );
 		$lender = isset( $post['essf_loan_is_lender'] ) && '1' === $post['essf_loan_is_lender'];
@@ -288,12 +380,13 @@ class ESSF_Loan_CPT {
 
 		$post   = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified above via check_admin_referer()
 		$amount = abs( (float) ( $post['payment_amount'] ?? 0 ) );
-		$signed = $principal >= 0 ? $amount : -$amount;
+		// A payment is always the sign OPPOSITE the principal — see split_entries().
+		$signed = $principal >= 0 ? -$amount : $amount;
 
 		$date_raw = isset( $post['payment_date'] ) ? sanitize_text_field( $post['payment_date'] ) : '';
 		$date     = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_raw ) ? $date_raw : current_time( 'Y-m-d' );
 
-		ESSF_CPT::insert_entry( $term->name, $signed, $date . ' 00:00:00', $date . ' 00:00:00', 'paid', $category );
+		ESSF_CPT::insert_entry( $term->name, $signed, $date . ' 00:00:00', $date . ' 00:00:00', 'paid', $category, get_current_user_id() );
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -305,5 +398,42 @@ class ESSF_Loan_CPT {
 			)
 		);
 		exit;
+	}
+
+	/**
+	 * Loans not yet fully paid off — used by the "Link to loan" picker on
+	 * the Add/Edit Entry form (see ESSF_Admin_Page::render_form()).
+	 *
+	 * @return array<int, array{term_id: int, name: string, remaining: float}>
+	 */
+	public static function get_unsettled(): array {
+		$terms = get_terms(
+			[
+				'taxonomy'   => self::TAXONOMY,
+				'hide_empty' => false,
+			]
+		);
+		if ( is_wp_error( $terms ) ) {
+			return [];
+		}
+
+		$unsettled = [];
+		foreach ( $terms as $term ) {
+			$principal      = (float) get_term_meta( $term->term_id, self::META_PRINCIPAL, true );
+			[ , $payments ] = self::split_entries( $term, $principal );
+			$paid           = abs( ESSF_Totals::compute_from_posts( $payments )['net'] );
+			$remain         = abs( $principal ) - $paid;
+			if ( $remain > 0.01 ) {
+				$unsettled[] = [
+					'term_id'   => $term->term_id,
+					'name'      => $term->name,
+					'remaining' => $remain,
+				];
+			}
+		}
+
+		usort( $unsettled, static fn( $a, $b ) => $b['remaining'] <=> $a['remaining'] );
+
+		return $unsettled;
 	}
 }

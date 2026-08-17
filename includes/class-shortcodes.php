@@ -237,32 +237,7 @@ class ESSF_Shortcodes {
 
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'updated', self::get_cashflow_url() ) );
 		} else {
-			$post_date = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : current_time( 'mysql' );
-
-			$post_id = wp_insert_post(
-				[
-					'post_type'     => 'essf_cashflow',
-					'post_title'    => $description,
-					'post_content'  => (string) $amount,
-					'post_status'   => $status,
-					'post_author'   => get_current_user_id(),
-					'post_date'     => $post_date,
-					'post_date_gmt' => $due_gmt,
-				]
-			);
-
-			if ( $post_id && ! is_wp_error( $post_id ) ) {
-				$wpdb->update(
-					$wpdb->posts,
-					[ 'post_modified_gmt' => $pay_gmt ],
-					[ 'ID' => $post_id ],
-					[ '%s' ],
-					[ '%d' ]
-				);
-				$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
-				update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
-				wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
-			}
+			ESSF_CPT::insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status, $category, get_current_user_id() );
 
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'added', self::get_cashflow_url() ) );
 		}
@@ -1294,7 +1269,6 @@ class ESSF_Shortcodes {
 			}
 		}
 
-		global $wpdb;
 		$imported = 0;
 
 		while ( ( $row = fgetcsv( $handle ) ) !== false ) {
@@ -1311,33 +1285,16 @@ class ESSF_Shortcodes {
 				$status = 'pending';
 			}
 
-			$due_raw   = isset( $col['due_date'] ) ? trim( $row[ $col['due_date'] ] ?? '' ) : '';
-			$pay_raw   = isset( $col['pay_date'] ) ? trim( $row[ $col['pay_date'] ] ?? '' ) : '';
-			$cat_raw   = isset( $col['category'] ) ? sanitize_key( trim( $row[ $col['category'] ] ?? '' ) ) : '';
-			$category  = ( $cat_raw && get_term_by( 'slug', $cat_raw, ESSF_Category::TAXONOMY ) ) ? $cat_raw : 'uncategorized';
-			$due_dt    = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
-			$pay_dt    = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
-			$due_gmt   = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
-			$pay_gmt   = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
-			$post_date = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : current_time( 'mysql' );
+			$due_raw  = isset( $col['due_date'] ) ? trim( $row[ $col['due_date'] ] ?? '' ) : '';
+			$pay_raw  = isset( $col['pay_date'] ) ? trim( $row[ $col['pay_date'] ] ?? '' ) : '';
+			$cat_raw  = isset( $col['category'] ) ? sanitize_key( trim( $row[ $col['category'] ] ?? '' ) ) : '';
+			$category = ( $cat_raw && get_term_by( 'slug', $cat_raw, ESSF_Category::TAXONOMY ) ) ? $cat_raw : 'uncategorized';
+			$due_dt   = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
+			$pay_dt   = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
+			$due_gmt  = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+			$pay_gmt  = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
-			$post_id = wp_insert_post(
-				[
-					'post_type'     => 'essf_cashflow',
-					'post_title'    => $description,
-					'post_content'  => (string) $amount,
-					'post_status'   => $status,
-					'post_author'   => get_current_user_id(),
-					'post_date'     => $post_date,
-					'post_date_gmt' => $due_gmt,
-				]
-			);
-
-			if ( $post_id && ! is_wp_error( $post_id ) ) {
-				$wpdb->update( $wpdb->posts, [ 'post_modified_gmt' => $pay_gmt ], [ 'ID' => $post_id ], [ '%s' ], [ '%d' ] );
-				$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
-				update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
-				wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
+			if ( ESSF_CPT::insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status, $category, get_current_user_id() ) ) {
 				++$imported;
 			}
 		}

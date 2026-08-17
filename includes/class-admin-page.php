@@ -19,6 +19,9 @@ class ESSF_Admin_Page {
 	const FORGET_MEMO_NONCE              = 'essf_forget_memo';
 	const FORGET_EXCLUDED_NONCE          = 'essf_forget_excluded';
 	const FORGET_CATEGORY_GLOSSARY_NONCE = 'essf_forget_category_glossary';
+	const GROUP_CONFIRM_NONCE            = 'essf_group_confirm';
+	const SPLIT_CONFIRM_NONCE            = 'essf_split_confirm';
+	const DETECT_PLANS_NONCE             = 'essf_detect_plans';
 
 	/** Option storing normalized memos of rows the operator has excluded before (FIFO-capped). */
 	const EXCLUDED_MEMOS_OPTION = 'essf_ofx_excluded_memos';
@@ -65,6 +68,9 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_forget_memo', [ $this, 'handle_forget_memo' ] );
 		add_action( 'admin_post_essf_forget_excluded', [ $this, 'handle_forget_excluded' ] );
 		add_action( 'admin_post_essf_forget_category_glossary', [ $this, 'handle_forget_category_glossary' ] );
+		add_action( 'admin_post_essf_group_confirm', [ $this, 'handle_group_confirm' ] );
+		add_action( 'admin_post_essf_split_confirm', [ $this, 'handle_split_confirm' ] );
+		add_action( 'admin_post_essf_detect_plans', [ $this, 'handle_detect_plans' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
@@ -216,7 +222,7 @@ class ESSF_Admin_Page {
 		if ( ! isset( $_REQUEST['page'] ) || 'essfinance' !== $_REQUEST['page'] ) {
 			return;
 		}
-		if ( isset( $_GET['m'] ) || isset( $_GET['entry'] ) || isset( $_GET['essf_review'] ) || isset( $_GET['essf_action'] ) ) {
+		if ( isset( $_GET['m'] ) || isset( $_GET['entry'] ) || isset( $_GET['essf_review'] ) || isset( $_GET['essf_action'] ) || isset( $_GET['essf_group'] ) || isset( $_GET['essf_split'] ) ) {
 			return;
 		}
 		wp_safe_redirect( esc_url_raw( add_query_arg( 'm', current_time( 'Ym' ) ) ) );
@@ -233,7 +239,7 @@ class ESSF_Admin_Page {
 			? sanitize_key( $_REQUEST['action'] )
 			: ( isset( $_REQUEST['action2'] ) && '-1' !== $_REQUEST['action2'] ? sanitize_key( $_REQUEST['action2'] ) : '' );
 
-		$valid = [ 'delete', 'mark_paid', 'mark_pending', 'make_income', 'make_expense', 'set_category', 'auto_set_category' ];
+		$valid = [ 'delete', 'mark_paid', 'mark_pending', 'make_income', 'make_expense', 'set_category', 'auto_set_category', 'group_as_loan', 'split_installment' ];
 		if ( ! in_array( $action, $valid, true ) ) {
 			return;
 		}
@@ -243,7 +249,19 @@ class ESSF_Admin_Page {
 			return;
 		}
 
-		$ids              = isset( $_REQUEST['entries'] ) ? array_map( 'absint', (array) $_REQUEST['entries'] ) : [];
+		$ids = isset( $_REQUEST['entries'] ) ? array_map( 'absint', (array) $_REQUEST['entries'] ) : [];
+
+		// These two stage-and-redirect to a confirmation screen instead of
+		// mutating anything here, same as OFX import review.
+		if ( 'group_as_loan' === $action ) {
+			$this->stage_group_as_loan( $ids );
+			return;
+		}
+		if ( 'split_installment' === $action ) {
+			$this->stage_split_installment( $ids );
+			return;
+		}
+
 		$today            = current_time( 'mysql', true );
 		$glossary_history = null;
 		global $wpdb;
@@ -316,6 +334,103 @@ class ESSF_Admin_Page {
 		exit;
 	}
 
+	/**
+	 * Stages selected entries for the "Group as Loan" confirmation screen —
+	 * same staged-transient-then-redirect pattern as OFX import review, just
+	 * without the short-URL-token step (this is a same-session confirmation,
+	 * not something that needs a shareable short link).
+	 *
+	 * @param int[] $ids Selected post IDs.
+	 */
+	private function stage_group_as_loan( array $ids ): void {
+		$ids = array_values(
+			array_filter(
+				$ids,
+				static function ( $id ) {
+					$post = get_post( $id );
+					return $post && 'essf_cashflow' === $post->post_type;
+				}
+			)
+		);
+
+		if ( count( $ids ) < 2 ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'group_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		usort(
+			$ids,
+			static function ( $a, $b ) {
+				return strcmp( get_post( $a )->post_date_gmt, get_post( $b )->post_date_gmt );
+			}
+		);
+
+		$token = bin2hex( random_bytes( 20 ) );
+		set_transient(
+			'essf_group_review_' . $token,
+			[
+				'user_id' => get_current_user_id(),
+				'ids'     => $ids,
+			],
+			15 * MINUTE_IN_SECONDS
+		);
+
+		wp_safe_redirect(
+			add_query_arg(
+				[
+					'page'       => 'essfinance',
+					'essf_group' => $token,
+				],
+				admin_url( 'admin.php' )
+			)
+		); // phpcs:ignore WordPress.Arrays.MultipleStatementAlignment.DoubleArrowNotAligned
+		exit;
+	}
+
+	/**
+	 * Stages a single selected entry for the "Split into installments"
+	 * confirmation screen.
+	 *
+	 * @param int[] $ids Selected post IDs — exactly one is required.
+	 */
+	private function stage_split_installment( array $ids ): void {
+		$ids = array_values(
+			array_filter(
+				$ids,
+				static function ( $id ) {
+					$post = get_post( $id );
+					return $post && 'essf_cashflow' === $post->post_type;
+				}
+			)
+		);
+
+		if ( 1 !== count( $ids ) ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'split_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$token = bin2hex( random_bytes( 20 ) );
+		set_transient(
+			'essf_split_review_' . $token,
+			[
+				'user_id' => get_current_user_id(),
+				'id'      => $ids[0],
+			],
+			15 * MINUTE_IN_SECONDS
+		);
+
+		wp_safe_redirect(
+			add_query_arg(
+				[
+					'page'       => 'essfinance',
+					'essf_split' => $token,
+				],
+				admin_url( 'admin.php' )
+			)
+		); // phpcs:ignore WordPress.Arrays.MultipleStatementAlignment.DoubleArrowNotAligned
+		exit;
+	}
+
 	/* ── Single entry handlers ──────────────────────────── */
 
 	public function handle_add(): void {
@@ -332,37 +447,12 @@ class ESSF_Admin_Page {
 		}
 		$data = $this->parse_form_data( $_POST );
 
-		$post_id = wp_insert_post(
-			[
-				'post_type'    => 'essf_cashflow',
-				'post_title'   => $data['title'],
-				'post_content' => $data['amount'],
-				'post_status'  => $data['status'],
-			],
-			true
-		);
+		$post_id = ESSF_CPT::insert_entry( $data['title'], (float) $data['amount'], $data['due_gmt'], $data['pay_gmt'], $data['status'], $data['category'], get_current_user_id() );
 
-		if ( is_wp_error( $post_id ) ) {
+		if ( ! $post_id ) {
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'error', admin_url( 'admin.php?page=essfinance' ) ) );
 			exit;
 		}
-
-		// wp_insert_post does not reliably persist post_date_gmt / post_modified_gmt,
-		// so we write them directly — same approach as the update flow.
-		global $wpdb;
-		$wpdb->update(
-			$wpdb->posts,
-			[
-				'post_date_gmt'     => $data['due_gmt'],
-				'post_modified_gmt' => $data['pay_gmt'],
-			],
-			[ 'ID' => $post_id ],
-			[ '%s', '%s' ],
-			[ '%d' ]
-		);
-
-		update_post_meta( $post_id, '_order_date', $data['order_date'] );
-		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $data['category'] ) ], ESSF_Category::TAXONOMY );
 
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'added', admin_url( 'admin.php?page=essfinance' ) ) );
 		exit;
@@ -586,7 +676,7 @@ class ESSF_Admin_Page {
 				continue;
 			}
 
-			if ( $this->insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status ) ) {
+			if ( ESSF_CPT::insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status, 'uncategorized', get_current_user_id() ) ) {
 				$existing[ $key ] = true;
 				++$imported;
 			}
@@ -897,7 +987,7 @@ class ESSF_Admin_Page {
 
 			// A bank statement transaction has already cleared, so OFX
 			// imports always land paid — there's no pending state to review.
-			$post_id = $this->insert_entry( $description, (float) $row['amount'], $due_gmt, $due_gmt, 'paid', $category );
+			$post_id = ESSF_CPT::insert_entry( $description, (float) $row['amount'], $due_gmt, $due_gmt, 'paid', $category, get_current_user_id() );
 			if ( ! $post_id ) {
 				continue;
 			}
@@ -1297,42 +1387,6 @@ class ESSF_Admin_Page {
 		exit;
 	}
 
-	private function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status, string $category_slug = 'uncategorized' ): int {
-		$post_id = wp_insert_post(
-			[
-				'post_type'    => 'essf_cashflow',
-				'post_title'   => $title,
-				'post_content' => (string) $amount,
-				'post_status'  => $status,
-			],
-			true
-		);
-
-		if ( is_wp_error( $post_id ) ) {
-			return 0;
-		}
-
-		global $wpdb;
-		$wpdb->update(
-			$wpdb->posts,
-			[
-				'post_date_gmt'     => $due_gmt,
-				'post_modified_gmt' => $pay_gmt,
-			],
-			[ 'ID' => $post_id ],
-			[ '%s', '%s' ],
-			[ '%d' ]
-		);
-
-		$order_date = '0000-00-00 00:00:00' !== $pay_gmt
-			? substr( $pay_gmt, 0, 10 )
-			: ( '0000-00-00 00:00:00' !== $due_gmt ? substr( $due_gmt, 0, 10 ) : '' );
-		update_post_meta( $post_id, '_order_date', $order_date );
-		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category_slug ) ], ESSF_Category::TAXONOMY );
-
-		return $post_id;
-	}
-
 	private static function format_amount_csv( float $amount ): string {
 		$prefix = $amount < 0 ? '-' : '';
 		$abs    = abs( $amount );
@@ -1412,6 +1466,185 @@ class ESSF_Admin_Page {
 		exit;
 	}
 
+	/**
+	 * Confirms the "Group as Loan" staging: renames every staged entry to
+	 * `"{base} {i}/{n}"` (title-only, so wp_update_post() is safe here — see
+	 * CLAUDE.md's post_date_gmt/post_modified_gmt caveat, which doesn't apply
+	 * to post_title), and creates the matching Loan term if it doesn't exist
+	 * yet. Principal is left at 0 — the operator sets it on the term after.
+	 */
+	public function handle_group_confirm(): void {
+		check_admin_referer( self::GROUP_CONFIRM_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$token  = isset( $_POST['token'] ) ? sanitize_text_field( wp_unslash( $_POST['token'] ) ) : '';
+		$staged = $token ? get_transient( 'essf_group_review_' . $token ) : false;
+		if ( ! is_array( $staged ) || (int) ( $staged['user_id'] ?? 0 ) !== get_current_user_id() ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'group_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$base = sanitize_text_field( wp_unslash( $_POST['base_description'] ?? '' ) );
+		if ( '' === $base ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'group_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$entries = array_filter( array_map( 'get_post', $staged['ids'] ?? [] ) );
+		$n       = count( $entries );
+		$i       = 1;
+		foreach ( $entries as $entry ) {
+			wp_update_post(
+				[
+					'ID'         => $entry->ID,
+					'post_title' => $base . ' ' . $i . '/' . $n,
+				]
+			);
+			++$i;
+		}
+
+		if ( ! term_exists( $base, ESSF_Loan_CPT::TAXONOMY ) ) {
+			wp_insert_term( $base, ESSF_Loan_CPT::TAXONOMY );
+		}
+
+		delete_transient( 'essf_group_review_' . $token );
+
+		wp_safe_redirect( add_query_arg( 'essf_msg', 'grouped', admin_url( 'admin.php?page=essfinance' ) ) );
+		exit;
+	}
+
+	/**
+	 * Confirms the "Split into installments" staging: deletes the single
+	 * lump-sum entry and inserts N new entries in its place, one per the next
+	 * N not-yet-materialized slots of the chosen Financing plan (title/date
+	 * from the plan's schedule, amount = original amount / N — not the
+	 * plan's own per-installment amount, since this lump sum may not match
+	 * it exactly).
+	 */
+	public function handle_split_confirm(): void {
+		check_admin_referer( self::SPLIT_CONFIRM_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$token  = isset( $_POST['token'] ) ? sanitize_text_field( wp_unslash( $_POST['token'] ) ) : '';
+		$staged = $token ? get_transient( 'essf_split_review_' . $token ) : false;
+		if ( ! is_array( $staged ) || (int) ( $staged['user_id'] ?? 0 ) !== get_current_user_id() ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'split_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$post = get_post( $staged['id'] ?? 0 );
+		if ( ! $post || 'essf_cashflow' !== $post->post_type ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'split_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$term_id = absint( $_POST['plan_term_id'] ?? 0 );
+		$term    = get_term( $term_id, ESSF_Financing_CPT::TAXONOMY );
+		if ( ! $term || is_wp_error( $term ) ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'split_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$count = max( 2, min( 60, absint( $_POST['split_count'] ?? 0 ) ) );
+
+		$indices = ESSF_Financing_CPT::next_unmaterialized_indices( $term, $count );
+		if ( count( $indices ) < $count ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'split_error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		$n            = (int) get_term_meta( $term_id, ESSF_Financing_CPT::META_INSTALLMENTS, true );
+		$unit         = (string) get_term_meta( $term_id, ESSF_Financing_CPT::META_INTERVAL_UNIT, true ) ?: 'month';
+		$interval_cnt = (int) get_term_meta( $term_id, ESSF_Financing_CPT::META_INTERVAL_COUNT, true ) ?: 1;
+		$start        = (string) get_term_meta( $term_id, ESSF_Financing_CPT::META_START, true ) ?: current_time( 'Y-m-d' );
+		$category     = (string) get_term_meta( $term_id, ESSF_Financing_CPT::META_CATEGORY, true ) ?: 'uncategorized';
+
+		$total  = (float) $post->post_content;
+		$status = $post->post_status;
+		$pay    = $post->post_modified_gmt;
+		$part   = round( $total / $count, 2 );
+
+		wp_delete_post( $post->ID, true );
+
+		$i = 0;
+		foreach ( $indices as $index ) {
+			$due    = ESSF_Financing_CPT::installment_due_date( $unit, $interval_cnt, $start, $index );
+			$amount = ( $count - 1 === $i ) ? round( $total - $part * ( $count - 1 ), 2 ) : $part;
+			ESSF_CPT::insert_entry(
+				ESSF_Financing_CPT::installment_title( $term->name, $index, $n ),
+				$amount,
+				$due . ' 00:00:00',
+				$pay,
+				$status,
+				$category,
+				(int) $post->post_author
+			);
+			++$i;
+		}
+
+		delete_transient( 'essf_split_review_' . $token );
+
+		wp_safe_redirect( add_query_arg( 'essf_msg', 'split', admin_url( 'admin.php?page=essfinance' ) ) );
+		exit;
+	}
+
+	/**
+	 * One-click backfill: scans every existing entry via
+	 * ESSF_Plan_Detector::find_missing_terms() and creates every candidate
+	 * plan term right away — no review step (candidates are additive only
+	 * and re-running is always safe, since each type checks term_exists()
+	 * before creating).
+	 */
+	public function handle_detect_plans(): void {
+		check_admin_referer( self::DETECT_PLANS_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$counts = [
+			'loan'      => 0,
+			'financing' => 0,
+			'bill'      => 0,
+		];
+
+		foreach ( ESSF_Plan_Detector::find_missing_terms() as $candidate ) {
+			switch ( $candidate['type'] ) {
+				case 'loan':
+					if ( ESSF_Loan_CPT::create_term_from_detection( $candidate['name'], $candidate['meta'] ) ) {
+						++$counts['loan'];
+					}
+					break;
+				case 'financing':
+					if ( ESSF_Financing_CPT::create_term_from_detection( $candidate['name'], $candidate['meta'] ) ) {
+						++$counts['financing'];
+					}
+					break;
+				case 'bill':
+					if ( ESSF_Bill_CPT::create_term_from_detection( $candidate['name'], $candidate['meta'] ) ) {
+						++$counts['bill'];
+					}
+					break;
+			}
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				[
+					'essf_msg'                => 'plans_detected',
+					'essf_detected_loan'      => $counts['loan'],
+					'essf_detected_financing' => $counts['financing'],
+					'essf_detected_bill'      => $counts['bill'],
+				],
+				admin_url( 'admin.php?page=essfinance' )
+			)
+		);
+		exit;
+	}
+
 	private function parse_form_data( array $post ): array {
 		$title     = sanitize_text_field( wp_unslash( $post['essf_description'] ?? '' ) ) ?: __( 'Entry', 'essfinance' );
 		$amount_in = (float) wp_unslash( $post['essf_amount'] ?? 0 );
@@ -1484,6 +1717,26 @@ class ESSF_Admin_Page {
 			$msg = 'import_error';
 		}
 
+		if ( ! empty( $_GET['essf_group'] ) && current_user_can( 'manage_options' ) ) {
+			$token  = sanitize_text_field( wp_unslash( $_GET['essf_group'] ) );
+			$staged = get_transient( 'essf_group_review_' . $token );
+			if ( is_array( $staged ) && (int) ( $staged['user_id'] ?? 0 ) === get_current_user_id() ) {
+				$this->render_group_review_page( $token, $staged );
+				return;
+			}
+			$msg = 'group_error';
+		}
+
+		if ( ! empty( $_GET['essf_split'] ) && current_user_can( 'manage_options' ) ) {
+			$token  = sanitize_text_field( wp_unslash( $_GET['essf_split'] ) );
+			$staged = get_transient( 'essf_split_review_' . $token );
+			if ( is_array( $staged ) && (int) ( $staged['user_id'] ?? 0 ) === get_current_user_id() ) {
+				$this->render_split_review_page( $token, $staged );
+				return;
+			}
+			$msg = 'split_error';
+		}
+
 		if ( ! empty( $_GET['entry'] ) && current_user_can( 'manage_options' ) ) {
 			$post = get_post( absint( $_GET['entry'] ) );
 			if ( $post && 'essf_cashflow' === $post->post_type ) {
@@ -1504,6 +1757,9 @@ class ESSF_Admin_Page {
 			</a>
 			<a href="<?php echo esc_url( add_query_arg( 'essf_action', 'import', admin_url( 'admin.php?page=essfinance' ) ) ); ?>" class="page-title-action<?php echo 'import' === $essf_action ? ' button-primary' : ''; ?>">
 				<?php esc_html_e( 'Import', 'essfinance' ); ?>
+			</a>
+			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_detect_plans' ), self::DETECT_PLANS_NONCE ) ); ?>" class="page-title-action">
+				<?php esc_html_e( 'Auto-detect Plans', 'essfinance' ); ?>
 			</a>
 			<hr class="wp-header-end">
 
@@ -1535,6 +1791,153 @@ class ESSF_Admin_Page {
 					</div>
 				</div>
 			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Confirmation screen for the "Group as Loan" bulk action — lets the
+	 * operator type one unambiguous base description before anything is
+	 * renamed. Renders `"{base} {i}/{n}"` previews live via JS since the base
+	 * text doesn't exist server-side yet.
+	 *
+	 * @param string $token  Full staging token (see stage_group_as_loan()).
+	 * @param array  $staged Transient payload: user_id, ids.
+	 */
+	private function render_group_review_page( string $token, array $staged ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+		$entries  = array_filter( array_map( 'get_post', $staged['ids'] ?? [] ) );
+		$n        = count( $entries );
+		$back_url = admin_url( 'admin.php?page=essfinance' );
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Group as Loan', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( $back_url ); ?>" class="page-title-action">&larr; <?php esc_html_e( 'Cash Flow', 'essfinance' ); ?></a>
+			<hr class="wp-header-end">
+
+			<p><?php esc_html_e( 'These entries will be renamed to a shared, numbered description and grouped under a Loan of the same name.', 'essfinance' ); ?></p>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="essf_group_confirm">
+				<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>">
+				<?php wp_nonce_field( self::GROUP_CONFIRM_NONCE ); ?>
+
+				<p>
+					<label for="essf_group_base"><?php esc_html_e( 'Base description', 'essfinance' ); ?></label><br>
+					<input type="text" id="essf_group_base" name="base_description" class="regular-text" required
+						placeholder="<?php esc_attr_e( 'e.g. Lucia 202608', 'essfinance' ); ?>">
+				</p>
+
+				<table class="widefat striped" style="max-width:700px;">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Date', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Current description', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'New description', 'essfinance' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php
+						$i = 1;
+						foreach ( $entries as $entry ) :
+							?>
+							<tr>
+								<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( substr( $entry->post_date_gmt, 0, 10 ) ) ) ); ?></td>
+								<td><?php echo esc_html( ESSF_Settings::format_amount( (float) $entry->post_content ) ); ?></td>
+								<td><?php echo esc_html( $entry->post_title ); ?></td>
+								<td><em class="essf-group-preview" data-index="<?php echo esc_attr( (string) $i ); ?>" data-n="<?php echo esc_attr( (string) $n ); ?>">&mdash;</em></td>
+							</tr>
+							<?php
+							++$i;
+						endforeach;
+						?>
+					</tbody>
+				</table>
+
+				<p class="submit">
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Confirm', 'essfinance' ); ?></button>
+				</p>
+			</form>
+		</div>
+		<script>
+		( function () {
+			var base = document.getElementById( 'essf_group_base' );
+			var rows = document.querySelectorAll( '.essf-group-preview' );
+			function update() {
+				rows.forEach( function ( el ) {
+					el.textContent = base.value ? base.value + ' ' + el.dataset.index + '/' + el.dataset.n : '—';
+				} );
+			}
+			base.addEventListener( 'input', update );
+		} )();
+		</script>
+		<?php
+	}
+
+	/**
+	 * Confirmation screen for "Split into installments" — pick which
+	 * Financing plan the single selected lump-sum entry belongs to, and how
+	 * many of that plan's installments it represents.
+	 *
+	 * @param string $token  Full staging token (see stage_split_installment()).
+	 * @param array  $staged Transient payload: user_id, id.
+	 */
+	private function render_split_review_page( string $token, array $staged ): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+		$post = get_post( $staged['id'] ?? 0 );
+		if ( ! $post ) {
+			wp_die( esc_html__( 'Entry not found.', 'essfinance' ) );
+		}
+		$terms = get_terms(
+			[
+				'taxonomy'   => ESSF_Financing_CPT::TAXONOMY,
+				'hide_empty' => false,
+			]
+		); // phpcs:ignore WordPress.Arrays.MultipleStatementAlignment.DoubleArrowNotAligned
+		?>
+		<div class="wrap">
+			<h1 class="wp-heading-inline"><?php esc_html_e( 'Split into Installments', 'essfinance' ); ?></h1>
+			<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance' ) ); ?>" class="page-title-action">&larr; <?php esc_html_e( 'Cash Flow', 'essfinance' ); ?></a>
+			<hr class="wp-header-end">
+
+			<p>
+				<strong><?php echo esc_html( $post->post_title ); ?></strong>
+				&mdash; <?php echo esc_html( ESSF_Settings::format_amount( (float) $post->post_content ) ); ?>
+				&mdash; <?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( substr( $post->post_date_gmt, 0, 10 ) ) ) ); ?>
+			</p>
+
+			<?php if ( is_wp_error( $terms ) || ! $terms ) : ?>
+				<p><?php esc_html_e( 'No Financing plans exist yet — create one first.', 'essfinance' ); ?></p>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="essf_split_confirm">
+					<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>">
+					<?php wp_nonce_field( self::SPLIT_CONFIRM_NONCE ); ?>
+
+					<p>
+						<label for="essf_split_plan"><?php esc_html_e( 'Financing plan', 'essfinance' ); ?></label><br>
+						<select id="essf_split_plan" name="plan_term_id" required>
+							<option value=""><?php esc_html_e( '— choose —', 'essfinance' ); ?></option>
+							<?php foreach ( $terms as $term ) : ?>
+								<option value="<?php echo esc_attr( (string) $term->term_id ); ?>"><?php echo esc_html( $term->name ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+					<p>
+						<label for="essf_split_count"><?php esc_html_e( 'How many installments does this entry represent?', 'essfinance' ); ?></label><br>
+						<input type="number" id="essf_split_count" name="split_count" min="2" max="60" value="2" required>
+					</p>
+
+					<p class="submit">
+						<button type="submit" class="button button-primary"><?php esc_html_e( 'Split', 'essfinance' ); ?></button>
+					</p>
+				</form>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
@@ -1917,6 +2320,8 @@ class ESSF_Admin_Page {
 					</select>
 				</div>
 
+				<?php $this->render_link_loan_field(); ?>
+
 				<p class="submit">
 					<?php if ( $is_edit ) : ?>
 						<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Update Entry', 'essfinance' ); ?>">
@@ -1938,6 +2343,79 @@ class ESSF_Admin_Page {
 		<?php
 	}
 
+	/**
+	 * Optional "Link to loan" picker — choosing one just fills the
+	 * Description (and Amount, if empty) with the loan's exact term name,
+	 * so the entry matches it via ESSF_CPT::find_entries_by_title() once
+	 * saved. No extra field is submitted server-side; this is purely a
+	 * client-side autofill convenience. Options client-side re-sort toward
+	 * whatever the operator is currently typing in Description/Amount, so
+	 * the most likely match floats to the top without a round trip.
+	 */
+	private function render_link_loan_field(): void {
+		$unsettled = ESSF_Loan_CPT::get_unsettled();
+		if ( ! $unsettled ) {
+			return;
+		}
+		?>
+		<div class="form-field">
+			<label for="essf_link_loan"><?php esc_html_e( 'Link to loan (optional)', 'essfinance' ); ?></label>
+			<select id="essf_link_loan">
+				<option value=""><?php esc_html_e( '— none —', 'essfinance' ); ?></option>
+				<?php foreach ( $unsettled as $row ) : ?>
+					<option value="<?php echo esc_attr( $row['name'] ); ?>" data-amount="<?php echo esc_attr( (string) $row['remaining'] ); ?>">
+						<?php echo esc_html( $row['name'] . ' — ' . ESSF_Settings::format_amount( $row['remaining'] ) . ' ' . __( 'remaining', 'essfinance' ) ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+			<p class="description"><?php esc_html_e( 'Picking a loan fills in the Description (and Amount, if empty) so this entry links to it.', 'essfinance' ); ?></p>
+		</div>
+		<script>
+		( function () {
+			var select = document.getElementById( 'essf_link_loan' );
+			var desc   = document.getElementById( 'essf_description' );
+			var amt    = document.getElementById( 'essf_amount' );
+			if ( ! select || ! desc || ! amt ) {
+				return;
+			}
+
+			var options = Array.prototype.slice.call( select.options, 1 );
+
+			function resort() {
+				var q = desc.value.toLowerCase();
+				var a = parseFloat( amt.value ) || 0;
+				options
+					.map( function ( opt ) {
+						var remaining = parseFloat( opt.dataset.amount ) || 0;
+						var score = 0;
+						if ( q && opt.value.toLowerCase().indexOf( q ) !== -1 ) {
+							score += 100;
+						}
+						if ( a > 0 ) {
+							score -= Math.abs( remaining - a );
+						}
+						return { opt: opt, score: score };
+					} )
+					.sort( function ( x, y ) { return y.score - x.score; } )
+					.forEach( function ( s ) { select.appendChild( s.opt ); } );
+			}
+			desc.addEventListener( 'input', resort );
+			amt.addEventListener( 'input', resort );
+
+			select.addEventListener( 'change', function () {
+				if ( ! select.value ) {
+					return;
+				}
+				desc.value = select.value;
+				if ( ! amt.value || 0 === parseFloat( amt.value ) ) {
+					amt.value = select.selectedOptions[0].dataset.amount;
+				}
+			} );
+		} )();
+		</script>
+		<?php
+	}
+
 	private function render_notices( string $msg ): void {
 		if ( 'imported' === $msg ) {
 			$n = absint( $_GET['essf_imported'] ?? 0 );
@@ -1945,6 +2423,20 @@ class ESSF_Admin_Page {
 			// translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
 			$import_notice = esc_html( sprintf( __( '%1$d %2$s imported, %3$d skipped as duplicates.', 'essfinance' ), $n, _n( 'entry', 'entries', $n, 'essfinance' ), $s ) );
 			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', $import_notice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $import_notice is pre-escaped via esc_html()
+			return;
+		}
+
+		if ( 'plans_detected' === $msg ) {
+			$loan      = absint( $_GET['essf_detected_loan'] ?? 0 );
+			$financing = absint( $_GET['essf_detected_financing'] ?? 0 );
+			$bill      = absint( $_GET['essf_detected_bill'] ?? 0 );
+			if ( 0 === $loan + $financing + $bill ) {
+				printf( '<div class="notice notice-info is-dismissible"><p>%s</p></div>', esc_html__( 'No new plans detected — everything already has a matching Loan/Financing/Bill.', 'essfinance' ) );
+				return;
+			}
+			// translators: 1: number of loans, 2: number of financing plans, 3: number of bills.
+			$detect_notice = esc_html( sprintf( __( '%1$d loan(s), %2$d financing plan(s), and %3$d bill(s) created.', 'essfinance' ), $loan, $financing, $bill ) );
+			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', $detect_notice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $detect_notice is pre-escaped via esc_html()
 			return;
 		}
 
@@ -1960,8 +2452,12 @@ class ESSF_Admin_Page {
 			'make_expense'      => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
 			'set_category'      => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
 			'auto_set_category' => [ 'success', __( 'Category auto-detected for selected entries.', 'essfinance' ) ],
+			'grouped'           => [ 'success', __( 'Entries renamed and grouped into a Loan.', 'essfinance' ) ],
+			'split'             => [ 'success', __( 'Entry split into installments.', 'essfinance' ) ],
 			'error'             => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
 			'import_error'      => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
+			'group_error'       => [ 'error', __( 'Select at least 2 entries to group as a Loan.', 'essfinance' ) ],
+			'split_error'       => [ 'error', __( 'Select exactly 1 entry, and make sure the chosen Financing plan has enough remaining installments.', 'essfinance' ) ],
 		];
 		if ( isset( $map[ $msg ] ) ) {
 			[ $type, $text ] = $map[ $msg ];

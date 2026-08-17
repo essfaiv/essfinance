@@ -48,6 +48,7 @@ require_once ESSF_PATH . 'includes/class-shortcodes.php';
 require_once ESSF_PATH . 'includes/class-bill.php';
 require_once ESSF_PATH . 'includes/class-loan.php';
 require_once ESSF_PATH . 'includes/class-financing.php';
+require_once ESSF_PATH . 'includes/class-plan-detector.php';
 
 register_activation_hook( __FILE__, [ 'ESSF_CPT', 'activate' ] );
 register_activation_hook( __FILE__, [ 'ESSF_Category', 'activate' ] );
@@ -72,11 +73,13 @@ function essf_boot() {
 		require_once ESSF_PATH . 'includes/class-category-list-table.php';
 		require_once ESSF_PATH . 'includes/class-admin-page.php';
 		require_once ESSF_PATH . 'includes/class-assets.php';
+		require_once ESSF_PATH . 'includes/class-recurrence-entries-page.php';
 
 		new ESSF_Meta_Boxes();
 		new ESSF_Admin_Page();
 		new ESSF_Assets();
 		new ESSF_Settings();
+		new ESSF_Recurrence_Entries_Page();
 	}
 
 	if ( defined( 'WP_CLI' ) && WP_CLI ) {

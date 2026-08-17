@@ -40,6 +40,34 @@ class ESSF_Financing_CPT {
 	const META_START          = '_essf_financing_start_date';
 	const META_CATEGORY       = '_essf_financing_category';
 
+	/**
+	 * Set only for the duration of create_term_from_detection() — lets
+	 * save_term_fields() read inferred meta instead of $_POST when a plan is
+	 * created programmatically by ESSF_Plan_Detector rather than through the
+	 * native "Add New" term form.
+	 */
+	private static ?array $detection_meta = null;
+
+	/**
+	 * Creates a Financing term with the given meta already applied (bypassing
+	 * $_POST — see $detection_meta above), used by ESSF_Plan_Detector for
+	 * both the one-click backfill and the on-insert auto-detect hook.
+	 * wp_insert_term() fires `created_essf_financing_cat` synchronously,
+	 * which runs save_term_fields() (and, at its end, the initial
+	 * maybe_materialize_next()) before this method returns.
+	 *
+	 * @param array $meta essf_financing_total, essf_financing_is_income,
+	 *                    essf_financing_installments, essf_financing_start_date,
+	 *                    essf_financing_interval_unit, essf_financing_interval_count,
+	 *                    essf_financing_category — same shape as the term form's $_POST.
+	 */
+	public static function create_term_from_detection( string $name, array $meta ): int {
+		self::$detection_meta = $meta;
+		$result               = wp_insert_term( $name, self::TAXONOMY );
+		self::$detection_meta = null;
+		return is_wp_error( $result ) ? 0 : (int) $result['term_id'];
+	}
+
 	public function __construct() {
 		add_action( 'init', [ $this, 'register' ] );
 		add_action( 'admin_menu', [ $this, 'register_menu' ] );
@@ -97,7 +125,8 @@ class ESSF_Financing_CPT {
 	 * @return array
 	 */
 	public function row_actions( $actions, $term ): array {
-		$actions['view_entries'] = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( $term->name ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
+		$actions['view_installments'] = '<a href="' . esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ) . '">' . esc_html__( 'Installments', 'essfinance' ) . '</a>';
+		$actions['view_entries']      = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( $term->name ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
 		return $actions;
 	}
 
@@ -115,7 +144,7 @@ class ESSF_Financing_CPT {
 		</div>
 		<div class="form-field">
 			<label for="essf_financing_installments"><?php esc_html_e( 'Number of installments', 'essfinance' ); ?></label>
-			<input type="number" min="1" max="360" name="essf_financing_installments" id="essf_financing_installments" value="1">
+			<input type="number" min="1" max="600" name="essf_financing_installments" id="essf_financing_installments" value="1">
 		</div>
 		<div class="form-field">
 			<label for="essf_financing_start_date"><?php esc_html_e( 'First installment date', 'essfinance' ); ?></label>
@@ -151,7 +180,7 @@ class ESSF_Financing_CPT {
 		</tr>
 		<tr class="form-field">
 			<th scope="row"><label for="essf_financing_installments"><?php esc_html_e( 'Number of installments', 'essfinance' ); ?></label></th>
-			<td><input type="number" min="1" max="360" name="essf_financing_installments" id="essf_financing_installments" value="<?php echo esc_attr( (string) $n ); ?>"></td>
+			<td><input type="number" min="1" max="600" name="essf_financing_installments" id="essf_financing_installments" value="<?php echo esc_attr( (string) $n ); ?>"></td>
 		</tr>
 		<tr class="form-field">
 			<th scope="row"><label for="essf_financing_start_date"><?php esc_html_e( 'First installment date', 'essfinance' ); ?></label></th>
@@ -170,7 +199,7 @@ class ESSF_Financing_CPT {
 		</tr>
 		<tr class="form-field">
 			<th scope="row"><?php esc_html_e( 'Installments', 'essfinance' ); ?></th>
-			<td><?php $this->render_installments_table( $term, $total, $n, $unit, $count, $start ); ?></td>
+			<td><a href="<?php echo esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ); ?>"><?php esc_html_e( 'View installments →', 'essfinance' ); ?></a></td>
 		</tr>
 		<?php
 	}
@@ -197,7 +226,17 @@ class ESSF_Financing_CPT {
 		echo '</select>';
 	}
 
-	private function render_installments_table( WP_Term $term, float $total, int $n, string $unit, int $count, string $start ): void {
+	/** Reads term meta and renders the full virtual+real installments table — used by ESSF_Recurrence_Entries_Page. */
+	public static function render_installments_table_for_term( WP_Term $term ): void {
+		$total = (float) get_term_meta( $term->term_id, self::META_TOTAL, true );
+		$n     = (int) get_term_meta( $term->term_id, self::META_INSTALLMENTS, true ) ?: 1;
+		$unit  = (string) get_term_meta( $term->term_id, self::META_INTERVAL_UNIT, true ) ?: 'month';
+		$count = (int) get_term_meta( $term->term_id, self::META_INTERVAL_COUNT, true ) ?: 1;
+		$start = (string) get_term_meta( $term->term_id, self::META_START, true ) ?: current_time( 'Y-m-d' );
+		self::render_installments_table( $term, $total, $n, $unit, $count, $start );
+	}
+
+	private static function render_installments_table( WP_Term $term, float $total, int $n, string $unit, int $count, string $start ): void {
 		?>
 		<table class="widefat striped" style="max-width:600px;">
 			<thead>
@@ -258,16 +297,21 @@ class ESSF_Financing_CPT {
 	 * check needed here.
 	 */
 	public function save_term_fields( int $term_id ): void {
-		if ( ! isset( $_POST['essf_financing_total'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
-			return;
+		$via_detection = null !== self::$detection_meta;
+		if ( $via_detection ) {
+			$post = self::$detection_meta;
+		} else {
+			if ( ! isset( $_POST['essf_financing_total'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
+				return;
+			}
+			$post = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
 		}
-		$post = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see docblock
 
 		$amount = abs( (float) $post['essf_financing_total'] );
 		$income = isset( $post['essf_financing_is_income'] ) && '1' === $post['essf_financing_is_income'];
 		update_term_meta( $term_id, self::META_TOTAL, (string) ( $income ? $amount : -$amount ) );
 
-		$n = max( 1, min( 360, absint( $post['essf_financing_installments'] ?? 1 ) ) );
+		$n = max( 1, min( 600, absint( $post['essf_financing_installments'] ?? 1 ) ) );
 		update_term_meta( $term_id, self::META_INSTALLMENTS, $n );
 
 		$start_raw = isset( $post['essf_financing_start_date'] ) ? sanitize_text_field( $post['essf_financing_start_date'] ) : '';
@@ -345,21 +389,24 @@ class ESSF_Financing_CPT {
 		$amount   = self::installment_amount( $total, $next_index, $n );
 		$category = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true ) ?: 'uncategorized';
 
-		ESSF_CPT::insert_entry( self::installment_title( $term->name, $next_index, $n ), $amount, $due_date . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category );
+		ESSF_CPT::insert_entry( self::installment_title( $term->name, $next_index, $n ), $amount, $due_date . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category, get_current_user_id() );
 	}
 
-	private static function installment_title( string $plan_title, int $index, int $n ): string {
+	/** Public — reused by the split-into-installments tool (ESSF_Admin_Page). */
+	public static function installment_title( string $plan_title, int $index, int $n ): string {
 		return $plan_title . ' ' . $index . '/' . $n;
 	}
 
-	private static function installment_due_date( string $unit, int $count, string $start, int $index ): string {
+	/** Public — reused by the split-into-installments tool (ESSF_Admin_Page). */
+	public static function installment_due_date( string $unit, int $count, string $start, int $index ): string {
 		$offset    = ( $index - 1 ) * $count;
 		$unit_word = in_array( $unit, [ 'day', 'week', 'month', 'year' ], true ) ? $unit : 'month';
 		$ts        = strtotime( "+{$offset} {$unit_word}", strtotime( $start ) );
 		return date_i18n( 'Y-m-d', $ts );
 	}
 
-	private static function installment_amount( float $total, int $index, int $n ): float {
+	/** Public — reused by the split-into-installments tool (ESSF_Admin_Page). */
+	public static function installment_amount( float $total, int $index, int $n ): float {
 		$sign      = $total < 0 ? -1 : 1;
 		$abs_total = abs( $total );
 		$base      = round( $abs_total / $n, 2 );
@@ -367,5 +414,28 @@ class ESSF_Financing_CPT {
 			return $sign * $base;
 		}
 		return $sign * round( $abs_total - ( $base * ( $n - 1 ) ), 2 );
+	}
+
+	/**
+	 * The next `$count` installment indices (1-based) not yet materialized
+	 * for this plan, in order — used by the split-into-installments tool
+	 * (ESSF_Admin_Page) to know which slots a lump-sum entry should become.
+	 *
+	 * @return int[]
+	 */
+	public static function next_unmaterialized_indices( WP_Term $term, int $count ): array {
+		$n = (int) get_term_meta( $term->term_id, self::META_INSTALLMENTS, true );
+		if ( $n < 1 ) {
+			return [];
+		}
+		$found     = [];
+		$found_cnt = 0;
+		for ( $i = 1; $i <= $n && $found_cnt < $count; $i++ ) {
+			if ( ! ESSF_CPT::find_entries_by_title( self::installment_title( $term->name, $i, $n ) ) ) {
+				$found[] = $i;
+				++$found_cnt;
+			}
+		}
+		return $found;
 	}
 }

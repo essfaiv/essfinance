@@ -45,6 +45,33 @@ class ESSF_Bill_CPT {
 	/** How many past months render_history_table() shows. */
 	const HISTORY_MONTHS = 6;
 
+	/**
+	 * Set only for the duration of create_term_from_detection() — lets
+	 * save_term_fields() read inferred meta instead of $_POST when a bill is
+	 * created programmatically by ESSF_Plan_Detector rather than through the
+	 * native "Add New" term form.
+	 */
+	private static ?array $detection_meta = null;
+
+	/**
+	 * Creates a Bill term with the given meta already applied (bypassing
+	 * $_POST — see $detection_meta above), used by ESSF_Plan_Detector for
+	 * both the one-click backfill and the on-insert auto-detect hook.
+	 * wp_insert_term() fires `created_essf_bill_cat` synchronously, which
+	 * runs save_term_fields() then on_term_created() (immediate
+	 * materialization of the current month) before this method returns.
+	 *
+	 * @param array $meta essf_bill_amount, essf_bill_is_income,
+	 *                    essf_bill_category, essf_bill_due_day,
+	 *                    essf_bill_active — same shape as the term form's $_POST.
+	 */
+	public static function create_term_from_detection( string $name, array $meta ): int {
+		self::$detection_meta = $meta;
+		$result               = wp_insert_term( $name, self::TAXONOMY );
+		self::$detection_meta = null;
+		return is_wp_error( $result ) ? 0 : (int) $result['term_id'];
+	}
+
 	public function __construct() {
 		add_action( 'init', [ $this, 'register' ] );
 		add_action( 'admin_menu', [ $this, 'register_menu' ] );
@@ -103,6 +130,7 @@ class ESSF_Bill_CPT {
 	 * @return array
 	 */
 	public function row_actions( $actions, $term ): array {
+		$actions['view_history'] = '<a href="' . esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ) . '">' . esc_html__( 'History', 'essfinance' ) . '</a>';
 		$actions['view_entries'] = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( $term->name ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
 		return $actions;
 	}
@@ -174,8 +202,8 @@ class ESSF_Bill_CPT {
 			<td><input type="checkbox" name="essf_bill_active" id="essf_bill_active" value="1" <?php checked( $is_active ); ?>></td>
 		</tr>
 		<tr class="form-field">
-			<th scope="row"><?php esc_html_e( 'Recent occurrences', 'essfinance' ); ?></th>
-			<td><?php $this->render_history_table( $term ); ?></td>
+			<th scope="row"><?php esc_html_e( 'History', 'essfinance' ); ?></th>
+			<td><a href="<?php echo esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ); ?>"><?php esc_html_e( 'View history →', 'essfinance' ); ?></a></td>
 		</tr>
 		<?php
 	}
@@ -195,7 +223,7 @@ class ESSF_Bill_CPT {
 	 *
 	 * @param WP_Term $term
 	 */
-	private function render_history_table( WP_Term $term ): void {
+	public static function render_history_table( WP_Term $term ): void {
 		echo '<table class="widefat striped" style="max-width:400px;">';
 		echo '<thead><tr><th>' . esc_html__( 'Month', 'essfinance' ) . '</th><th>' . esc_html__( 'Amount', 'essfinance' ) . '</th><th>' . esc_html__( 'Status', 'essfinance' ) . '</th></tr></thead><tbody>';
 
@@ -238,10 +266,15 @@ class ESSF_Bill_CPT {
 	}
 
 	public function save_term_fields( int $term_id ): void {
-		if ( ! isset( $_POST['essf_bill_amount'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- created_/edited_{taxonomy} already gates on core's own add-tag/update-tag nonce
-			return;
+		$via_detection = null !== self::$detection_meta;
+		if ( $via_detection ) {
+			$post = self::$detection_meta;
+		} else {
+			if ( ! isset( $_POST['essf_bill_amount'] ) || ! current_user_can( 'manage_options' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- created_/edited_{taxonomy} already gates on core's own add-tag/update-tag nonce
+				return;
+			}
+			$post = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see above
 		}
-		$post = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- see above
 
 		$amount = abs( (float) $post['essf_bill_amount'] );
 		$is_inc = isset( $post['essf_bill_is_income'] ) && '1' === $post['essf_bill_is_income'];
@@ -317,6 +350,6 @@ class ESSF_Bill_CPT {
 		$amount   = (float) get_term_meta( $term->term_id, self::META_AMOUNT, true );
 		$category = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true ) ?: 'bills';
 
-		ESSF_CPT::insert_entry( $term->name, $amount, $due_date . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category );
+		ESSF_CPT::insert_entry( $term->name, $amount, $due_date . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category, get_current_user_id() );
 	}
 }

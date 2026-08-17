@@ -135,20 +135,28 @@ class ESSF_CPT {
 	}
 
 	/**
-	 * Shared insert path for any code that creates an `essf_cashflow` entry
-	 * outside the normal add/edit forms (bills, loans, financing). Mirrors
-	 * ESSF_Admin_Page::insert_entry() — writes post_date_gmt/post_modified_gmt
-	 * via a direct $wpdb->update() rather than wp_update_post(), since
-	 * WordPress doesn't reliably persist those two columns otherwise (see
-	 * CLAUDE.md).
+	 * Shared insert path for every genuine "new entry" creation — the
+	 * canonical/only place that writes post_date_gmt/post_modified_gmt via a
+	 * direct $wpdb->update() rather than wp_update_post(), since WordPress
+	 * doesn't reliably persist those two columns otherwise (see CLAUDE.md).
+	 * Also the single chokepoint that runs ESSF_Plan_Detector against every
+	 * new title, so a matching Bill/Loan/Financing plan gets created
+	 * automatically as soon as data that looks like one shows up — see
+	 * ESSF_Plan_Detector::detect_for_new_entry().
+	 *
+	 * @param int $author_id post_author (0 = unassigned, WordPress's own
+	 *                       default — the frontend passes the current user
+	 *                       so `[essfinance_cashflow]`'s per-user scoping
+	 *                       still works; admin/cron/CLI callers leave it 0).
 	 */
-	public static function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status, string $category_slug = 'uncategorized' ): int {
+	public static function insert_entry( string $title, float $amount, string $due_gmt, string $pay_gmt, string $status, string $category_slug = 'uncategorized', int $author_id = 0 ): int {
 		$post_id = wp_insert_post(
 			[
 				'post_type'    => 'essf_cashflow',
 				'post_title'   => $title,
 				'post_content' => (string) $amount,
 				'post_status'  => $status,
+				'post_author'  => $author_id,
 			],
 			true
 		);
@@ -174,6 +182,8 @@ class ESSF_CPT {
 			: ( '0000-00-00 00:00:00' !== $due_gmt ? substr( $due_gmt, 0, 10 ) : '' );
 		update_post_meta( $post_id, '_order_date', $order_date );
 		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category_slug ) ], ESSF_Category::TAXONOMY );
+
+		ESSF_Plan_Detector::detect_for_new_entry( $title );
 
 		return $post_id;
 	}
