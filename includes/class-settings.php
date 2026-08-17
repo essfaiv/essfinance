@@ -16,6 +16,7 @@ class ESSF_Settings {
 	const OPTION_POSITIVE_PREFIX  = 'essf_show_positive_prefix';
 	const OPTION_NEGATIVE_PREFIX  = 'essf_show_negative_prefix';
 	const OPTION_SHOW_TYPE_FILTER = 'essf_show_type_filter';
+	const OPTION_SHOW_TOTALS      = 'essf_show_totals';
 	const OPTION_CURRENCY         = 'essf_currency';
 	const OPTION_CURRENCY_POS     = 'essf_currency_pos';
 	const OPTION_THOUSANDS_SEP    = 'essf_thousands_sep';
@@ -396,6 +397,7 @@ class ESSF_Settings {
 			self::OPTION_POSITIVE_PREFIX  => true,
 			self::OPTION_NEGATIVE_PREFIX  => false,
 			self::OPTION_SHOW_TYPE_FILTER => false,
+			self::OPTION_SHOW_TOTALS      => true,
 		] as $option => $default ) {
 			register_setting(
 				'essf_settings',
@@ -415,6 +417,7 @@ class ESSF_Settings {
 		add_settings_field( self::OPTION_POSITIVE_PREFIX, __( 'Show positive prefix', 'essfinance' ), [ $this, 'field_positive_prefix' ], 'essf_settings', 'essf_display' );
 		add_settings_field( self::OPTION_NEGATIVE_PREFIX, __( 'Show negative prefix', 'essfinance' ), [ $this, 'field_negative_prefix' ], 'essf_settings', 'essf_display' );
 		add_settings_field( self::OPTION_SHOW_TYPE_FILTER, __( 'Show type filter', 'essfinance' ), [ $this, 'field_show_type_filter' ], 'essf_settings', 'essf_display' );
+		add_settings_field( self::OPTION_SHOW_TOTALS, __( 'Show balances', 'essfinance' ), [ $this, 'field_show_totals' ], 'essf_settings', 'essf_display' );
 
 		/* ── Currency options ── */
 		register_setting(
@@ -544,6 +547,16 @@ class ESSF_Settings {
 		<label>
 			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_SHOW_TYPE_FILTER ); ?>" value="1" <?php checked( $value ); ?>>
 			<?php esc_html_e( 'Show the Income/Expense filter dropdown above the entries list', 'essfinance' ); ?>
+		</label>
+		<?php
+	}
+
+	public function field_show_totals(): void {
+		$value = get_option( self::OPTION_SHOW_TOTALS, true );
+		?>
+		<label>
+			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_SHOW_TOTALS ); ?>" value="1" <?php checked( $value ); ?>>
+			<?php esc_html_e( 'Show balance/total cards above the entries list (admin and frontend)', 'essfinance' ); ?>
 		</label>
 		<?php
 	}
@@ -856,6 +869,10 @@ class ESSF_Settings {
 
 	public static function show_type_filter(): bool {
 		return (bool) get_option( self::OPTION_SHOW_TYPE_FILTER, false );
+	}
+
+	public static function show_totals(): bool {
+		return (bool) get_option( self::OPTION_SHOW_TOTALS, true );
 	}
 
 	public static function show_status_icons(): bool {

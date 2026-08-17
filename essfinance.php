@@ -42,11 +42,16 @@ require_once ESSF_PATH . 'includes/class-cpt.php';
 require_once ESSF_PATH . 'includes/class-category.php';
 require_once ESSF_PATH . 'includes/class-ofx-parser.php';
 require_once ESSF_PATH . 'includes/class-ofx-suggestions.php';
+require_once ESSF_PATH . 'includes/class-totals.php';
 require_once ESSF_PATH . 'includes/class-settings.php';
 require_once ESSF_PATH . 'includes/class-shortcodes.php';
+require_once ESSF_PATH . 'includes/class-bill.php';
+require_once ESSF_PATH . 'includes/class-loan.php';
+require_once ESSF_PATH . 'includes/class-financing.php';
 
 register_activation_hook( __FILE__, [ 'ESSF_CPT', 'activate' ] );
 register_activation_hook( __FILE__, [ 'ESSF_Category', 'activate' ] );
+register_deactivation_hook( __FILE__, [ 'ESSF_Bill_CPT', 'deactivate' ] );
 
 add_action( 'plugins_loaded', 'essf_boot' );
 
@@ -57,6 +62,9 @@ function essf_boot() {
 	new ESSF_CPT();
 	new ESSF_Category();
 	new ESSF_Shortcodes();
+	new ESSF_Bill_CPT();
+	new ESSF_Loan_CPT();
+	new ESSF_Financing_CPT();
 
 	if ( is_admin() ) {
 		require_once ESSF_PATH . 'includes/class-meta-boxes.php';

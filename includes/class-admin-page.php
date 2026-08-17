@@ -25,7 +25,7 @@ class ESSF_Admin_Page {
 	const EXCLUDED_MEMOS_LIMIT  = 300;
 
 	public function __construct() {
-		add_action( 'admin_menu', [ $this, 'register_menus' ] );
+		add_action( 'admin_menu', [ $this, 'register_menus' ], 5 );
 		add_action( 'current_screen', [ $this, 'register_screen_options' ] );
 		add_filter(
 			'set_screen_option_essf_entries_per_page',
@@ -53,6 +53,7 @@ class ESSF_Admin_Page {
 			3
 		);
 		add_action( 'admin_init', [ $this, 'process_bulk_actions' ] );
+		add_action( 'admin_init', [ $this, 'maybe_redirect_to_current_month' ] );
 		add_action( 'admin_post_essf_add', [ $this, 'handle_add' ] );
 		add_action( 'admin_post_essf_update', [ $this, 'handle_update' ] );
 		add_action( 'admin_post_essf_delete', [ $this, 'handle_delete' ] );
@@ -197,6 +198,29 @@ class ESSF_Admin_Page {
 			10,
 			2
 		);
+	}
+
+	/**
+	 * No explicit month filter (not even the "-1" = All months sentinel —
+	 * see ESSF_List_Table::render_months_dropdown()) means a bare/direct
+	 * visit (menu click, bookmark, typed URL) rather than a real filter
+	 * submission, so default it to the current month. Hooked on
+	 * `admin_init` — like process_bulk_actions() below — because by the
+	 * time render_dashboard() runs, wp-admin has already sent headers/HTML
+	 * and wp_safe_redirect() would silently fail. Skipped for sub-views of
+	 * this same page (edit entry, OFX review, import) that don't use the
+	 * month filter at all. The redirect target always carries `m`, so this
+	 * can't loop.
+	 */
+	public function maybe_redirect_to_current_month(): void {
+		if ( ! isset( $_REQUEST['page'] ) || 'essfinance' !== $_REQUEST['page'] ) {
+			return;
+		}
+		if ( isset( $_GET['m'] ) || isset( $_GET['entry'] ) || isset( $_GET['essf_review'] ) || isset( $_GET['essf_action'] ) ) {
+			return;
+		}
+		wp_safe_redirect( esc_url_raw( add_query_arg( 'm', current_time( 'Ym' ) ) ) );
+		exit;
 	}
 
 	/* ── Bulk actions ───────────────────────────────────── */
@@ -1420,6 +1444,32 @@ class ESSF_Admin_Page {
 
 	/* ── Pages ──────────────────────────────────────────── */
 
+	private function render_totals_summary( array $filtered ): void {
+		if ( ! ESSF_Settings::show_totals() ) {
+			return;
+		}
+		$global = ESSF_Totals::global_summary();
+
+		$cards = [
+			[ __( 'Filtered income', 'essfinance' ), $filtered['income'], 'is-positive' ],
+			[ __( 'Filtered expenses', 'essfinance' ), $filtered['expense'], 'is-negative' ],
+			[ __( 'Filtered net', 'essfinance' ), $filtered['net'], $filtered['net'] < 0 ? 'is-negative' : 'is-positive' ],
+			[ __( 'Pending balance', 'essfinance' ), $global['pending_balance'], $global['pending_balance'] < 0 ? 'is-negative' : 'is-positive' ],
+			[ __( 'Overdue total', 'essfinance' ), $global['overdue_total'], 'is-negative' ],
+			[ __( 'Paid this month', 'essfinance' ), $global['paid_this_month'], '' ],
+		];
+		?>
+		<div class="essf-summary">
+			<?php foreach ( $cards as list( $label, $amount, $cls ) ) : ?>
+				<div class="essf-summary__card">
+					<span class="essf-summary__label"><?php echo esc_html( $label ); ?></span>
+					<span class="essf-summary__value<?php echo $cls ? ' ' . esc_attr( $cls ) : ''; ?>"><?php echo esc_html( ESSF_Settings::format_amount( $amount ) ); ?></span>
+				</div>
+			<?php endforeach; ?>
+		</div>
+		<?php
+	}
+
 	public function render_dashboard(): void {
 		$msg = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
 
@@ -1471,6 +1521,8 @@ class ESSF_Admin_Page {
 				</div>
 				<div id="col-right">
 					<div class="col-wrap">
+						<?php $this->render_totals_summary( $table->get_filtered_totals() ); ?>
+
 						<?php $table->views(); ?>
 
 						<form id="essf-filter" method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
@@ -1956,7 +2008,7 @@ class ESSF_Admin_Page {
 				break;
 			case 'essf_due':
 				$d = substr( $post->post_date_gmt, 0, 10 );
-				echo ( $d && '0000-00-00' !== $d ) ? esc_html( (string) date_i18n( 'd/m/Y', strtotime( $d ) ) ) : '—';
+				echo ( $d && '0000-00-00' !== $d ) ? esc_html( (string) date_i18n( get_option( 'date_format' ), strtotime( $d ) ) ) : '—';
 				break;
 			case 'essf_status':
 				$s = $post->post_status;

@@ -17,6 +17,9 @@ class ESSF_List_Table extends WP_List_Table {
 	/* @var string */
 	private $page_url;
 
+	/* @var array|null */
+	private $filtered_totals = null;
+
 	public function __construct() {
 		parent::__construct(
 			[
@@ -186,7 +189,7 @@ class ESSF_List_Table extends WP_List_Table {
 		?>
 		<label for="m" class="screen-reader-text"><?php esc_html_e( 'Filter by month', 'essfinance' ); ?></label>
 		<select name="m" id="m">
-			<option value=""><?php esc_html_e( 'All months', 'essfinance' ); ?></option>
+			<option value="-1" <?php selected( in_array( $current, [ '', '-1' ], true ) ); ?>><?php esc_html_e( 'All months', 'essfinance' ); ?></option>
 			<?php foreach ( $months as $ym => $label ) : ?>
 				<option value="<?php echo esc_attr( $ym ); ?>" <?php selected( $current, $ym ); ?>>
 					<?php echo esc_html( $label ); ?>
@@ -244,10 +247,13 @@ class ESSF_List_Table extends WP_List_Table {
 		$status_filter = isset( $_REQUEST['essf_status'] ) ? sanitize_key( $_REQUEST['essf_status'] ) : '';
 		$type_filter   = isset( $_REQUEST['essf_type'] ) ? sanitize_key( $_REQUEST['essf_type'] ) : '';
 		$month_filter  = isset( $_REQUEST['m'] ) ? sanitize_key( $_REQUEST['m'] ) : '';
-		$cat_filter    = isset( $_REQUEST['category_name'] ) ? sanitize_key( $_REQUEST['category_name'] ) : '';
-		$orderby       = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : '';
-		$order         = isset( $_REQUEST['order'] ) && 'asc' === strtolower( sanitize_key( $_REQUEST['order'] ) ) ? 'ASC' : 'DESC';
-		$today         = (string) date_i18n( 'Y-m-d' );
+		if ( '-1' === $month_filter ) {
+			$month_filter = ''; // "-1" is the explicit "All months" sentinel — treat like unset.
+		}
+		$cat_filter = isset( $_REQUEST['category_name'] ) ? sanitize_key( $_REQUEST['category_name'] ) : '';
+		$orderby    = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : '';
+		$order      = isset( $_REQUEST['order'] ) && 'asc' === strtolower( sanitize_key( $_REQUEST['order'] ) ) ? 'ASC' : 'DESC';
+		$today      = (string) date_i18n( 'Y-m-d' );
 
 		if ( 'overdue' === $status_filter ) {
 			$post_statuses = [ 'pending' ];
@@ -306,6 +312,10 @@ class ESSF_List_Table extends WP_List_Table {
 		$query = new WP_Query( $args );
 		$posts = $query->posts;
 
+		if ( ! ( $type_filter || $month_filter ) ) {
+			$this->filtered_totals = ESSF_Totals::compute_from_args( $args );
+		}
+
 		if ( $type_filter || $month_filter ) {
 			if ( $type_filter ) {
 				$posts = array_values(
@@ -335,6 +345,8 @@ class ESSF_List_Table extends WP_List_Table {
 					)
 				);
 			}
+			$this->filtered_totals = ESSF_Totals::compute_from_posts( $posts );
+
 			$total  = count( $posts );
 			$offset = ( $current_page - 1 ) * $per_page;
 			$posts  = array_slice( $posts, $offset, $per_page );
@@ -357,6 +369,19 @@ class ESSF_List_Table extends WP_List_Table {
 			get_hidden_columns( $this->screen ),
 			$this->get_sortable_columns(),
 			$this->get_default_primary_column_name(),
+		];
+	}
+
+	/**
+	 * Income/expense/net totals for the currently active filters. Only
+	 * meaningful after prepare_items() has run.
+	 */
+	public function get_filtered_totals(): array {
+		return $this->filtered_totals ?? [
+			'income'  => 0.0,
+			'expense' => 0.0,
+			'net'     => 0.0,
+			'count'   => 0,
 		];
 	}
 
@@ -466,10 +491,10 @@ class ESSF_List_Table extends WP_List_Table {
 		$due = substr( $item->post_date_gmt, 0, 10 );
 
 		if ( $pay && '0000-00-00' !== $pay ) {
-			return esc_html( (string) date_i18n( 'd/m/Y', strtotime( $pay ) ) );
+			return esc_html( (string) date_i18n( get_option( 'date_format' ), strtotime( $pay ) ) );
 		}
 		if ( $due && '0000-00-00' !== $due ) {
-			return esc_html( (string) date_i18n( 'd/m/Y', strtotime( $due ) ) );
+			return esc_html( (string) date_i18n( get_option( 'date_format' ), strtotime( $due ) ) );
 		}
 		return '—';
 	}

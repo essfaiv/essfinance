@@ -477,6 +477,13 @@ class ESSF_Shortcodes {
 		.essf-remember { display: flex; justify-content: space-between; align-items: center; }
 		/* Account */
 		.essf-account p { display: flex; gap: 10px; }
+		/* Balance/total cards */
+		.essf-summary { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; }
+		.essf-summary__card { background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 12px 18px; min-width: 130px; display: flex; flex-direction: column; gap: 4px; }
+		.essf-summary__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+		.essf-summary__value { font-size: 20px; font-weight: 700; color: #2c3338; line-height: 1; }
+		.essf-summary__value.is-positive { color: #27ae60; }
+		.essf-summary__value.is-negative { color: #c0392b; }
 		/* Cash Flow list */
 		.essf-toolbar-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
 		.essf-toolbar-left, .essf-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -781,6 +788,11 @@ class ESSF_Shortcodes {
 
 		$total_count = $needs_php_filter ? count( $entries ) : $query->found_posts;
 		$months      = $this->get_due_date_months();
+
+		$filtered_totals = $needs_php_filter
+			? ESSF_Totals::compute_from_posts( $entries )
+			: ESSF_Totals::compute_from_args( $query_args );
+		$global_totals   = ESSF_Totals::global_summary( get_current_user_id() );
 		?>
 		<?php
 		$show_badge      = ESSF_Settings::show_status_badge();
@@ -799,6 +811,27 @@ class ESSF_Shortcodes {
 			<?php if ( $imported >= 0 ) : ?>
 				<?php // translators: %d is the number of imported entries. ?>
 				<div class="essf-notice essf-success"><?php echo esc_html( sprintf( _n( '%d entry imported.', '%d entries imported.', $imported, 'essfinance' ), $imported ) ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( ESSF_Settings::show_totals() ) : ?>
+				<?php
+				$summary_cards = [
+					[ __( 'Filtered income', 'essfinance' ), $filtered_totals['income'], 'is-positive' ],
+					[ __( 'Filtered expenses', 'essfinance' ), $filtered_totals['expense'], 'is-negative' ],
+					[ __( 'Filtered net', 'essfinance' ), $filtered_totals['net'], $filtered_totals['net'] < 0 ? 'is-negative' : 'is-positive' ],
+					[ __( 'Pending balance', 'essfinance' ), $global_totals['pending_balance'], $global_totals['pending_balance'] < 0 ? 'is-negative' : 'is-positive' ],
+					[ __( 'Overdue total', 'essfinance' ), $global_totals['overdue_total'], 'is-negative' ],
+					[ __( 'Paid this month', 'essfinance' ), $global_totals['paid_this_month'], '' ],
+				];
+				?>
+				<div class="essf-summary">
+					<?php foreach ( $summary_cards as list( $label, $amount, $cls ) ) : ?>
+						<div class="essf-summary__card">
+							<span class="essf-summary__label"><?php echo esc_html( $label ); ?></span>
+							<span class="essf-summary__value<?php echo $cls ? ' ' . esc_attr( $cls ) : ''; ?>"><?php echo esc_html( ESSF_Settings::format_amount( $amount ) ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
 			<?php endif; ?>
 
 			<div class="essf-toolbar-row essf-toolbar-row1">
