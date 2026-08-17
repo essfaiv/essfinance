@@ -454,6 +454,8 @@ class ESSF_Admin_Page {
 			exit;
 		}
 
+		ESSF_CPT::save_adjustment_meta( $post_id, (float) $data['amount'], $data['discount'], $data['surcharge'] );
+
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'added', admin_url( 'admin.php?page=essfinance' ) ) );
 		exit;
 	}
@@ -491,6 +493,7 @@ class ESSF_Admin_Page {
 
 		update_post_meta( $post_id, '_order_date', $data['order_date'] );
 		wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $data['category'] ) ], ESSF_Category::TAXONOMY );
+		ESSF_CPT::save_adjustment_meta( $post_id, (float) $data['amount'], $data['discount'], $data['surcharge'] );
 
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'updated', admin_url( 'admin.php?page=essfinance' ) ) );
 		exit;
@@ -1672,7 +1675,10 @@ class ESSF_Admin_Page {
 			? substr( $pay_gmt, 0, 10 )
 			: ( '0000-00-00 00:00:00' !== $due_gmt ? substr( $due_gmt, 0, 10 ) : '' );
 
-		return compact( 'title', 'amount', 'is_income', 'due_gmt', 'pay_gmt', 'status', 'order_date', 'category' );
+		$discount  = abs( (float) wp_unslash( $post['essf_discount'] ?? 0 ) );
+		$surcharge = abs( (float) wp_unslash( $post['essf_surcharge'] ?? 0 ) );
+
+		return compact( 'title', 'amount', 'is_income', 'due_gmt', 'pay_gmt', 'status', 'order_date', 'category', 'discount', 'surcharge' );
 	}
 
 	/* ── Pages ──────────────────────────────────────────── */
@@ -2222,6 +2228,8 @@ class ESSF_Admin_Page {
 
 		$description = $due_date = $pay_date = $status = '';
 		$amount      = '';
+		$discount    = '';
+		$surcharge   = '';
 		$is_income   = false;
 		// A new entry defaults to the Auto-categorize sentinel rather than a
 		// real term, so it doesn't need normalize_slug() below.
@@ -2241,6 +2249,11 @@ class ESSF_Admin_Page {
 
 			$entry_terms = wp_get_post_terms( $entry->ID, ESSF_Category::TAXONOMY, [ 'fields' => 'slugs' ] );
 			$category    = $entry_terms[0] ?? $category; // every entry has exactly one category, so this always resolves
+
+			$discount_val  = (float) get_post_meta( $entry->ID, ESSF_CPT::META_DISCOUNT, true );
+			$surcharge_val = (float) get_post_meta( $entry->ID, ESSF_CPT::META_SURCHARGE, true );
+			$discount      = $discount_val ? (string) $discount_val : '';
+			$surcharge     = $surcharge_val ? (string) $surcharge_val : '';
 		}
 
 		if ( 'pay_date' === $focus ) {
@@ -2294,6 +2307,40 @@ class ESSF_Admin_Page {
 						<?php esc_html_e( 'Income', 'essfinance' ); ?>
 					</label>
 				</div>
+
+				<div class="form-field essf-field-row--amount">
+					<div class="essf-field--amount-wrap">
+						<label for="essf_discount"><?php esc_html_e( 'Discount', 'essfinance' ); ?></label>
+						<input type="number" id="essf_discount" name="essf_discount"
+							value="<?php echo esc_attr( $discount ); ?>"
+							step="0.01" min="0" placeholder="0.00" class="widefat">
+					</div>
+					<div class="essf-field--amount-wrap">
+						<label for="essf_surcharge"><?php esc_html_e( 'Surcharge (interest & penalty)', 'essfinance' ); ?></label>
+						<input type="number" id="essf_surcharge" name="essf_surcharge"
+							value="<?php echo esc_attr( $surcharge ); ?>"
+							step="0.01" min="0" placeholder="0.00" class="widefat">
+					</div>
+				</div>
+				<p class="description" id="essf_base_amount_hint"></p>
+				<script>
+				( function () {
+					var amt  = document.getElementById( 'essf_amount' );
+					var disc = document.getElementById( 'essf_discount' );
+					var surc = document.getElementById( 'essf_surcharge' );
+					var hint = document.getElementById( 'essf_base_amount_hint' );
+					if ( ! amt || ! disc || ! surc || ! hint ) { return; }
+					function update() {
+						var d = parseFloat( disc.value ) || 0;
+						var s = parseFloat( surc.value ) || 0;
+						if ( ! d && ! s ) { hint.textContent = ''; return; }
+						var a = parseFloat( amt.value ) || 0;
+						hint.textContent = <?php echo wp_json_encode( __( 'Base amount:', 'essfinance' ) ); ?> + ' ' + ( a + d - s ).toFixed( 2 );
+					}
+					[ amt, disc, surc ].forEach( function ( el ) { el.addEventListener( 'input', update ); } );
+					update();
+				} )();
+				</script>
 
 				<div class="form-field">
 					<label for="essf_status"><?php esc_html_e( 'Status', 'essfinance' ); ?></label>

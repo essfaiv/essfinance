@@ -188,6 +188,48 @@ class ESSF_CPT {
 		return $post_id;
 	}
 
+	/** Signed base amount, ad hoc — see save_adjustment_meta(). */
+	const META_BASE_AMOUNT = '_essf_base_amount';
+	/** Unsigned discount, ad hoc — see save_adjustment_meta(). */
+	const META_DISCOUNT = '_essf_discount';
+	/** Unsigned surcharge (interest/penalty), ad hoc — see save_adjustment_meta(). */
+	const META_SURCHARGE = '_essf_surcharge';
+
+	/**
+	 * Records (or clears) a discount/surcharge breakdown for an entry —
+	 * shared by admin and frontend Add/Edit Entry handlers, boleto-style
+	 * (base + surcharge − discount = amount, i.e. base = amount − surcharge +
+	 * discount). Only written when there's an actual adjustment; a plain
+	 * entry keeps zero footprint from this — base_amount() below treats
+	 * "no meta" as "base == amount".
+	 */
+	public static function save_adjustment_meta( int $post_id, float $amount, float $discount, float $surcharge ): void {
+		$discount  = abs( $discount );
+		$surcharge = abs( $surcharge );
+		if ( $discount > 0 || $surcharge > 0 ) {
+			$sign = $amount >= 0 ? 1 : -1;
+			$base = $sign * ( abs( $amount ) + $discount - $surcharge );
+			update_post_meta( $post_id, self::META_BASE_AMOUNT, $base );
+			update_post_meta( $post_id, self::META_DISCOUNT, $discount );
+			update_post_meta( $post_id, self::META_SURCHARGE, $surcharge );
+		} else {
+			delete_post_meta( $post_id, self::META_BASE_AMOUNT );
+			delete_post_meta( $post_id, self::META_DISCOUNT );
+			delete_post_meta( $post_id, self::META_SURCHARGE );
+		}
+	}
+
+	/**
+	 * An entry's base amount (before discount/surcharge) — falls back to the
+	 * full amount when no adjustment was ever recorded for it. Used by
+	 * ESSF_Financing_CPT to keep amortization-progression math clean of
+	 * late-fee noise.
+	 */
+	public static function base_amount( WP_Post $post ): float {
+		$base = get_post_meta( $post->ID, self::META_BASE_AMOUNT, true );
+		return '' !== $base ? (float) $base : (float) $post->post_content;
+	}
+
 	/**
 	 * `essf_cashflow` entries whose description matches `$title` exactly
 	 * (WP_Query's `title` param does a real `post_title = %s` match, not a

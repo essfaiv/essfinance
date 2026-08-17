@@ -39,6 +39,16 @@ class ESSF_Financing_CPT {
 	const META_INTERVAL_COUNT = '_essf_financing_interval_count';
 	const META_START          = '_essf_financing_start_date';
 	const META_CATEGORY       = '_essf_financing_category';
+	/** 'fixed' (default, total/n every installment) | 'amortization' (declining — see compute_step()). */
+	const META_SCHEDULE_TYPE = '_essf_financing_schedule_type';
+	/**
+	 * Nominal annual interest rate (%), amortization mode only — optional
+	 * SAC-formula fallback (see sac_amount()) for when there aren't yet 2
+	 * real installments to calculate compute_step() from. META_TOTAL is
+	 * read as the financed principal when this is set (not "sum of all
+	 * installments" — for an amortized loan those aren't the same number).
+	 */
+	const META_INTEREST_RATE = '_essf_financing_interest_rate';
 
 	/**
 	 * Set only for the duration of create_term_from_detection() — lets
@@ -159,6 +169,15 @@ class ESSF_Financing_CPT {
 			<label for="essf_financing_category"><?php esc_html_e( 'Category', 'essfinance' ); ?></label>
 			<?php $this->render_category_select( '' ); ?>
 		</div>
+		<div class="form-field">
+			<label for="essf_financing_schedule_type"><?php esc_html_e( 'Installment type', 'essfinance' ); ?></label>
+			<?php $this->render_schedule_type_select( 'fixed' ); ?>
+		</div>
+		<div class="form-field">
+			<label for="essf_financing_interest_rate"><?php esc_html_e( 'Nominal annual interest rate, % (amortization mode only)', 'essfinance' ); ?></label>
+			<input type="number" step="0.0001" min="0" name="essf_financing_interest_rate" id="essf_financing_interest_rate" value="0">
+			<p><?php esc_html_e( 'Used to estimate SAC-style declining installments (Total amount = financed principal) until enough real installments exist to calculate the trend from actual data instead.', 'essfinance' ); ?></p>
+		</div>
 		<?php
 	}
 
@@ -198,6 +217,52 @@ class ESSF_Financing_CPT {
 			<td><?php $this->render_category_select( $category ); ?></td>
 		</tr>
 		<tr class="form-field">
+			<th scope="row"><label for="essf_financing_interest_rate"><?php esc_html_e( 'Nominal annual interest rate, % (amortization mode only)', 'essfinance' ); ?></label></th>
+			<td>
+				<input type="number" step="0.0001" min="0" name="essf_financing_interest_rate" id="essf_financing_interest_rate" value="<?php echo esc_attr( (string) ( (float) get_term_meta( $term->term_id, self::META_INTEREST_RATE, true ) ) ); ?>">
+				<p class="description"><?php esc_html_e( 'Used to estimate SAC-style declining installments (Total amount above = financed principal) until enough real installments exist to calculate the trend from actual data instead.', 'essfinance' ); ?></p>
+			</td>
+		</tr>
+		<tr class="form-field">
+			<th scope="row"><label for="essf_financing_schedule_type"><?php esc_html_e( 'Installment type', 'essfinance' ); ?></label></th>
+			<td>
+				<?php
+				$schedule_type = (string) get_term_meta( $term->term_id, self::META_SCHEDULE_TYPE, true ) ?: 'fixed';
+				$rate          = (float) get_term_meta( $term->term_id, self::META_INTEREST_RATE, true );
+				$this->render_schedule_type_select( $schedule_type );
+				if ( 'amortization' === $schedule_type ) :
+					$step = self::compute_step( self::materialized_map( $term, $n ) );
+					if ( null !== $step ) :
+						// $step is signed math (post_content convention: expense
+						// entries are negative) — for display, flip it by the
+						// plan's own sign so "-R$5" always reads as "installments
+						// getting smaller", regardless of income vs expense.
+						$human_step = ( $total < 0 ? -1 : 1 ) * $step;
+						?>
+						<p class="description">
+							<?php
+							printf(
+								/* translators: %s: change in installment size per period, e.g. "-R$0.19" means installments are getting smaller. */
+								esc_html__( 'Step: %s per installment (calculated from the two most recent real installments).', 'essfinance' ),
+								esc_html( ( $human_step < 0 ? '-' : '+' ) . ESSF_Settings::format_amount( $human_step ) )
+							);
+							?>
+						</p>
+						<?php
+					elseif ( $rate > 0 ) :
+						?>
+						<p class="description"><?php esc_html_e( 'Not enough real installments yet to calculate the trend from actual data — estimating with the SAC formula from the principal/rate above for now. This won\'t exactly match the bank (monetary correction, insurance and fees aren\'t modeled) but is closer than a flat average.', 'essfinance' ); ?></p>
+						<?php
+					else :
+						?>
+						<p class="description"><?php esc_html_e( 'Not enough real installments yet to calculate the progression, and no interest rate set — using a flat estimate for now.', 'essfinance' ); ?></p>
+						<?php
+					endif;
+				endif;
+				?>
+			</td>
+		</tr>
+		<tr class="form-field">
 			<th scope="row"><?php esc_html_e( 'Installments', 'essfinance' ); ?></th>
 			<td><a href="<?php echo esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ); ?>"><?php esc_html_e( 'View installments →', 'essfinance' ); ?></a></td>
 		</tr>
@@ -226,17 +291,33 @@ class ESSF_Financing_CPT {
 		echo '</select>';
 	}
 
-	/** Reads term meta and renders the full virtual+real installments table — used by ESSF_Recurrence_Entries_Page. */
-	public static function render_installments_table_for_term( WP_Term $term ): void {
-		$total = (float) get_term_meta( $term->term_id, self::META_TOTAL, true );
-		$n     = (int) get_term_meta( $term->term_id, self::META_INSTALLMENTS, true ) ?: 1;
-		$unit  = (string) get_term_meta( $term->term_id, self::META_INTERVAL_UNIT, true ) ?: 'month';
-		$count = (int) get_term_meta( $term->term_id, self::META_INTERVAL_COUNT, true ) ?: 1;
-		$start = (string) get_term_meta( $term->term_id, self::META_START, true ) ?: current_time( 'Y-m-d' );
-		self::render_installments_table( $term, $total, $n, $unit, $count, $start );
+	private function render_schedule_type_select( string $selected ): void {
+		$types = [
+			'fixed'        => __( 'Fixed (same amount every installment)', 'essfinance' ),
+			'amortization' => __( 'Amortization (decreasing — calculated automatically once 2+ real installments exist)', 'essfinance' ),
+		];
+		echo '<select name="essf_financing_schedule_type" id="essf_financing_schedule_type">';
+		foreach ( $types as $value => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $selected, $value, false ), esc_html( $label ) );
+		}
+		echo '</select>';
 	}
 
-	private static function render_installments_table( WP_Term $term, float $total, int $n, string $unit, int $count, string $start ): void {
+	/** Reads term meta and renders the full virtual+real installments table — used by ESSF_Recurrence_Entries_Page. */
+	public static function render_installments_table_for_term( WP_Term $term ): void {
+		$total         = (float) get_term_meta( $term->term_id, self::META_TOTAL, true );
+		$n             = (int) get_term_meta( $term->term_id, self::META_INSTALLMENTS, true ) ?: 1;
+		$unit          = (string) get_term_meta( $term->term_id, self::META_INTERVAL_UNIT, true ) ?: 'month';
+		$count         = (int) get_term_meta( $term->term_id, self::META_INTERVAL_COUNT, true ) ?: 1;
+		$start         = (string) get_term_meta( $term->term_id, self::META_START, true ) ?: current_time( 'Y-m-d' );
+		$schedule_type = (string) get_term_meta( $term->term_id, self::META_SCHEDULE_TYPE, true ) ?: 'fixed';
+		$rate          = (float) get_term_meta( $term->term_id, self::META_INTEREST_RATE, true );
+		self::render_installments_table( $term, $total, $n, $unit, $count, $start, $schedule_type, $rate );
+	}
+
+	private static function render_installments_table( WP_Term $term, float $total, int $n, string $unit, int $count, string $start, string $schedule_type = 'fixed', float $rate = 0.0 ): void {
+		$map  = self::materialized_map( $term, $n );
+		$step = 'amortization' === $schedule_type ? self::compute_step( $map ) : null;
 		?>
 		<table class="widefat striped" style="max-width:600px;">
 			<thead>
@@ -250,10 +331,9 @@ class ESSF_Financing_CPT {
 			<tbody>
 			<?php for ( $i = 1; $i <= $n; $i++ ) : ?>
 				<?php
-				$due     = self::installment_due_date( $unit, $count, $start, $i );
-				$matches = ESSF_CPT::find_entries_by_title( self::installment_title( $term->name, $i, $n ) );
-				if ( $matches ) {
-					$entry  = $matches[0];
+				$due = self::installment_due_date( $unit, $count, $start, $i );
+				if ( isset( $map[ $i ] ) ) {
+					$entry  = $map[ $i ];
 					$amount = (float) $entry->post_content;
 					$status = ESSF_CPT::status_label( $entry->post_status );
 					$link   = add_query_arg(
@@ -272,7 +352,7 @@ class ESSF_Financing_CPT {
 					</tr>
 					<?php
 				} else {
-					$amount = self::installment_amount( $total, $i, $n );
+					$amount = self::projected_amount( $total, $i, $n, $map, $step, $rate );
 					?>
 					<tr style="color:#787c82;">
 						<td><?php echo esc_html( (string) $i ); ?></td>
@@ -287,6 +367,86 @@ class ESSF_Financing_CPT {
 			</tbody>
 		</table>
 		<?php
+	}
+
+	/**
+	 * All installments of a plan that already exist as real `essf_cashflow`
+	 * entries, keyed by index — single query pass reused by rendering,
+	 * materialization, and the step calculation below (each of those used to
+	 * loop and re-query independently).
+	 *
+	 * @return array<int, WP_Post>
+	 */
+	private static function materialized_map( WP_Term $term, int $n ): array {
+		$map = [];
+		for ( $i = 1; $i <= $n; $i++ ) {
+			$matches = ESSF_CPT::find_entries_by_title( self::installment_title( $term->name, $i, $n ) );
+			if ( $matches ) {
+				$map[ $i ] = $matches[0];
+			}
+		}
+		return $map;
+	}
+
+	/**
+	 * The constant per-installment change (an arithmetic progression — what
+	 * a SAC-style declining schedule produces) between the two most recent
+	 * real installments, read from each entry's *base* amount
+	 * (ESSF_CPT::base_amount() — discount/surcharge already stripped out, so
+	 * a late fee on one installment doesn't throw off the trend). Null when
+	 * fewer than 2 real installments exist yet — nothing to extrapolate
+	 * from, callers fall back to a flat installment_amount() split.
+	 */
+	private static function compute_step( array $map ): ?float {
+		if ( count( $map ) < 2 ) {
+			return null;
+		}
+		$indices = array_keys( $map );
+		sort( $indices );
+		$high = $indices[ count( $indices ) - 1 ];
+		$low  = $indices[ count( $indices ) - 2 ];
+		return ( ESSF_CPT::base_amount( $map[ $high ] ) - ESSF_CPT::base_amount( $map[ $low ] ) ) / ( $high - $low );
+	}
+
+	/**
+	 * Amount for a not-yet-materialized installment, in priority order:
+	 * (1) extrapolated from the most recent real installment's base amount
+	 * via $step, once 2+ real installments exist; (2) the SAC formula
+	 * (sac_amount()) when an interest rate is configured — a reasonable
+	 * starting estimate before there's enough real data for (1); (3) the
+	 * flat total/n split (installment_amount()), same as a `fixed` plan.
+	 * Used for both "Projected" display rows and the next real
+	 * materialization.
+	 */
+	private static function projected_amount( float $total, int $index, int $n, array $map, ?float $step, float $rate = 0.0 ): float {
+		if ( null !== $step && $map ) {
+			$ref_index = max( array_keys( $map ) );
+			$ref_base  = ESSF_CPT::base_amount( $map[ $ref_index ] );
+			return round( $ref_base + $step * ( $index - $ref_index ), 2 );
+		}
+		if ( $rate > 0 ) {
+			return self::sac_amount( $total, $n, $rate, $index );
+		}
+		return self::installment_amount( $total, $index, $n );
+	}
+
+	/**
+	 * Standard SAC (Sistema de Amortização Constante) installment: constant
+	 * amortization plus interest on the remaining balance — what actually
+	 * produces a declining schedule. Approximate only: real contracts often
+	 * apply monthly monetary correction (TR/IPCA) to the balance, plus
+	 * insurance/admin fees, none of which this models — it's meant as a
+	 * starting estimate before enough real installments exist for
+	 * compute_step() to take over and self-correct from what the bank
+	 * actually charges.
+	 */
+	public static function sac_amount( float $principal, int $n, float $annual_rate_pct, int $index ): float {
+		$sign          = $principal < 0 ? -1 : 1;
+		$abs_principal = abs( $principal );
+		$amortization  = $abs_principal / $n;
+		$monthly_rate  = $annual_rate_pct / 100 / 12;
+		$balance       = $abs_principal - $amortization * ( $index - 1 );
+		return $sign * round( $amortization + $balance * $monthly_rate, 2 );
 	}
 
 	/**
@@ -327,6 +487,12 @@ class ESSF_Financing_CPT {
 		$category = isset( $post['essf_financing_category'] ) ? sanitize_key( $post['essf_financing_category'] ) : 'uncategorized';
 		update_term_meta( $term_id, self::META_CATEGORY, $category );
 
+		$schedule_type = isset( $post['essf_financing_schedule_type'] ) ? sanitize_key( $post['essf_financing_schedule_type'] ) : 'fixed';
+		update_term_meta( $term_id, self::META_SCHEDULE_TYPE, in_array( $schedule_type, [ 'fixed', 'amortization' ], true ) ? $schedule_type : 'fixed' );
+
+		$rate = max( 0.0, (float) ( $post['essf_financing_interest_rate'] ?? 0 ) );
+		update_term_meta( $term_id, self::META_INTEREST_RATE, $rate );
+
 		$term = get_term( $term_id, self::TAXONOMY );
 		if ( $term && ! is_wp_error( $term ) ) {
 			$this->maybe_materialize_next( $term );
@@ -358,6 +524,13 @@ class ESSF_Financing_CPT {
 	 * find_entries_by_title() — the "i/N" suffix already baked into each
 	 * installment's title (see installment_title()) is exclusive enough per
 	 * plan, no stored index.
+	 *
+	 * Always the index right after the highest already-real one (or 1, if
+	 * none exist yet) — never an earlier gap. A plan whose first known real
+	 * installment starts mid-sequence (e.g. auto-detected from a mortgage
+	 * already 56 payments in) must never have this silently backfill 1-55 as
+	 * fake new "pending" entries — those predate tracking, they're not
+	 * missing.
 	 */
 	private function maybe_materialize_next( WP_Term $term ): void {
 		$n = (int) get_term_meta( $term->term_id, self::META_INSTALLMENTS, true );
@@ -365,14 +538,10 @@ class ESSF_Financing_CPT {
 			return;
 		}
 
-		$next_index = 0;
-		for ( $i = 1; $i <= $n; $i++ ) {
-			if ( ! ESSF_CPT::find_entries_by_title( self::installment_title( $term->name, $i, $n ) ) ) {
-				$next_index = $i;
-				break;
-			}
-		}
-		if ( ! $next_index ) {
+		$map = self::materialized_map( $term, $n );
+
+		$next_index = $map ? max( array_keys( $map ) ) + 1 : 1;
+		if ( $next_index > $n ) {
 			return; // All installments already materialized.
 		}
 
@@ -385,9 +554,12 @@ class ESSF_Financing_CPT {
 			return; // Not due yet — stays virtual.
 		}
 
-		$total    = (float) get_term_meta( $term->term_id, self::META_TOTAL, true );
-		$amount   = self::installment_amount( $total, $next_index, $n );
-		$category = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true ) ?: 'uncategorized';
+		$total         = (float) get_term_meta( $term->term_id, self::META_TOTAL, true );
+		$schedule_type = (string) get_term_meta( $term->term_id, self::META_SCHEDULE_TYPE, true ) ?: 'fixed';
+		$rate          = (float) get_term_meta( $term->term_id, self::META_INTEREST_RATE, true );
+		$step          = 'amortization' === $schedule_type ? self::compute_step( $map ) : null;
+		$amount        = self::projected_amount( $total, $next_index, $n, $map, $step, $rate );
+		$category      = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true ) ?: 'uncategorized';
 
 		ESSF_CPT::insert_entry( self::installment_title( $term->name, $next_index, $n ), $amount, $due_date . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category, get_current_user_id() );
 	}
@@ -420,6 +592,11 @@ class ESSF_Financing_CPT {
 	 * The next `$count` installment indices (1-based) not yet materialized
 	 * for this plan, in order — used by the split-into-installments tool
 	 * (ESSF_Admin_Page) to know which slots a lump-sum entry should become.
+	 * Always counts forward from the highest already-real index (or 1, for a
+	 * plan with no real installments yet) — never offers an earlier gap. A
+	 * plan whose first known real installment is mid-sequence (e.g. an
+	 * auto-detected mortgage already 56 payments in) has no record of
+	 * installments 1-55 on purpose — they predate tracking, not "missing".
 	 *
 	 * @return int[]
 	 */
@@ -428,14 +605,10 @@ class ESSF_Financing_CPT {
 		if ( $n < 1 ) {
 			return [];
 		}
-		$found     = [];
-		$found_cnt = 0;
-		for ( $i = 1; $i <= $n && $found_cnt < $count; $i++ ) {
-			if ( ! ESSF_CPT::find_entries_by_title( self::installment_title( $term->name, $i, $n ) ) ) {
-				$found[] = $i;
-				++$found_cnt;
-			}
-		}
-		return $found;
+		$map        = self::materialized_map( $term, $n );
+		$next_index = $map ? max( array_keys( $map ) ) + 1 : 1;
+		$end        = min( $n, $next_index + $count - 1 );
+
+		return $next_index <= $end ? range( $next_index, $end ) : [];
 	}
 }

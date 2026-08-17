@@ -187,6 +187,8 @@ class ESSF_Shortcodes {
 		$status      = array_key_exists( $status_raw, ESSF_CPT::labels() ) ? $status_raw : 'pending';
 		$due_raw     = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
 		$pay_raw     = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
+		$discount    = abs( (float) str_replace( ',', '.', wp_unslash( $_POST['essf_discount'] ?? '0' ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cast to float immediately; value is never output
+		$surcharge   = abs( (float) str_replace( ',', '.', wp_unslash( $_POST['essf_surcharge'] ?? '0' ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cast to float immediately; value is never output
 		$category    = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
 		if ( ESSF_Category::AUTO_SLUG === $category ) {
 			$category = ESSF_Category::guess_slug( $description, ESSF_Category::category_glossary_history() );
@@ -234,10 +236,14 @@ class ESSF_Shortcodes {
 			$order_date = '0000-00-00 00:00:00' !== $pay_gmt ? $pay_gmt : $due_gmt;
 			update_post_meta( $post_id, '_order_date', substr( $order_date, 0, 10 ) );
 			wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $category ) ], ESSF_Category::TAXONOMY );
+			ESSF_CPT::save_adjustment_meta( $post_id, $amount, $discount, $surcharge );
 
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'updated', self::get_cashflow_url() ) );
 		} else {
-			ESSF_CPT::insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status, $category, get_current_user_id() );
+			$new_post_id = ESSF_CPT::insert_entry( $description, $amount, $due_gmt, $pay_gmt, $status, $category, get_current_user_id() );
+			if ( $new_post_id ) {
+				ESSF_CPT::save_adjustment_meta( $new_post_id, $amount, $discount, $surcharge );
+			}
 
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'added', self::get_cashflow_url() ) );
 		}
@@ -1092,6 +1098,9 @@ class ESSF_Shortcodes {
 			$cat_val     = $entry_terms[0] ?? $cat_val;
 		}
 
+		$discount_val  = $entry ? (float) get_post_meta( $entry->ID, ESSF_CPT::META_DISCOUNT, true ) : 0;
+		$surcharge_val = $entry ? (float) get_post_meta( $entry->ID, ESSF_CPT::META_SURCHARGE, true ) : 0;
+
 		if ( 'pay_date' === $focus ) {
 			$pay_val    = gmdate( 'Y-m-d' );
 			$status_val = 'paid';
@@ -1120,6 +1129,12 @@ class ESSF_Shortcodes {
 						<input type="checkbox" name="essf_is_income" value="1"<?php checked( 'income', $type_val ); ?>>
 						<?php esc_html_e( 'Income', 'essfinance' ); ?>
 					</label>
+				</div>
+				<div class="essf-field-row-amount">
+					<p><label><?php esc_html_e( 'Discount', 'essfinance' ); ?><br>
+					<input type="number" name="essf_discount" value="<?php echo esc_attr( $discount_val ? (string) $discount_val : '' ); ?>" step="0.01" min="0" placeholder="0.00"></label></p>
+					<p><label><?php esc_html_e( 'Surcharge (interest & penalty)', 'essfinance' ); ?><br>
+					<input type="number" name="essf_surcharge" value="<?php echo esc_attr( $surcharge_val ? (string) $surcharge_val : '' ); ?>" step="0.01" min="0" placeholder="0.00"></label></p>
 				</div>
 				<p><label><?php esc_html_e( 'Status', 'essfinance' ); ?><br>
 				<select name="essf_status">
