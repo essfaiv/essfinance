@@ -10,18 +10,22 @@ defined( 'ABSPATH' ) || exit;
 
 class ESSF_Settings {
 
-	const OPTION_STATUS_BADGE     = 'essf_show_status_badge';
-	const OPTION_STATUS_ICONS     = 'essf_show_status_icons';
-	const OPTION_AMOUNT_COLORS    = 'essf_show_amount_colors';
-	const OPTION_POSITIVE_PREFIX  = 'essf_show_positive_prefix';
-	const OPTION_NEGATIVE_PREFIX  = 'essf_show_negative_prefix';
-	const OPTION_SHOW_TYPE_FILTER = 'essf_show_type_filter';
-	const OPTION_SHOW_TOTALS      = 'essf_show_totals';
-	const OPTION_CURRENCY         = 'essf_currency';
-	const OPTION_CURRENCY_POS     = 'essf_currency_pos';
-	const OPTION_THOUSANDS_SEP    = 'essf_thousands_sep';
-	const OPTION_DECIMAL_SEP      = 'essf_decimal_sep';
-	const OPTION_NUM_DECIMALS     = 'essf_num_decimals';
+	const OPTION_STATUS_BADGE         = 'essf_show_status_badge';
+	const OPTION_STATUS_ICONS         = 'essf_show_status_icons';
+	const OPTION_AMOUNT_COLORS        = 'essf_show_amount_colors';
+	const OPTION_POSITIVE_PREFIX      = 'essf_show_positive_prefix';
+	const OPTION_NEGATIVE_PREFIX      = 'essf_show_negative_prefix';
+	const OPTION_SHOW_TYPE_FILTER     = 'essf_show_type_filter';
+	const OPTION_SHOW_TOTALS          = 'essf_show_totals';
+	const OPTION_CURRENCY             = 'essf_currency';
+	const OPTION_CURRENCY_POS         = 'essf_currency_pos';
+	const OPTION_THOUSANDS_SEP        = 'essf_thousands_sep';
+	const OPTION_DECIMAL_SEP          = 'essf_decimal_sep';
+	const OPTION_NUM_DECIMALS         = 'essf_num_decimals';
+	const OPTION_INITIAL_BALANCE      = 'essf_initial_balance';
+	const OPTION_BALANCE_BASIS        = 'essf_balance_basis';
+	const OPTION_SHOW_BALANCE_COLUMN  = 'essf_show_balance_column';
+	const OPTION_PENDING_BALANCE_MODE = 'essf_pending_balance_mode';
 
 	/* @var array<string,string> */
 	private static $icons = [
@@ -391,13 +395,14 @@ class ESSF_Settings {
 	public function register_settings(): void {
 		/* ── Display ── */
 		foreach ( [
-			self::OPTION_STATUS_BADGE     => false,
-			self::OPTION_STATUS_ICONS     => true,
-			self::OPTION_AMOUNT_COLORS    => false,
-			self::OPTION_POSITIVE_PREFIX  => true,
-			self::OPTION_NEGATIVE_PREFIX  => false,
-			self::OPTION_SHOW_TYPE_FILTER => false,
-			self::OPTION_SHOW_TOTALS      => true,
+			self::OPTION_STATUS_BADGE        => false,
+			self::OPTION_STATUS_ICONS        => true,
+			self::OPTION_AMOUNT_COLORS       => false,
+			self::OPTION_POSITIVE_PREFIX     => true,
+			self::OPTION_NEGATIVE_PREFIX     => false,
+			self::OPTION_SHOW_TYPE_FILTER    => false,
+			self::OPTION_SHOW_TOTALS         => true,
+			self::OPTION_SHOW_BALANCE_COLUMN => true,
 		] as $option => $default ) {
 			register_setting(
 				'essf_settings',
@@ -418,6 +423,7 @@ class ESSF_Settings {
 		add_settings_field( self::OPTION_NEGATIVE_PREFIX, __( 'Show negative prefix', 'essfinance' ), [ $this, 'field_negative_prefix' ], 'essf_settings', 'essf_display' );
 		add_settings_field( self::OPTION_SHOW_TYPE_FILTER, __( 'Show type filter', 'essfinance' ), [ $this, 'field_show_type_filter' ], 'essf_settings', 'essf_display' );
 		add_settings_field( self::OPTION_SHOW_TOTALS, __( 'Show balances', 'essfinance' ), [ $this, 'field_show_totals' ], 'essf_settings', 'essf_display' );
+		add_settings_field( self::OPTION_SHOW_BALANCE_COLUMN, __( 'Show running balance column', 'essfinance' ), [ $this, 'field_show_balance_column' ], 'essf_settings', 'essf_display' );
 
 		/* ── Currency options ── */
 		register_setting(
@@ -515,6 +521,72 @@ class ESSF_Settings {
 			[ $this, 'field_num_decimals' ],
 			'essf_settings',
 			'essf_currency'
+		);
+
+		/* ── Running balance ── */
+		register_setting(
+			'essf_settings',
+			self::OPTION_INITIAL_BALANCE,
+			[
+				'type'              => 'number',
+				'default'           => 0.0,
+				'sanitize_callback' => static function ( $v ) {
+					return round( (float) str_replace( ',', '.', (string) $v ), 2 );
+				},
+			]
+		);
+		register_setting(
+			'essf_settings',
+			self::OPTION_BALANCE_BASIS,
+			[
+				'type'              => 'string',
+				'default'           => 'paid',
+				'sanitize_callback' => static function ( $v ) {
+					return in_array( $v, [ 'paid', 'all' ], true ) ? $v : 'paid';
+				},
+			]
+		);
+		register_setting(
+			'essf_settings',
+			self::OPTION_PENDING_BALANCE_MODE,
+			[
+				'type'              => 'string',
+				'default'           => 'dash',
+				'sanitize_callback' => static function ( $v ) {
+					return in_array( $v, [ 'dash', 'forward_fill' ], true ) ? $v : 'dash';
+				},
+			]
+		);
+
+		add_settings_section(
+			'essf_balance',
+			__( 'Running Balance', 'essfinance' ),
+			function () {
+				echo '<p>' . esc_html__( 'These options control the cumulative "Balance" column shown alongside cash flow entries.', 'essfinance' ) . '</p>';
+			},
+			'essf_settings'
+		);
+
+		add_settings_field(
+			self::OPTION_INITIAL_BALANCE,
+			__( 'Initial balance', 'essfinance' ),
+			[ $this, 'field_initial_balance' ],
+			'essf_settings',
+			'essf_balance'
+		);
+		add_settings_field(
+			self::OPTION_BALANCE_BASIS,
+			__( 'Balance basis', 'essfinance' ),
+			[ $this, 'field_balance_basis' ],
+			'essf_settings',
+			'essf_balance'
+		);
+		add_settings_field(
+			self::OPTION_PENDING_BALANCE_MODE,
+			__( 'Pending entries', 'essfinance' ),
+			[ $this, 'field_pending_balance_mode' ],
+			'essf_settings',
+			'essf_balance'
 		);
 	}
 
@@ -676,6 +748,57 @@ class ESSF_Settings {
 			type="number" style="width:50px;" value="<?php echo esc_attr( (string) $value ); ?>"
 			min="0" step="1" placeholder="">
 		<?php
+	}
+
+	/* ── Running balance fields ─────────────────────────── */
+
+	public function field_show_balance_column(): void {
+		$value = get_option( self::OPTION_SHOW_BALANCE_COLUMN, true );
+		?>
+		<label>
+			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_SHOW_BALANCE_COLUMN ); ?>" value="1" <?php checked( $value ); ?>>
+			<?php esc_html_e( 'Show a cumulative "Balance" column on the entries list (admin and frontend)', 'essfinance' ); ?>
+		</label>
+		<?php
+	}
+
+	public function field_initial_balance(): void {
+		$value = (float) get_option( self::OPTION_INITIAL_BALANCE, 0.0 );
+		echo self::help_tip( __( 'The starting balance the running balance column is calculated from.', 'essfinance' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- help_tip() returns pre-escaped HTML
+		?>
+		<input name="<?php echo esc_attr( self::OPTION_INITIAL_BALANCE ); ?>"
+			id="<?php echo esc_attr( self::OPTION_INITIAL_BALANCE ); ?>"
+			type="number" style="width:120px;" value="<?php echo esc_attr( (string) $value ); ?>"
+			step="0.01" placeholder="">
+		<?php
+	}
+
+	public function field_balance_basis(): void {
+		$value   = get_option( self::OPTION_BALANCE_BASIS, 'paid' );
+		$options = [
+			'paid' => __( 'Paid entries only (bank-ledger balance)', 'essfinance' ),
+			'all'  => __( 'Paid + pending entries (forecast balance)', 'essfinance' ),
+		];
+		echo self::help_tip( __( 'Which entries count toward the running balance.', 'essfinance' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- help_tip() returns pre-escaped HTML
+		echo '<select name="' . esc_attr( self::OPTION_BALANCE_BASIS ) . '" id="' . esc_attr( self::OPTION_BALANCE_BASIS ) . '">';
+		foreach ( $options as $opt => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $opt ), selected( $value, $opt, false ), esc_html( $label ) );
+		}
+		echo '</select>';
+	}
+
+	public function field_pending_balance_mode(): void {
+		$value   = get_option( self::OPTION_PENDING_BALANCE_MODE, 'dash' );
+		$options = [
+			'dash'         => __( 'Show a dash for pending rows', 'essfinance' ),
+			'forward_fill' => __( 'Show the last paid balance (forward-fill)', 'essfinance' ),
+		];
+		echo self::help_tip( __( 'How pending rows are displayed in the Balance column when the balance basis is "Paid entries only".', 'essfinance' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- help_tip() returns pre-escaped HTML
+		echo '<select name="' . esc_attr( self::OPTION_PENDING_BALANCE_MODE ) . '" id="' . esc_attr( self::OPTION_PENDING_BALANCE_MODE ) . '">';
+		foreach ( $options as $opt => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $opt ), selected( $value, $opt, false ), esc_html( $label ) );
+		}
+		echo '</select>';
 	}
 
 	/* ── Pages helpers ──────────────────────────────────── */
@@ -911,6 +1034,22 @@ class ESSF_Settings {
 
 	public static function num_decimals(): int {
 		return (int) get_option( self::OPTION_NUM_DECIMALS, 2 );
+	}
+
+	public static function show_balance_column(): bool {
+		return (bool) get_option( self::OPTION_SHOW_BALANCE_COLUMN, true );
+	}
+
+	public static function initial_balance(): float {
+		return (float) get_option( self::OPTION_INITIAL_BALANCE, 0.0 );
+	}
+
+	public static function balance_basis(): string {
+		return 'all' === (string) get_option( self::OPTION_BALANCE_BASIS, 'paid' ) ? 'all' : 'paid';
+	}
+
+	public static function pending_balance_mode(): string {
+		return 'forward_fill' === (string) get_option( self::OPTION_PENDING_BALANCE_MODE, 'dash' ) ? 'forward_fill' : 'dash';
 	}
 
 	public static function format_amount( float $amount ): string {

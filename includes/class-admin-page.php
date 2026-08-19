@@ -21,7 +21,7 @@ class ESSF_Admin_Page {
 	const FORGET_CATEGORY_GLOSSARY_NONCE = 'essf_forget_category_glossary';
 	const GROUP_CONFIRM_NONCE            = 'essf_group_confirm';
 	const SPLIT_CONFIRM_NONCE            = 'essf_split_confirm';
-	const DETECT_PLANS_NONCE             = 'essf_detect_plans';
+	const ADJUST_BALANCE_NONCE           = 'essf_adjust_balance';
 
 	/** Option storing normalized memos of rows the operator has excluded before (FIFO-capped). */
 	const EXCLUDED_MEMOS_OPTION = 'essf_ofx_excluded_memos';
@@ -70,7 +70,7 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_forget_category_glossary', [ $this, 'handle_forget_category_glossary' ] );
 		add_action( 'admin_post_essf_group_confirm', [ $this, 'handle_group_confirm' ] );
 		add_action( 'admin_post_essf_split_confirm', [ $this, 'handle_split_confirm' ] );
-		add_action( 'admin_post_essf_detect_plans', [ $this, 'handle_detect_plans' ] );
+		add_action( 'admin_post_essf_adjust_balance', [ $this, 'handle_adjust_balance' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
@@ -568,8 +568,10 @@ class ESSF_Admin_Page {
 				wp_safe_redirect( add_query_arg( 'essf_msg', 'import_error', admin_url( 'admin.php?page=essfinance' ) ) );
 				exit;
 			}
+			$start_date = $this->sanitize_ofx_date( wp_unslash( $_POST['essf_ofx_start_date'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize_ofx_date() validates against a strict Y-m-d regex
+			$end_date   = $this->sanitize_ofx_date( wp_unslash( $_POST['essf_ofx_end_date'] ?? '' ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize_ofx_date() validates against a strict Y-m-d regex
 			// OFX transactions are staged for review — never inserted directly. Always exits.
-			$this->stage_ofx_import( $content, $existing, $fitid_lookup, $amount_index );
+			$this->stage_ofx_import( $content, $existing, $fitid_lookup, $amount_index, $start_date, $end_date );
 			exit;
 		}
 
@@ -597,6 +599,15 @@ class ESSF_Admin_Page {
 			)
 		);
 		exit;
+	}
+
+	/**
+	 * Validates a posted OFX date-range bound, returning null for anything
+	 * that isn't a plain `Y-m-d` string (including an empty/unset field).
+	 */
+	private function sanitize_ofx_date( $raw ): ?string {
+		$raw = sanitize_text_field( (string) $raw );
+		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $raw ) ? $raw : null;
 	}
 
 	/**
@@ -693,23 +704,26 @@ class ESSF_Admin_Page {
 	 * short-lived transient, and redirect to the review page. Nothing is
 	 * written to the database until the operator confirms.
 	 *
-	 * @param string $content      Raw OFX/QFX file contents.
-	 * @param array  $existing     Exact-match dedup lookup from build_dedup_lookups().
-	 * @param array  $fitid_lookup FITID dedup lookup from build_dedup_lookups().
-	 * @param array  $amount_index Amount→[id,date,title] index from build_dedup_lookups().
+	 * @param string      $content      Raw OFX/QFX file contents.
+	 * @param array       $existing     Exact-match dedup lookup from build_dedup_lookups().
+	 * @param array       $fitid_lookup FITID dedup lookup from build_dedup_lookups().
+	 * @param array       $amount_index Amount→[id,date,title] index from build_dedup_lookups().
+	 * @param string|null $start_date   Optional inclusive lower bound (`Y-m-d`) on transaction date.
+	 * @param string|null $end_date     Optional inclusive upper bound (`Y-m-d`) on transaction date.
 	 */
-	private function stage_ofx_import( string $content, array $existing, array $fitid_lookup, array $amount_index ): void {
+	private function stage_ofx_import( string $content, array $existing, array $fitid_lookup, array $amount_index, ?string $start_date = null, ?string $end_date = null ): void {
 		$excluded_memos   = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
 		$glossary_history = ESSF_Category::category_glossary_history();
-		$staged           = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos, $glossary_history );
+		$staged           = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos, $glossary_history, $start_date, $end_date );
 
 		if ( ! $staged['rows'] ) {
 			wp_safe_redirect(
 				add_query_arg(
 					[
-						'essf_msg'      => 'imported',
-						'essf_imported' => 0,
-						'essf_skipped'  => $staged['skipped'],
+						'essf_msg'          => 'imported',
+						'essf_imported'     => 0,
+						'essf_skipped'      => $staged['skipped'],
+						'essf_out_of_range' => $staged['out_of_range'],
 					],
 					admin_url( 'admin.php?page=essfinance' )
 				)
@@ -724,9 +738,10 @@ class ESSF_Admin_Page {
 		set_transient(
 			self::review_transient_key( $token ),
 			[
-				'user_id' => get_current_user_id(),
-				'skipped' => $staged['skipped'],
-				'rows'    => $staged['rows'],
+				'user_id'      => get_current_user_id(),
+				'skipped'      => $staged['skipped'],
+				'out_of_range' => $staged['out_of_range'],
+				'rows'         => $staged['rows'],
 			],
 			15 * MINUTE_IN_SECONDS
 		);
@@ -756,16 +771,20 @@ class ESSF_Admin_Page {
 	 * has excluded before are flagged `suggested_exclude` — the review UI
 	 * defaults both to excluded, dimmed, but still shown for confirmation.
 	 *
-	 * @param array $transactions   Rows returned by ESSF_OFX_Parser::parse().
-	 * @param array $existing       Exact-match dedup lookup.
-	 * @param array $fitid_lookup   FITID dedup lookup.
-	 * @param array $amount_index   Amount→[id,date,title] index.
-	 * @param array $excluded_memos Normalized memos of previously-excluded rows.
-	 * @return array{rows: array<int, array>, skipped: int}
+	 * @param array       $transactions     Rows returned by ESSF_OFX_Parser::parse().
+	 * @param array       $existing         Exact-match dedup lookup.
+	 * @param array       $fitid_lookup     FITID dedup lookup.
+	 * @param array       $amount_index     Amount→[id,date,title] index.
+	 * @param array       $excluded_memos   Normalized memos of previously-excluded rows.
+	 * @param array       $glossary_history Memo→category learned history.
+	 * @param string|null $start_date       Optional inclusive lower bound (`Y-m-d`) on `due_date`.
+	 * @param string|null $end_date         Optional inclusive upper bound (`Y-m-d`) on `due_date`.
+	 * @return array{rows: array<int, array>, skipped: int, out_of_range: int}
 	 */
-	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [], array $glossary_history = [] ): array {
-		$rows    = [];
-		$skipped = 0;
+	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [], array $glossary_history = [], ?string $start_date = null, ?string $end_date = null ): array {
+		$rows         = [];
+		$skipped      = 0;
+		$out_of_range = 0;
 
 		foreach ( $transactions as $trn ) {
 			$fitid = $trn['fitid'] ?? '';
@@ -774,10 +793,15 @@ class ESSF_Admin_Page {
 				continue;
 			}
 
-			$amount   = round( (float) ( $trn['amount'] ?? 0 ), 2 );
 			$due_date = (string) ( $trn['due_date'] ?? '' );
-			$name     = $trn['name'] ?? '';
-			$memo     = $trn['memo'] ?? '';
+			if ( ( $start_date && $due_date < $start_date ) || ( $end_date && $due_date > $end_date ) ) {
+				++$out_of_range;
+				continue;
+			}
+
+			$amount = round( (float) ( $trn['amount'] ?? 0 ), 2 );
+			$name   = $trn['name'] ?? '';
+			$memo   = $trn['memo'] ?? '';
 
 			// "Transferência enviada/recebida ... - Nome - resto" reduces to
 			// a short "Transferência Nome" title (direction is already the
@@ -815,8 +839,9 @@ class ESSF_Admin_Page {
 		}
 
 		return [
-			'rows'    => $rows,
-			'skipped' => $skipped,
+			'rows'         => $rows,
+			'skipped'      => $skipped,
+			'out_of_range' => $out_of_range,
 		];
 	}
 
@@ -1014,9 +1039,10 @@ class ESSF_Admin_Page {
 		wp_safe_redirect(
 			add_query_arg(
 				[
-					'essf_msg'      => 'imported',
-					'essf_imported' => $imported,
-					'essf_skipped'  => (int) ( $staged['skipped'] ?? 0 ) + $resolved['skipped'],
+					'essf_msg'          => 'imported',
+					'essf_imported'     => $imported,
+					'essf_skipped'      => (int) ( $staged['skipped'] ?? 0 ) + $resolved['skipped'],
+					'essf_out_of_range' => (int) ( $staged['out_of_range'] ?? 0 ),
 				],
 				admin_url( 'admin.php?page=essfinance' )
 			)
@@ -1596,51 +1622,48 @@ class ESSF_Admin_Page {
 	}
 
 	/**
-	 * One-click backfill: scans every existing entry via
-	 * ESSF_Plan_Detector::find_missing_terms() and creates every candidate
-	 * plan term right away — no review step (candidates are additive only
-	 * and re-running is always safe, since each type checks term_exists()
-	 * before creating).
+	 * Reconciles the running balance against a real-world figure: computes
+	 * what the ledger currently totals as of the given date (same basis as
+	 * the Balance column, ESSF_Settings::balance_basis()) and, if it differs
+	 * from the operator-supplied actual balance, creates a single "Balance
+	 * adjustment" entry for the gap — paid, dated on that day, sorted after
+	 * every other entry already on that date (a fresh post ID is always
+	 * highest, and the balance columns order ties by ID ASC) so the target
+	 * balance holds from that point forward without touching prior entries.
 	 */
-	public function handle_detect_plans(): void {
-		check_admin_referer( self::DETECT_PLANS_NONCE );
+	public function handle_adjust_balance(): void {
+		check_admin_referer( self::ADJUST_BALANCE_NONCE );
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
 		}
 
-		$counts = [
-			'loan'      => 0,
-			'financing' => 0,
-			'bill'      => 0,
-		];
+		$date_raw = sanitize_text_field( wp_unslash( $_POST['essf_adjust_date'] ?? '' ) );
+		$date     = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_raw ) ? $date_raw : gmdate( 'Y-m-d' );
+		$target   = round( (float) sanitize_text_field( wp_unslash( $_POST['essf_adjust_target'] ?? '0' ) ), 2 );
 
-		foreach ( ESSF_Plan_Detector::find_missing_terms() as $candidate ) {
-			switch ( $candidate['type'] ) {
-				case 'loan':
-					if ( ESSF_Loan_CPT::create_term_from_detection( $candidate['name'], $candidate['meta'] ) ) {
-						++$counts['loan'];
-					}
-					break;
-				case 'financing':
-					if ( ESSF_Financing_CPT::create_term_from_detection( $candidate['name'], $candidate['meta'] ) ) {
-						++$counts['financing'];
-					}
-					break;
-				case 'bill':
-					if ( ESSF_Bill_CPT::create_term_from_detection( $candidate['name'], $candidate['meta'] ) ) {
-						++$counts['bill'];
-					}
-					break;
-			}
+		$current = ESSF_Totals::balance_as_of_date( $date );
+		$diff    = round( $target - $current, 2 );
+
+		if ( 0.0 === $diff ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_noop', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
 		}
+
+		ESSF_CPT::insert_entry(
+			__( 'Balance adjustment', 'essfinance' ),
+			$diff,
+			$date . ' 00:00:00',
+			$date . ' 00:00:00',
+			'paid',
+			'uncategorized',
+			get_current_user_id()
+		);
 
 		wp_safe_redirect(
 			add_query_arg(
 				[
-					'essf_msg'                => 'plans_detected',
-					'essf_detected_loan'      => $counts['loan'],
-					'essf_detected_financing' => $counts['financing'],
-					'essf_detected_bill'      => $counts['bill'],
+					'essf_msg'           => 'balance_adjusted',
+					'essf_adjust_amount' => rawurlencode( (string) $diff ),
 				],
 				admin_url( 'admin.php?page=essfinance' )
 			)
@@ -1764,9 +1787,11 @@ class ESSF_Admin_Page {
 			<a href="<?php echo esc_url( add_query_arg( 'essf_action', 'import', admin_url( 'admin.php?page=essfinance' ) ) ); ?>" class="page-title-action<?php echo 'import' === $essf_action ? ' button-primary' : ''; ?>">
 				<?php esc_html_e( 'Import', 'essfinance' ); ?>
 			</a>
-			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_detect_plans' ), self::DETECT_PLANS_NONCE ) ); ?>" class="page-title-action">
-				<?php esc_html_e( 'Auto-detect Plans', 'essfinance' ); ?>
-			</a>
+			<?php if ( ESSF_Settings::show_balance_column() ) : ?>
+				<a href="<?php echo esc_url( add_query_arg( 'essf_action', 'adjust_balance', admin_url( 'admin.php?page=essfinance' ) ) ); ?>" class="page-title-action<?php echo 'adjust_balance' === $essf_action ? ' button-primary' : ''; ?>">
+					<?php esc_html_e( 'Adjust Balance', 'essfinance' ); ?>
+				</a>
+			<?php endif; ?>
 			<hr class="wp-header-end">
 
 			<?php $this->render_notices( $msg ); ?>
@@ -1776,6 +1801,8 @@ class ESSF_Admin_Page {
 					<div class="col-wrap">
 						<?php if ( 'import' === $essf_action ) : ?>
 							<?php $this->render_import_form(); ?>
+						<?php elseif ( 'adjust_balance' === $essf_action && ESSF_Settings::show_balance_column() ) : ?>
+							<?php $this->render_adjust_balance_form(); ?>
 						<?php else : ?>
 							<?php $this->render_form(); ?>
 						<?php endif; ?>
@@ -1974,7 +2001,7 @@ class ESSF_Admin_Page {
 	 * transient, not JS state, so a reload doesn't lose them).
 	 *
 	 * @param string $token  The `essf_review` token.
-	 * @param array  $staged Transient payload: user_id, skipped, rows.
+	 * @param array  $staged Transient payload: user_id, skipped, out_of_range, rows.
 	 */
 	private function render_review_page( string $token, array $staged ): void {
 		$back_url    = admin_url( 'admin.php?page=essfinance' );
@@ -2012,6 +2039,23 @@ class ESSF_Admin_Page {
 							'essfinance'
 						);
 						printf( esc_html( $dupe_notice ), absint( $staged['skipped'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $dupe_notice is pre-escaped via esc_html()
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $staged['out_of_range'] ) ) : ?>
+				<div class="notice notice-info">
+					<p>
+						<?php
+						/* translators: %d: number of transactions excluded for being outside the selected date range. */
+						$range_notice = _n(
+							'%d transaction was outside the selected date range and was not staged.',
+							'%d transactions were outside the selected date range and were not staged.',
+							(int) $staged['out_of_range'],
+							'essfinance'
+						);
+						printf( esc_html( $range_notice ), absint( $staged['out_of_range'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $range_notice is pre-escaped via esc_html()
 						?>
 					</p>
 				</div>
@@ -2212,8 +2256,48 @@ class ESSF_Admin_Page {
 					<input type="file" id="essf_csv_file" name="essf_csv_file" accept=".csv,.ofx,.qfx">
 					<p class="description"><?php esc_html_e( 'Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically. OFX files open a review step before anything is saved.', 'essfinance' ); ?></p>
 				</div>
+				<div class="form-field">
+					<label for="essf_ofx_start_date"><?php esc_html_e( 'From', 'essfinance' ); ?></label>
+					<input type="date" id="essf_ofx_start_date" name="essf_ofx_start_date">
+					<label for="essf_ofx_end_date"><?php esc_html_e( 'To', 'essfinance' ); ?></label>
+					<input type="date" id="essf_ofx_end_date" name="essf_ofx_end_date">
+					<p class="description"><?php esc_html_e( 'Optional — only applies to OFX/QFX imports. Transactions outside this range are excluded from the review step.', 'essfinance' ); ?></p>
+				</div>
 				<p class="submit">
 					<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Import', 'essfinance' ); ?>">
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Cancel', 'essfinance' ); ?></a>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Balance reconciliation form: the operator picks a date and the actual
+	 * (real-world/statement) balance as of that date; handle_adjust_balance()
+	 * computes the difference against what the ledger currently says and
+	 * creates a single "Balance adjustment" entry for the gap, so future
+	 * entries keep accumulating from a corrected baseline instead of
+	 * requiring the operator to hand-edit history.
+	 */
+	private function render_adjust_balance_form(): void {
+		?>
+		<h2><?php esc_html_e( 'Adjust Balance', 'essfinance' ); ?></h2>
+		<div class="form-wrap">
+			<p class="description"><?php esc_html_e( 'Use this when the running balance drifts from your actual account balance (e.g. a bank fee or interest that was never entered). An adjustment entry is created for the difference.', 'essfinance' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="essf_adjust_balance">
+				<?php wp_nonce_field( self::ADJUST_BALANCE_NONCE ); ?>
+				<div class="form-field form-required">
+					<label for="essf_adjust_date"><?php esc_html_e( 'As of date', 'essfinance' ); ?></label>
+					<input type="date" id="essf_adjust_date" name="essf_adjust_date" value="<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>" required>
+				</div>
+				<div class="form-field form-required">
+					<label for="essf_adjust_target"><?php esc_html_e( 'Actual balance on that date', 'essfinance' ); ?></label>
+					<input type="number" step="0.01" id="essf_adjust_target" name="essf_adjust_target" required>
+				</div>
+				<p class="submit">
+					<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Adjust Balance', 'essfinance' ); ?>">
 					<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Cancel', 'essfinance' ); ?></a>
 				</p>
 			</form>
@@ -2467,44 +2551,45 @@ class ESSF_Admin_Page {
 		if ( 'imported' === $msg ) {
 			$n = absint( $_GET['essf_imported'] ?? 0 );
 			$s = absint( $_GET['essf_skipped'] ?? 0 );
+			$r = absint( $_GET['essf_out_of_range'] ?? 0 );
 			// translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-			$import_notice = esc_html( sprintf( __( '%1$d %2$s imported, %3$d skipped as duplicates.', 'essfinance' ), $n, _n( 'entry', 'entries', $n, 'essfinance' ), $s ) );
-			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', $import_notice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $import_notice is pre-escaped via esc_html()
+			$import_notice = sprintf( __( '%1$d %2$s imported, %3$d skipped as duplicates.', 'essfinance' ), $n, _n( 'entry', 'entries', $n, 'essfinance' ), $s );
+			if ( $r > 0 ) {
+				// translators: %d: number of transactions excluded for being outside the selected date range.
+				$import_notice .= ' ' . sprintf( __( '%d outside the selected date range.', 'essfinance' ), $r );
+			}
+			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( $import_notice ) );
 			return;
 		}
 
-		if ( 'plans_detected' === $msg ) {
-			$loan      = absint( $_GET['essf_detected_loan'] ?? 0 );
-			$financing = absint( $_GET['essf_detected_financing'] ?? 0 );
-			$bill      = absint( $_GET['essf_detected_bill'] ?? 0 );
-			if ( 0 === $loan + $financing + $bill ) {
-				printf( '<div class="notice notice-info is-dismissible"><p>%s</p></div>', esc_html__( 'No new plans detected — everything already has a matching Loan/Financing/Bill.', 'essfinance' ) );
-				return;
-			}
-			// translators: 1: number of loans, 2: number of financing plans, 3: number of bills.
-			$detect_notice = esc_html( sprintf( __( '%1$d loan(s), %2$d financing plan(s), and %3$d bill(s) created.', 'essfinance' ), $loan, $financing, $bill ) );
-			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', $detect_notice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $detect_notice is pre-escaped via esc_html()
+		if ( 'balance_adjusted' === $msg ) {
+			$amount = (float) ( $_GET['essf_adjust_amount'] ?? 0 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- numeric cast is the sanitization
+			$sign   = $amount < 0 ? '-' : '+';
+			// translators: %s: the signed amount of the adjustment entry that was created.
+			$adjust_notice = sprintf( __( 'Balance adjustment entry created for %s.', 'essfinance' ), $sign . ESSF_Settings::format_amount( $amount ) );
+			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( $adjust_notice ) );
 			return;
 		}
 
 		$map = [
-			'added'             => [ 'success', __( 'Entry added.', 'essfinance' ) ],
-			'updated'           => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
-			'deleted'           => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
-			'paid_today'        => [ 'success', __( 'Entry marked as paid today.', 'essfinance' ) ],
-			'toggled'           => [ 'success', __( 'Entry type changed.', 'essfinance' ) ],
-			'mark_paid'         => [ 'success', __( 'Selected entries marked as paid today.', 'essfinance' ) ],
-			'mark_pending'      => [ 'success', __( 'Selected entries marked as pending.', 'essfinance' ) ],
-			'make_income'       => [ 'success', __( 'Selected entries changed to income.', 'essfinance' ) ],
-			'make_expense'      => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
-			'set_category'      => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
-			'auto_set_category' => [ 'success', __( 'Category auto-detected for selected entries.', 'essfinance' ) ],
-			'grouped'           => [ 'success', __( 'Entries renamed and grouped into a Loan.', 'essfinance' ) ],
-			'split'             => [ 'success', __( 'Entry split into installments.', 'essfinance' ) ],
-			'error'             => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
-			'import_error'      => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
-			'group_error'       => [ 'error', __( 'Select at least 2 entries to group as a Loan.', 'essfinance' ) ],
-			'split_error'       => [ 'error', __( 'Select exactly 1 entry, and make sure the chosen Financing plan has enough remaining installments.', 'essfinance' ) ],
+			'added'                   => [ 'success', __( 'Entry added.', 'essfinance' ) ],
+			'updated'                 => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
+			'deleted'                 => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
+			'paid_today'              => [ 'success', __( 'Entry marked as paid today.', 'essfinance' ) ],
+			'toggled'                 => [ 'success', __( 'Entry type changed.', 'essfinance' ) ],
+			'mark_paid'               => [ 'success', __( 'Selected entries marked as paid today.', 'essfinance' ) ],
+			'mark_pending'            => [ 'success', __( 'Selected entries marked as pending.', 'essfinance' ) ],
+			'make_income'             => [ 'success', __( 'Selected entries changed to income.', 'essfinance' ) ],
+			'make_expense'            => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
+			'set_category'            => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
+			'auto_set_category'       => [ 'success', __( 'Category auto-detected for selected entries.', 'essfinance' ) ],
+			'grouped'                 => [ 'success', __( 'Entries renamed and grouped into a Loan.', 'essfinance' ) ],
+			'split'                   => [ 'success', __( 'Entry split into installments.', 'essfinance' ) ],
+			'balance_adjustment_noop' => [ 'info', __( 'The balance already matches — no adjustment entry was needed.', 'essfinance' ) ],
+			'error'                   => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
+			'import_error'            => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
+			'group_error'             => [ 'error', __( 'Select at least 2 entries to group as a Loan.', 'essfinance' ) ],
+			'split_error'             => [ 'error', __( 'Select exactly 1 entry, and make sure the chosen Financing plan has enough remaining installments.', 'essfinance' ) ],
 		];
 		if ( isset( $map[ $msg ] ) ) {
 			[ $type, $text ] = $map[ $msg ];

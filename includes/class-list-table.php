@@ -20,6 +20,9 @@ class ESSF_List_Table extends WP_List_Table {
 	/* @var array|null */
 	private $filtered_totals = null;
 
+	/* @var array<int,float>|null post ID => cumulative running balance, or null if the column isn't shown. */
+	private $balances = null;
+
 	public function __construct() {
 		parent::__construct(
 			[
@@ -34,7 +37,7 @@ class ESSF_List_Table extends WP_List_Table {
 	/* ── Column definitions ─────────────────────────────── */
 
 	public function get_columns(): array {
-		return [
+		$columns = [
 			'cb'            => '<input type="checkbox">',
 			'description'   => __( 'Description', 'essfinance' ),
 			'essf_type'     => __( 'Type', 'essfinance' ),
@@ -43,6 +46,12 @@ class ESSF_List_Table extends WP_List_Table {
 			'essf_due'      => __( 'Date', 'essfinance' ),
 			'essf_status'   => __( 'Status', 'essfinance' ),
 		];
+
+		if ( $this->is_default_order() && ESSF_Settings::show_balance_column() ) {
+			$columns['essf_balance'] = __( 'Balance', 'essfinance' );
+		}
+
+		return $columns;
 	}
 
 	public function get_sortable_columns(): array {
@@ -54,6 +63,16 @@ class ESSF_List_Table extends WP_List_Table {
 
 	protected function get_default_primary_column_name(): string {
 		return 'description';
+	}
+
+	/**
+	 * Whether the list is in its default chronological order (no explicit
+	 * `orderby=essf_amount|essf_due`) — the running balance column is only
+	 * meaningful, and therefore only shown, under this order.
+	 */
+	private function is_default_order(): bool {
+		$orderby = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : '';
+		return ! in_array( $orderby, [ 'essf_amount', 'essf_due' ], true );
 	}
 
 	/* ── Bulk actions ───────────────────────────────────── */
@@ -306,9 +325,15 @@ class ESSF_List_Table extends WP_List_Table {
 			$args['orderby'] = 'post_date_gmt';
 			$args['order']   = $order;
 		} else {
-			$args['orderby']  = 'meta_value';
+			// A secondary ID DESC tiebreak keeps same-day entries in a stable
+			// order that matches the running balance column's own tiebreak
+			// (ID ASC, i.e. oldest-created-first) — the most-recently-created
+			// same-day entry sorts first here and holds the highest balance.
+			$args['orderby']  = [
+				'meta_value' => 'DESC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- this was already the default order key before the ID tiebreak was added
+				'ID'         => 'DESC',
+			];
 			$args['meta_key'] = '_order_date';
-			$args['order']    = 'DESC';
 		}
 
 		$query = new WP_Query( $args );
@@ -357,6 +382,19 @@ class ESSF_List_Table extends WP_List_Table {
 		}
 
 		$this->items = $posts;
+
+		$this->balances = ( $this->is_default_order() && ESSF_Settings::show_balance_column() )
+			? ESSF_Totals::compute_running_balances(
+				[
+					'post_type' => 'essf_cashflow',
+					'orderby'   => [
+						'meta_value' => 'ASC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- same _order_date ordering already used unguarded elsewhere in this class's default query
+						'ID'         => 'ASC',
+					],
+					'meta_key'  => '_order_date',
+				]
+			)
+			: null;
 
 		$this->set_pagination_args(
 			[
@@ -486,6 +524,23 @@ class ESSF_List_Table extends WP_List_Table {
 		}
 
 		return $formatted;
+	}
+
+	public function column_essf_balance( $item ): string {
+		if ( null === $this->balances || ! array_key_exists( $item->ID, $this->balances ) ) {
+			return '—';
+		}
+
+		$balance   = $this->balances[ $item->ID ];
+		$sign      = $balance < 0 && ESSF_Settings::show_negative_prefix() ? '−' : '';
+		$formatted = esc_html( $sign . ESSF_Settings::format_amount( $balance ) );
+
+		if ( ! ESSF_Settings::show_amount_colors() ) {
+			return $formatted;
+		}
+
+		$cls = $balance < 0 ? 'essf-amount--expense' : 'essf-amount--income';
+		return '<span class="' . esc_attr( $cls ) . '">' . $formatted . '</span>';
 	}
 
 	public function column_essf_due( $item ): string {

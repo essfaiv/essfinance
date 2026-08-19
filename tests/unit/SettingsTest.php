@@ -201,4 +201,68 @@ class SettingsTest extends TestCase {
 
 		$this->assertSame( 2, \ESSF_Settings::num_decimals() );
 	}
+
+	public function test_show_balance_column_default(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_SHOW_BALANCE_COLUMN, true )
+			->andReturn( true );
+
+		$this->assertTrue( \ESSF_Settings::show_balance_column() );
+	}
+
+	public function test_initial_balance_default(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_INITIAL_BALANCE, 0.0 )
+			->andReturn( 0.0 );
+
+		$this->assertSame( 0.0, \ESSF_Settings::initial_balance() );
+	}
+
+	public function test_initial_balance_returns_stored_value(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_INITIAL_BALANCE, 0.0 )
+			->andReturn( -150.75 );
+
+		$this->assertSame( -150.75, \ESSF_Settings::initial_balance() );
+	}
+
+	public function test_balance_basis_default(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_BALANCE_BASIS, 'paid' )
+			->andReturn( 'paid' );
+
+		$this->assertSame( 'paid', \ESSF_Settings::balance_basis() );
+	}
+
+	public function test_balance_basis_accepts_all(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_BALANCE_BASIS, 'paid' )
+			->andReturn( 'all' );
+
+		$this->assertSame( 'all', \ESSF_Settings::balance_basis() );
+	}
+
+	public function test_balance_basis_normalizes_invalid_stored_value(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_BALANCE_BASIS, 'paid' )
+			->andReturn( 'bogus' );
+
+		$this->assertSame( 'paid', \ESSF_Settings::balance_basis() );
+	}
+
+	public function test_pending_balance_mode_default(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_PENDING_BALANCE_MODE, 'dash' )
+			->andReturn( 'dash' );
+
+		$this->assertSame( 'dash', \ESSF_Settings::pending_balance_mode() );
+	}
+
+	public function test_pending_balance_mode_accepts_forward_fill(): void {
+		Functions\expect( 'get_option' )
+			->with( \ESSF_Settings::OPTION_PENDING_BALANCE_MODE, 'dash' )
+			->andReturn( 'forward_fill' );
+
+		$this->assertSame( 'forward_fill', \ESSF_Settings::pending_balance_mode() );
+	}
 }

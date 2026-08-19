@@ -181,6 +181,68 @@ class AdminPageOfxStagingTest extends TestCase {
 		$this->assertFalse( $result['rows'][0]['suggested_exclude'] );
 	}
 
+	// ── build_ofx_stage_rows() date-range filter ─────────────────────────
+
+	public function test_build_stage_rows_filters_out_transaction_before_start_date(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN030', 'amount' => -20.0, 'due_date' => '2026-01-01', 'name' => '', 'memo' => 'Trimania' ],
+		];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], '2026-02-01', null );
+
+		$this->assertSame( [], $result['rows'] );
+		$this->assertSame( 0, $result['skipped'] );
+		$this->assertSame( 1, $result['out_of_range'] );
+	}
+
+	public function test_build_stage_rows_filters_out_transaction_after_end_date(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN031', 'amount' => -20.0, 'due_date' => '2026-03-01', 'name' => '', 'memo' => 'Trimania' ],
+		];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], null, '2026-02-01' );
+
+		$this->assertSame( [], $result['rows'] );
+		$this->assertSame( 0, $result['skipped'] );
+		$this->assertSame( 1, $result['out_of_range'] );
+	}
+
+	public function test_build_stage_rows_keeps_transaction_within_range(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN032', 'amount' => -20.0, 'due_date' => '2026-02-15', 'name' => '', 'memo' => 'Trimania' ],
+		];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], '2026-02-01', '2026-02-28' );
+
+		$this->assertCount( 1, $result['rows'] );
+		$this->assertSame( 0, $result['out_of_range'] );
+	}
+
+	public function test_build_stage_rows_out_of_range_is_distinct_from_skipped(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN033', 'amount' => -20.0, 'due_date' => '2026-01-01', 'name' => '', 'memo' => 'Trimania' ],
+			[ 'fitid' => 'TXN034', 'amount' => -20.0, 'due_date' => '2026-02-15', 'name' => 'Trimania', 'memo' => '' ],
+		];
+		$existing = [ 'trimania|2026-02-15|-20' => true ];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, $existing, [], [], [], [], '2026-02-01', '2026-02-28' );
+
+		$this->assertSame( [], $result['rows'] );
+		$this->assertSame( 1, $result['skipped'] );
+		$this->assertSame( 1, $result['out_of_range'] );
+	}
+
+	public function test_build_stage_rows_omitting_range_args_behaves_unchanged(): void {
+		$transactions = [
+			[ 'fitid' => 'TXN035', 'amount' => -20.0, 'due_date' => '2026-01-01', 'name' => '', 'memo' => 'Trimania' ],
+		];
+
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [] );
+
+		$this->assertCount( 1, $result['rows'] );
+		$this->assertSame( 0, $result['out_of_range'] );
+	}
+
 	// ── find_possible_duplicate() ────────────────────────────────────────
 
 	public function test_find_possible_duplicate_matches_within_tolerance(): void {

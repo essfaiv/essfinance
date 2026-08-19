@@ -169,4 +169,39 @@ class ListTableTest extends TestCase {
 		$months = $method->invoke( $this->table );
 		$this->assertCount( 1, $months, 'Two entries in same month produce one dropdown option' );
 	}
+
+	// ── is_default_order() ────────────────────────────────────────────────
+
+	private function call_is_default_order(): bool {
+		$method = new ReflectionMethod( \ESSF_List_Table::class, 'is_default_order' );
+		$method->setAccessible( true );
+		return $method->invoke( $this->table );
+	}
+
+	public function test_is_default_order_true_when_orderby_unset(): void {
+		$original = $_REQUEST;
+		unset( $_REQUEST['orderby'] );
+
+		$this->assertTrue( $this->call_is_default_order() );
+
+		$_REQUEST = $original;
+	}
+
+	public function test_is_default_order_false_when_sorted_by_amount(): void {
+		$original            = $_REQUEST;
+		$_REQUEST['orderby'] = 'essf_amount';
+
+		$this->assertFalse( $this->call_is_default_order() );
+
+		$_REQUEST = $original;
+	}
+
+	public function test_is_default_order_false_when_sorted_by_due(): void {
+		$original            = $_REQUEST;
+		$_REQUEST['orderby'] = 'essf_due';
+
+		$this->assertFalse( $this->call_is_default_order() );
+
+		$_REQUEST = $original;
+	}
 }

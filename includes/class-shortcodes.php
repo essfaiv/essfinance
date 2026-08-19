@@ -698,8 +698,15 @@ class ESSF_Shortcodes {
 			'author'         => get_current_user_id(),
 			'posts_per_page' => $needs_php_filter ? -1 : 20,
 			'paged'          => $needs_php_filter ? 1 : $paged,
-			'orderby'        => 'date',
-			'order'          => 'DESC',
+			// A secondary ID DESC tiebreak keeps same-day entries in a stable
+			// order that matches the running balance column's own tiebreak
+			// (ID ASC, i.e. oldest-created-first) — the most-recently-created
+			// same-day entry sorts first here and holds the highest balance.
+			'orderby'        => [
+				'meta_value' => 'DESC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- this was already the default order key before the ID tiebreak was added
+				'ID'         => 'DESC',
+			],
+			'meta_key'       => '_order_date',
 		];
 		if ( $search ) {
 			$query_args['s'] = $search;
@@ -774,6 +781,20 @@ class ESSF_Shortcodes {
 			? ESSF_Totals::compute_from_posts( $entries )
 			: ESSF_Totals::compute_from_args( $query_args );
 		$global_totals   = ESSF_Totals::global_summary( get_current_user_id() );
+		$show_balance    = ESSF_Settings::show_balance_column();
+		$balances        = $show_balance
+			? ESSF_Totals::compute_running_balances(
+				[
+					'post_type' => 'essf_cashflow',
+					'author'    => get_current_user_id(),
+					'orderby'   => [
+						'meta_value' => 'ASC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- same _order_date ordering this list already uses unguarded above
+						'ID'         => 'ASC',
+					],
+					'meta_key'  => '_order_date',
+				]
+			)
+			: null;
 		?>
 		<?php
 		$show_badge      = ESSF_Settings::show_status_badge();
@@ -841,6 +862,9 @@ class ESSF_Shortcodes {
 							<label><input type="checkbox" value="category"> <?php esc_html_e( 'Category', 'essfinance' ); ?></label>
 							<label><input type="checkbox" value="status"> <?php esc_html_e( 'Status', 'essfinance' ); ?></label>
 							<label><input type="checkbox" value="amount"> <?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
+							<?php if ( $show_balance ) : ?>
+								<label><input type="checkbox" value="balance"> <?php esc_html_e( 'Balance', 'essfinance' ); ?></label>
+							<?php endif; ?>
 						</div>
 					</div>
 				</div>
@@ -927,11 +951,14 @@ class ESSF_Shortcodes {
 								<th data-col="amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></th>
 								<th data-col="date"><?php esc_html_e( 'Date', 'essfinance' ); ?></th>
 								<th data-col="status"><?php esc_html_e( 'Status', 'essfinance' ); ?></th>
+								<?php if ( $show_balance ) : ?>
+									<th data-col="balance"><?php esc_html_e( 'Balance', 'essfinance' ); ?></th>
+								<?php endif; ?>
 							</tr>
 						</thead>
 						<tbody>
 							<?php foreach ( $entries as $entry ) : ?>
-								<?php $this->render_entry_row( $entry, $show_icons, $show_pos_prefix, $show_neg_prefix ); ?>
+								<?php $this->render_entry_row( $entry, $show_icons, $show_pos_prefix, $show_neg_prefix, $balances[ $entry->ID ] ?? null ); ?>
 							<?php endforeach; ?>
 						</tbody>
 					</table>
@@ -941,7 +968,7 @@ class ESSF_Shortcodes {
 				</form>
 				<script>
 				(function(){
-					var COLS = ['date','type','category','status','amount'];
+					var COLS = ['date','type','category','status','amount','balance'];
 					var DEFAULT_HIDDEN = ['type'];
 					var KEY = 'essf_hidden_cols';
 					function getHidden(){try{return JSON.parse(localStorage.getItem(KEY))||DEFAULT_HIDDEN;}catch(e){return DEFAULT_HIDDEN;}}
@@ -995,7 +1022,7 @@ class ESSF_Shortcodes {
 		echo '</select>';
 	}
 
-	private function render_entry_row( WP_Post $entry, bool $show_icons = false, bool $show_pos_prefix = true, bool $show_neg_prefix = false ): void {
+	private function render_entry_row( WP_Post $entry, bool $show_icons = false, bool $show_pos_prefix = true, bool $show_neg_prefix = false, ?float $balance = null ): void {
 		$amount    = (float) $entry->post_content;
 		$is_income = $amount >= 0;
 		$status    = $entry->post_status;
@@ -1078,6 +1105,18 @@ class ESSF_Shortcodes {
 			<td data-col="status"><span class="essf-status">
 			<?php echo $icon_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped values in ESSF_Settings::status_icon()
 			echo esc_html( ESSF_CPT::status_label( $display_status ) ); ?></span></td>
+			<?php if ( ESSF_Settings::show_balance_column() ) : ?>
+				<td data-col="balance" class="essf-amount">
+				<?php
+				if ( null === $balance ) {
+					echo '—';
+				} else {
+					$balance_sign = $balance < 0 && $show_neg_prefix ? '−' : '';
+					echo esc_html( $balance_sign . ESSF_Settings::format_amount( $balance ) );
+				}
+				?>
+				</td>
+			<?php endif; ?>
 		</tr>
 		<?php
 	}

@@ -31,17 +31,14 @@ defined( 'ABSPATH' ) || exit;
  *   term; only future, undated occurrences will.
  *
  * Pure/static, no WordPress hooks of its own — mirrors ESSF_OFX_Parser /
- * ESSF_Category in style. Two entry points, sharing the same per-type
- * pattern-matching and meta-inference logic:
+ * ESSF_Category in style. Its single entry point, detect_for_new_entry(),
+ * is called from ESSF_CPT::insert_entry() for every newly created entry, so
+ * a plan is created automatically as soon as its naming convention appears —
+ * no manual/backfill trigger exists.
  *
- * - find_missing_terms() — one-shot backfill scan across every existing
- *   `essf_cashflow` entry (see ESSF_Admin_Page's "Auto-detect Plans" action).
- * - detect_for_new_entry() — called from ESSF_CPT::insert_entry() for every
- *   newly created entry, so a plan is created automatically going forward.
- *
- * Both silently skip a title whose target term already exists
- * (`term_exists()`) — safe to call repeatedly, additive only, never
- * touches/renames existing entries or terms.
+ * Silently skips a title whose target term already exists (`term_exists()`)
+ * — safe to call repeatedly, additive only, never touches/renames existing
+ * entries or terms.
  */
 class ESSF_Plan_Detector {
 
@@ -101,88 +98,6 @@ class ESSF_Plan_Detector {
 	}
 
 	/* ── Orchestration ──────────────────────────────────────────── */
-
-	/**
-	 * One-shot scan across every existing `essf_cashflow` entry, grouped by
-	 * the plan it would belong to. Returns candidates whose target term
-	 * doesn't exist yet.
-	 *
-	 * @return array<int, array{type: string, name: string, meta: array}>
-	 */
-	public static function find_missing_terms(): array {
-		$posts = get_posts(
-			[
-				'post_type'      => 'essf_cashflow',
-				'post_status'    => [ 'pending', 'paid' ],
-				'posts_per_page' => -1,
-			]
-		);
-
-		$loan_groups      = [];
-		$financing_groups = [];
-		$bill_groups      = [];
-
-		foreach ( $posts as $post ) {
-			$title = $post->post_title;
-
-			if ( self::is_loan_title( $title ) ) {
-				$loan_groups[ $title ][] = $post;
-				continue;
-			}
-
-			$fin = self::match_installment_suffix( $title );
-			if ( $fin ) {
-				$financing_groups[ $fin['base'] ][] = [
-					'index' => $fin['index'],
-					'n'     => $fin['n'],
-					'post'  => $post,
-				];
-				continue;
-			}
-
-			$bill = self::match_bill_suffix( $title );
-			if ( $bill ) {
-				$bill_groups[ $bill['base'] ][] = $post;
-			}
-		}
-
-		$candidates = [];
-
-		foreach ( $loan_groups as $title => $group_posts ) {
-			if ( term_exists( $title, ESSF_Loan_CPT::TAXONOMY ) ) {
-				continue;
-			}
-			$candidates[] = [
-				'type' => 'loan',
-				'name' => $title,
-				'meta' => self::infer_loan_meta( $group_posts, $title ),
-			];
-		}
-
-		foreach ( $financing_groups as $base => $matches ) {
-			if ( term_exists( $base, ESSF_Financing_CPT::TAXONOMY ) ) {
-				continue;
-			}
-			$candidates[] = [
-				'type' => 'financing',
-				'name' => $base,
-				'meta' => self::infer_financing_meta( $matches ),
-			];
-		}
-
-		foreach ( $bill_groups as $base => $group_posts ) {
-			if ( term_exists( $base, ESSF_Bill_CPT::TAXONOMY ) ) {
-				continue;
-			}
-			$candidates[] = [
-				'type' => 'bill',
-				'name' => $base,
-				'meta' => self::infer_bill_meta( $group_posts ),
-			];
-		}
-
-		return $candidates;
-	}
 
 	/**
 	 * Runs the same detection against a single just-created entry title and,

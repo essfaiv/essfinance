@@ -109,4 +109,103 @@ class ESSF_Totals {
 			'paid_this_month' => $paid_this_month['net'],
 		];
 	}
+
+	/**
+	 * Pure: cumulative running balance over an already chronologically
+	 * ordered (oldest-first) WP_Post[] slice, offset by $initial_balance.
+	 * A post whose status isn't counted by $basis (e.g. a pending post when
+	 * $basis is 'paid') doesn't advance the running total; depending on
+	 * $pending_mode it either gets the last counted balance ('forward_fill')
+	 * or is omitted from the returned map entirely ('dash' — callers render
+	 * a placeholder for any post ID missing from the result).
+	 *
+	 * @param WP_Post[] $posts
+	 * @param string    $basis         'paid' | 'all'.
+	 * @param string    $pending_mode  'dash' | 'forward_fill'.
+	 * @return array<int,float> post ID => displayed balance, in input order.
+	 */
+	public static function compute_running_balance_from_posts( array $posts, float $initial_balance, string $basis, string $pending_mode ): array {
+		$running = $initial_balance;
+		$out     = [];
+
+		foreach ( $posts as $post ) {
+			$counts = 'all' === $basis || 'paid' === $post->post_status;
+			if ( $counts ) {
+				$running         += (float) $post->post_content;
+				$out[ $post->ID ] = $running;
+			} elseif ( 'forward_fill' === $pending_mode ) {
+				$out[ $post->ID ] = $running;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * WP_Query wrapper around compute_running_balance_from_posts(). $order_args
+	 * supplies post_type/author/orderby/meta_key only — post_status,
+	 * pagination, search, and tax_query are stripped/overridden, because the
+	 * running balance must reflect every entry's true chronological position
+	 * regardless of which page or *display* filter is currently active
+	 * (filters narrow what is shown, never what is summed).
+	 *
+	 * @param array $order_args WP_Query args (post_type/author/orderby/meta_key).
+	 * @return array<int,float> post ID => displayed balance.
+	 */
+	public static function compute_running_balances( array $order_args ): array {
+		unset( $order_args['posts_per_page'], $order_args['paged'], $order_args['s'], $order_args['tax_query'], $order_args['post_status'] );
+		$order_args['post_status']    = [ 'pending', 'paid' ];
+		$order_args['posts_per_page'] = -1;
+		$order_args['no_found_rows']  = true;
+
+		$query = new WP_Query( $order_args );
+
+		return self::compute_running_balance_from_posts(
+			$query->posts,
+			ESSF_Settings::initial_balance(),
+			ESSF_Settings::balance_basis(),
+			ESSF_Settings::pending_balance_mode()
+		);
+	}
+
+	/**
+	 * The single running-balance figure as of the end of a given date —
+	 * every entry with `_order_date` on or before it, summed under the
+	 * current balance basis (ESSF_Settings::balance_basis()), starting from
+	 * the configured initial balance. Used by the balance-reconciliation
+	 * ("Adjust Balance") admin action to compute the gap against an
+	 * operator-supplied real-world figure.
+	 */
+	public static function balance_as_of_date( string $date ): float {
+		$query = new WP_Query(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+				'no_found_rows'  => true,
+				'orderby'        => [
+					'meta_value' => 'ASC', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- same _order_date ordering used elsewhere for the running balance
+					'ID'         => 'ASC',
+				],
+				'meta_key'       => '_order_date', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_query'     => [ // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- same table/scale as the running balance query above
+					[
+						'key'     => '_order_date',
+						'value'   => $date,
+						'compare' => '<=',
+						'type'    => 'DATE',
+					],
+				],
+			]
+		);
+
+		$balances = self::compute_running_balance_from_posts(
+			$query->posts,
+			ESSF_Settings::initial_balance(),
+			ESSF_Settings::balance_basis(),
+			'dash'
+		);
+
+		return $balances ? end( $balances ) : ESSF_Settings::initial_balance();
+	}
 }
