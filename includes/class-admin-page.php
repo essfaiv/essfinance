@@ -264,11 +264,16 @@ class ESSF_Admin_Page {
 
 		$today            = current_time( 'mysql', true );
 		$glossary_history = null;
+		$skipped_locked   = 0;
 		global $wpdb;
 
 		foreach ( $ids as $id ) {
 			$post = get_post( $id );
 			if ( ! $post || 'essf_cashflow' !== $post->post_type ) {
+				continue;
+			}
+			if ( 'delete' !== $action && ESSF_Category::is_balance_adjustment( $id ) ) {
+				++$skipped_locked;
 				continue;
 			}
 			switch ( $action ) {
@@ -330,7 +335,11 @@ class ESSF_Admin_Page {
 				$carry[ $key ] = $val;
 			}
 		}
-		wp_safe_redirect( add_query_arg( array_merge( $carry, [ 'essf_msg' => $msg_map[ $action ] ] ), admin_url( 'admin.php' ) ) );
+		$redirect_args = array_merge( $carry, [ 'essf_msg' => $msg_map[ $action ] ] );
+		if ( $skipped_locked > 0 ) {
+			$redirect_args['essf_skipped_locked'] = $skipped_locked;
+		}
+		wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'admin.php' ) ) );
 		exit;
 	}
 
@@ -471,6 +480,11 @@ class ESSF_Admin_Page {
 
 		if ( ! $post || 'essf_cashflow' !== $post->post_type ) {
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		if ( ESSF_Category::is_balance_adjustment( $post_id ) ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_locked', admin_url( 'admin.php?page=essfinance' ) ) );
 			exit;
 		}
 
@@ -1454,6 +1468,11 @@ class ESSF_Admin_Page {
 			exit;
 		}
 
+		if ( ESSF_Category::is_balance_adjustment( $post_id ) ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_locked', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
 		$today = current_time( 'mysql', true );
 		global $wpdb;
 		$wpdb->update(
@@ -1483,6 +1502,11 @@ class ESSF_Admin_Page {
 		$post = get_post( $post_id );
 		if ( ! $post || 'essf_cashflow' !== $post->post_type ) {
 			wp_safe_redirect( add_query_arg( 'essf_msg', 'error', admin_url( 'admin.php?page=essfinance' ) ) );
+			exit;
+		}
+
+		if ( ESSF_Category::is_balance_adjustment( $post_id ) ) {
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_locked', admin_url( 'admin.php?page=essfinance' ) ) );
 			exit;
 		}
 
@@ -1534,8 +1558,21 @@ class ESSF_Admin_Page {
 			++$i;
 		}
 
-		if ( ! term_exists( $base, ESSF_Loan_CPT::TAXONOMY ) ) {
-			wp_insert_term( $base, ESSF_Loan_CPT::TAXONOMY );
+		$existing = term_exists( $base, ESSF_Loan_CPT::TAXONOMY );
+		$inserted = $existing ? null : wp_insert_term( $base, ESSF_Loan_CPT::TAXONOMY );
+
+		$term_id = 0;
+		if ( is_array( $existing ) ) {
+			$term_id = (int) $existing['term_id'];
+		} elseif ( is_int( $existing ) ) {
+			$term_id = $existing;
+		} elseif ( is_array( $inserted ) ) {
+			$term_id = (int) $inserted['term_id'];
+		}
+
+		$term = $term_id ? get_term( $term_id, ESSF_Loan_CPT::TAXONOMY ) : null;
+		if ( $term && ! is_wp_error( $term ) ) {
+			ESSF_Loan_CPT::sync_principal_from_entries( $term );
 		}
 
 		delete_transient( 'essf_group_review_' . $token );
@@ -1645,7 +1682,7 @@ class ESSF_Admin_Page {
 		$diff    = round( $target - $current, 2 );
 
 		if ( 0.0 === $diff ) {
-			wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_noop', admin_url( 'admin.php?page=essfinance' ) ) );
+			wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_noop', admin_url( 'admin.php?page=essfinance-settings' ) ) );
 			exit;
 		}
 
@@ -1655,7 +1692,7 @@ class ESSF_Admin_Page {
 			$date . ' 00:00:00',
 			$date . ' 00:00:00',
 			'paid',
-			'uncategorized',
+			ESSF_Category::BALANCE_ADJUSTMENT_SLUG,
 			get_current_user_id()
 		);
 
@@ -1665,7 +1702,7 @@ class ESSF_Admin_Page {
 					'essf_msg'           => 'balance_adjusted',
 					'essf_adjust_amount' => rawurlencode( (string) $diff ),
 				],
-				admin_url( 'admin.php?page=essfinance' )
+				admin_url( 'admin.php?page=essfinance-settings' )
 			)
 		);
 		exit;
@@ -1769,6 +1806,10 @@ class ESSF_Admin_Page {
 		if ( ! empty( $_GET['entry'] ) && current_user_can( 'manage_options' ) ) {
 			$post = get_post( absint( $_GET['entry'] ) );
 			if ( $post && 'essf_cashflow' === $post->post_type ) {
+				if ( ESSF_Category::is_balance_adjustment( $post->ID ) ) {
+					wp_safe_redirect( add_query_arg( 'essf_msg', 'balance_adjustment_locked', admin_url( 'admin.php?page=essfinance' ) ) );
+					exit;
+				}
 				$this->render_edit_page( $post, $msg );
 				return;
 			}
@@ -1787,11 +1828,6 @@ class ESSF_Admin_Page {
 			<a href="<?php echo esc_url( add_query_arg( 'essf_action', 'import', admin_url( 'admin.php?page=essfinance' ) ) ); ?>" class="page-title-action<?php echo 'import' === $essf_action ? ' button-primary' : ''; ?>">
 				<?php esc_html_e( 'Import', 'essfinance' ); ?>
 			</a>
-			<?php if ( ESSF_Settings::show_balance_column() ) : ?>
-				<a href="<?php echo esc_url( add_query_arg( 'essf_action', 'adjust_balance', admin_url( 'admin.php?page=essfinance' ) ) ); ?>" class="page-title-action<?php echo 'adjust_balance' === $essf_action ? ' button-primary' : ''; ?>">
-					<?php esc_html_e( 'Adjust Balance', 'essfinance' ); ?>
-				</a>
-			<?php endif; ?>
 			<hr class="wp-header-end">
 
 			<?php $this->render_notices( $msg ); ?>
@@ -1801,8 +1837,6 @@ class ESSF_Admin_Page {
 					<div class="col-wrap">
 						<?php if ( 'import' === $essf_action ) : ?>
 							<?php $this->render_import_form(); ?>
-						<?php elseif ( 'adjust_balance' === $essf_action && ESSF_Settings::show_balance_column() ) : ?>
-							<?php $this->render_adjust_balance_form(); ?>
 						<?php else : ?>
 							<?php $this->render_form(); ?>
 						<?php endif; ?>
@@ -2272,49 +2306,19 @@ class ESSF_Admin_Page {
 		<?php
 	}
 
-	/**
-	 * Balance reconciliation form: the operator picks a date and the actual
-	 * (real-world/statement) balance as of that date; handle_adjust_balance()
-	 * computes the difference against what the ledger currently says and
-	 * creates a single "Balance adjustment" entry for the gap, so future
-	 * entries keep accumulating from a corrected baseline instead of
-	 * requiring the operator to hand-edit history.
-	 */
-	private function render_adjust_balance_form(): void {
-		?>
-		<h2><?php esc_html_e( 'Adjust Balance', 'essfinance' ); ?></h2>
-		<div class="form-wrap">
-			<p class="description"><?php esc_html_e( 'Use this when the running balance drifts from your actual account balance (e.g. a bank fee or interest that was never entered). An adjustment entry is created for the difference.', 'essfinance' ); ?></p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="essf_adjust_balance">
-				<?php wp_nonce_field( self::ADJUST_BALANCE_NONCE ); ?>
-				<div class="form-field form-required">
-					<label for="essf_adjust_date"><?php esc_html_e( 'As of date', 'essfinance' ); ?></label>
-					<input type="date" id="essf_adjust_date" name="essf_adjust_date" value="<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>" required>
-				</div>
-				<div class="form-field form-required">
-					<label for="essf_adjust_target"><?php esc_html_e( 'Actual balance on that date', 'essfinance' ); ?></label>
-					<input type="number" step="0.01" id="essf_adjust_target" name="essf_adjust_target" required>
-				</div>
-				<p class="submit">
-					<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Adjust Balance', 'essfinance' ); ?>">
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=essfinance' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Cancel', 'essfinance' ); ?></a>
-				</p>
-			</form>
-		</div>
-		<?php
-	}
-
 	/* ── Shared form ────────────────────────────────────── */
 
 	private function render_form( ?WP_Post $entry = null, bool $show_heading = true, string $focus = '' ): void {
 		$is_edit = null !== $entry;
 
-		$description = $due_date = $pay_date = $status = '';
+		$description = $due_date = $pay_date = '';
 		$amount      = '';
 		$discount    = '';
 		$surcharge   = '';
 		$is_income   = false;
+		// A brand-new entry defaults to Paid rather than Pending — most entries
+		// added by hand are being logged after the fact, already settled.
+		$status = 'paid';
 		// A new entry defaults to the Auto-categorize sentinel rather than a
 		// real term, so it doesn't need normalize_slug() below.
 		$category = ESSF_Category::AUTO_SLUG;
@@ -2367,18 +2371,6 @@ class ESSF_Admin_Page {
 					<p class="description"><?php esc_html_e( 'A short label for this entry.', 'essfinance' ); ?></p>
 				</div>
 
-				<div class="form-field">
-					<label for="essf_due_date"><?php esc_html_e( 'Due Date', 'essfinance' ); ?></label>
-					<input type="date" id="essf_due_date" name="essf_due_date"
-						value="<?php echo esc_attr( $due_date ); ?>">
-				</div>
-
-				<div class="form-field">
-					<label for="essf_pay_date"><?php esc_html_e( 'Pay Date', 'essfinance' ); ?></label>
-					<input type="date" id="essf_pay_date" name="essf_pay_date"
-						value="<?php echo esc_attr( $pay_date ); ?>">
-				</div>
-
 				<div class="form-field essf-field-row--amount">
 					<div class="essf-field--amount-wrap">
 						<label for="essf_amount"><?php esc_html_e( 'Amount', 'essfinance' ); ?></label>
@@ -2392,21 +2384,38 @@ class ESSF_Admin_Page {
 					</label>
 				</div>
 
-				<div class="form-field essf-field-row--amount">
-					<div class="essf-field--amount-wrap">
-						<label for="essf_discount"><?php esc_html_e( 'Discount', 'essfinance' ); ?></label>
-						<input type="number" id="essf_discount" name="essf_discount"
-							value="<?php echo esc_attr( $discount ); ?>"
-							step="0.01" min="0" placeholder="0.00" class="widefat">
+				<details class="essf-discount-surcharge"<?php echo ( $discount || $surcharge ) ? ' open' : ''; ?>>
+					<summary><?php esc_html_e( 'Discount / Surcharge', 'essfinance' ); ?></summary>
+					<div class="form-field essf-field-row--amount">
+						<div class="essf-field--amount-wrap">
+							<label for="essf_discount"><?php esc_html_e( 'Discount', 'essfinance' ); ?></label>
+							<input type="number" id="essf_discount" name="essf_discount"
+								value="<?php echo esc_attr( $discount ); ?>"
+								step="0.01" min="0" placeholder="0.00" class="widefat">
+						</div>
+						<div class="essf-field--amount-wrap">
+							<label for="essf_surcharge"><?php esc_html_e( 'Surcharge (interest & penalty)', 'essfinance' ); ?></label>
+							<input type="number" id="essf_surcharge" name="essf_surcharge"
+								value="<?php echo esc_attr( $surcharge ); ?>"
+								step="0.01" min="0" placeholder="0.00" class="widefat">
+						</div>
 					</div>
-					<div class="essf-field--amount-wrap">
-						<label for="essf_surcharge"><?php esc_html_e( 'Surcharge (interest & penalty)', 'essfinance' ); ?></label>
-						<input type="number" id="essf_surcharge" name="essf_surcharge"
-							value="<?php echo esc_attr( $surcharge ); ?>"
-							step="0.01" min="0" placeholder="0.00" class="widefat">
+					<p class="description" id="essf_base_amount_hint"></p>
+				</details>
+
+				<div class="essf-dates-row">
+					<div class="form-field">
+						<label for="essf_due_date"><?php esc_html_e( 'Due Date', 'essfinance' ); ?></label>
+						<input type="date" id="essf_due_date" name="essf_due_date"
+							value="<?php echo esc_attr( $due_date ); ?>">
+					</div>
+
+					<div class="form-field">
+						<label for="essf_pay_date"><?php esc_html_e( 'Pay Date', 'essfinance' ); ?></label>
+						<input type="date" id="essf_pay_date" name="essf_pay_date"
+							value="<?php echo esc_attr( $pay_date ); ?>">
 					</div>
 				</div>
-				<p class="description" id="essf_base_amount_hint"></p>
 				<script>
 				( function () {
 					var amt  = document.getElementById( 'essf_amount' );
@@ -2548,6 +2557,20 @@ class ESSF_Admin_Page {
 	}
 
 	private function render_notices( string $msg ): void {
+		$skipped_locked = absint( $_GET['essf_skipped_locked'] ?? 0 );
+		if ( $skipped_locked > 0 ) {
+			printf(
+				'<div class="notice notice-warning is-dismissible"><p>%s</p></div>',
+				esc_html(
+					sprintf(
+						/* translators: %d: number of balance-adjustment entries skipped by a bulk action. */
+						_n( '%d balance adjustment entry was skipped (bulk actions other than Delete can\'t change it).', '%d balance adjustment entries were skipped (bulk actions other than Delete can\'t change them).', $skipped_locked, 'essfinance' ),
+						$skipped_locked
+					)
+				)
+			);
+		}
+
 		if ( 'imported' === $msg ) {
 			$n = absint( $_GET['essf_imported'] ?? 0 );
 			$s = absint( $_GET['essf_skipped'] ?? 0 );
@@ -2562,34 +2585,25 @@ class ESSF_Admin_Page {
 			return;
 		}
 
-		if ( 'balance_adjusted' === $msg ) {
-			$amount = (float) ( $_GET['essf_adjust_amount'] ?? 0 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- numeric cast is the sanitization
-			$sign   = $amount < 0 ? '-' : '+';
-			// translators: %s: the signed amount of the adjustment entry that was created.
-			$adjust_notice = sprintf( __( 'Balance adjustment entry created for %s.', 'essfinance' ), $sign . ESSF_Settings::format_amount( $amount ) );
-			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( $adjust_notice ) );
-			return;
-		}
-
 		$map = [
-			'added'                   => [ 'success', __( 'Entry added.', 'essfinance' ) ],
-			'updated'                 => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
-			'deleted'                 => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
-			'paid_today'              => [ 'success', __( 'Entry marked as paid today.', 'essfinance' ) ],
-			'toggled'                 => [ 'success', __( 'Entry type changed.', 'essfinance' ) ],
-			'mark_paid'               => [ 'success', __( 'Selected entries marked as paid today.', 'essfinance' ) ],
-			'mark_pending'            => [ 'success', __( 'Selected entries marked as pending.', 'essfinance' ) ],
-			'make_income'             => [ 'success', __( 'Selected entries changed to income.', 'essfinance' ) ],
-			'make_expense'            => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
-			'set_category'            => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
-			'auto_set_category'       => [ 'success', __( 'Category auto-detected for selected entries.', 'essfinance' ) ],
-			'grouped'                 => [ 'success', __( 'Entries renamed and grouped into a Loan.', 'essfinance' ) ],
-			'split'                   => [ 'success', __( 'Entry split into installments.', 'essfinance' ) ],
-			'balance_adjustment_noop' => [ 'info', __( 'The balance already matches — no adjustment entry was needed.', 'essfinance' ) ],
-			'error'                   => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
-			'import_error'            => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
-			'group_error'             => [ 'error', __( 'Select at least 2 entries to group as a Loan.', 'essfinance' ) ],
-			'split_error'             => [ 'error', __( 'Select exactly 1 entry, and make sure the chosen Financing plan has enough remaining installments.', 'essfinance' ) ],
+			'added'                     => [ 'success', __( 'Entry added.', 'essfinance' ) ],
+			'updated'                   => [ 'success', __( 'Entry updated.', 'essfinance' ) ],
+			'deleted'                   => [ 'success', __( 'Entry deleted.', 'essfinance' ) ],
+			'paid_today'                => [ 'success', __( 'Entry marked as paid today.', 'essfinance' ) ],
+			'toggled'                   => [ 'success', __( 'Entry type changed.', 'essfinance' ) ],
+			'mark_paid'                 => [ 'success', __( 'Selected entries marked as paid today.', 'essfinance' ) ],
+			'mark_pending'              => [ 'success', __( 'Selected entries marked as pending.', 'essfinance' ) ],
+			'make_income'               => [ 'success', __( 'Selected entries changed to income.', 'essfinance' ) ],
+			'make_expense'              => [ 'success', __( 'Selected entries changed to expense.', 'essfinance' ) ],
+			'set_category'              => [ 'success', __( 'Category updated for selected entries.', 'essfinance' ) ],
+			'auto_set_category'         => [ 'success', __( 'Category auto-detected for selected entries.', 'essfinance' ) ],
+			'grouped'                   => [ 'success', __( 'Entries renamed and grouped into a Loan.', 'essfinance' ) ],
+			'split'                     => [ 'success', __( 'Entry split into installments.', 'essfinance' ) ],
+			'balance_adjustment_locked' => [ 'error', __( 'That entry is a balance adjustment and can\'t be edited directly — delete and re-run Adjust Balance instead.', 'essfinance' ) ],
+			'error'                     => [ 'error', __( 'Something went wrong. Please try again.', 'essfinance' ) ],
+			'import_error'              => [ 'error', __( 'Import failed. Please upload a valid CSV file.', 'essfinance' ) ],
+			'group_error'               => [ 'error', __( 'Select at least 2 entries to group as a Loan.', 'essfinance' ) ],
+			'split_error'               => [ 'error', __( 'Select exactly 1 entry, and make sure the chosen Financing plan has enough remaining installments.', 'essfinance' ) ],
 		];
 		if ( isset( $map[ $msg ] ) ) {
 			[ $type, $text ] = $map[ $msg ];

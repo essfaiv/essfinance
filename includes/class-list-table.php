@@ -486,15 +486,16 @@ class ESSF_List_Table extends WP_List_Table {
 			'essf_delete_' . $item->ID
 		);
 
-		$actions = [
-			'edit'        => '<a href="' . esc_url( $edit_url ) . '">' . __( 'Edit', 'essfinance' ) . '</a>',
-			'paid_today'  => '<a href="' . esc_url( $paid_today_url ) . '">' . __( 'Paid Today', 'essfinance' ) . '</a>',
-			'paid_date'   => '<a href="' . esc_url( $paid_date_url ) . '">' . __( 'Paid Date', 'essfinance' ) . '</a>',
-			'toggle_type' => $is_inc
+		$actions = [];
+		if ( ! ESSF_Category::is_balance_adjustment( $item->ID ) ) {
+			$actions['edit']        = '<a href="' . esc_url( $edit_url ) . '">' . __( 'Edit', 'essfinance' ) . '</a>';
+			$actions['paid_today']  = '<a href="' . esc_url( $paid_today_url ) . '">' . __( 'Paid Today', 'essfinance' ) . '</a>';
+			$actions['paid_date']   = '<a href="' . esc_url( $paid_date_url ) . '">' . __( 'Paid Date', 'essfinance' ) . '</a>';
+			$actions['toggle_type'] = $is_inc
 				? '<a href="' . esc_url( $toggle_url ) . '">' . __( 'Make Expense', 'essfinance' ) . '</a>'
-				: '<a href="' . esc_url( $toggle_url ) . '">' . __( 'Make Income', 'essfinance' ) . '</a>',
-			'delete'      => '<a href="' . esc_url( $delete_url ) . '" class="submitdelete" onclick="return confirm(\'' . esc_js( __( 'Delete this entry? This cannot be undone.', 'essfinance' ) ) . '\')">' . __( 'Delete', 'essfinance' ) . '</a>',
-		];
+				: '<a href="' . esc_url( $toggle_url ) . '">' . __( 'Make Income', 'essfinance' ) . '</a>';
+		}
+		$actions['delete'] = '<a href="' . esc_url( $delete_url ) . '" class="submitdelete" onclick="return confirm(\'' . esc_js( __( 'Delete this entry? This cannot be undone.', 'essfinance' ) ) . '\')">' . __( 'Delete', 'essfinance' ) . '</a>';
 
 		return '<strong><a href="' . esc_url( $edit_url ) . '">' . esc_html( $item->post_title ) . '</a></strong>'
 			. $this->row_actions( $actions );

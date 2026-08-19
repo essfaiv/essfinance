@@ -188,10 +188,25 @@ class ESSF_Loan_CPT {
 		<?php
 	}
 
+	/**
+	 * Sums only the entries actually settled (post_status 'paid') —
+	 * ESSF_Totals::compute_from_posts() sums every post it's given with no
+	 * status filtering, which is fine as long as every matched payment is
+	 * paid, but a payment added as "Pending" (scheduled, not yet realized —
+	 * see handle_add_payment()) must not inflate "Paid so far" until it's
+	 * actually marked paid.
+	 *
+	 * @param WP_Post[] $payments
+	 */
+	private static function sum_realized_payments( array $payments ): float {
+		$realized = array_values( array_filter( $payments, static fn( $post ) => 'paid' === $post->post_status ) );
+		return abs( ESSF_Totals::compute_from_posts( $realized )['net'] );
+	}
+
 	/** Short summary shown on the term edit screen — full table lives on ESSF_Recurrence_Entries_Page. */
 	private static function render_payments_overview( WP_Term $term, float $principal ): void {
 		[ , $payments ] = self::split_entries( $term, $principal );
-		$paid           = abs( ESSF_Totals::compute_from_posts( $payments )['net'] );
+		$paid           = self::sum_realized_payments( $payments );
 		$remain         = abs( $principal ) - $paid;
 		$settled        = abs( $remain ) < 0.01;
 		?>
@@ -209,7 +224,7 @@ class ESSF_Loan_CPT {
 	private static function render_entries_table( array $entries ): void {
 		?>
 		<table class="widefat striped" style="max-width:500px;">
-			<thead><tr><th><?php esc_html_e( 'Date', 'essfinance' ); ?></th><th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th></tr></thead>
+			<thead><tr><th><?php esc_html_e( 'Date', 'essfinance' ); ?></th><th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th><th><?php esc_html_e( 'Status', 'essfinance' ); ?></th></tr></thead>
 			<tbody>
 			<?php foreach ( $entries as $entry ) : ?>
 				<?php
@@ -225,6 +240,7 @@ class ESSF_Loan_CPT {
 				<tr>
 					<td><a href="<?php echo esc_url( $edit_url ); ?>"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $date ) ) ); ?></a></td>
 					<td><?php echo esc_html( ESSF_Settings::format_amount( (float) $entry->post_content ) ); ?></td>
+					<td><span class="essf-badge essf-badge--<?php echo esc_attr( $entry->post_status ); ?>"><?php echo esc_html( ESSF_CPT::status_label( $entry->post_status ) ); ?></span></td>
 				</tr>
 			<?php endforeach; ?>
 			</tbody>
@@ -241,6 +257,130 @@ class ESSF_Loan_CPT {
 	}
 
 	/**
+	 * Discovers every essf_cashflow entry belonging to this loan — either
+	 * titled exactly the term's name, or titled "{term name} i/n" (the
+	 * numbered-suffix shape produced by renumber_and_sync()/"Group as
+	 * Loan"). WP_Query's exact-match `title` param can't do this alone, so
+	 * this uses the plugin's existing fuzzy `s` search (the same mechanism
+	 * that already backs the "View entries" link) as a cheap candidate
+	 * pre-filter, then confirms each candidate against the exact suffix
+	 * shape in PHP — no false positives from an unrelated loan sharing a
+	 * word.
+	 *
+	 * @return WP_Post[]
+	 */
+	private static function find_own_entries( WP_Term $term ): array {
+		$exact = ESSF_CPT::find_entries_by_title( $term->name );
+
+		$candidates = get_posts(
+			[
+				'post_type'      => 'essf_cashflow',
+				'post_status'    => [ 'pending', 'paid' ],
+				'posts_per_page' => -1,
+				's'              => $term->name,
+			]
+		);
+
+		$pattern = '/^' . preg_quote( $term->name, '/' ) . '\s+\d{1,3}\/\d{1,3}$/u';
+		$by_id   = [];
+		foreach ( $exact as $post ) {
+			$by_id[ $post->ID ] = $post;
+		}
+		foreach ( $candidates as $post ) {
+			if ( preg_match( $pattern, $post->post_title ) ) {
+				$by_id[ $post->ID ] = $post;
+			}
+		}
+
+		return array_values( $by_id );
+	}
+
+	/**
+	 * Recomputes and saves the loan's principal from its currently-matched
+	 * entries (see find_own_entries()) — called whenever a new entry joins
+	 * an existing loan, so the stored principal never goes stale.
+	 *
+	 * A term with no principal recorded yet (brand new — e.g. just created
+	 * by "Group as Loan", which leaves it at 0) bootstraps the same way
+	 * ESSF_Plan_Detector::infer_loan_meta() already does: sum every matched
+	 * entry, magnitude becomes the principal, sign decides is_lender.
+	 *
+	 * A term that already has a real principal keeps its existing sign
+	 * convention and only re-sums the origin-side entries (same sign as the
+	 * stored principal) — summing everything here would incorrectly net
+	 * already-recorded payments against the principal.
+	 */
+	public static function sync_principal_from_entries( WP_Term $term ): void {
+		$entries = self::find_own_entries( $term );
+		if ( ! $entries ) {
+			return;
+		}
+
+		$stored_principal = (float) get_term_meta( $term->term_id, self::META_PRINCIPAL, true );
+
+		if ( 0.0 === $stored_principal ) {
+			$sum = 0.0;
+			foreach ( $entries as $entry ) {
+				$sum += (float) $entry->post_content;
+			}
+			update_term_meta( $term->term_id, self::META_PRINCIPAL, (string) abs( $sum ) );
+			return;
+		}
+
+		$principal_sign = $stored_principal >= 0 ? 1 : -1;
+		$origin_sum     = 0.0;
+		foreach ( $entries as $entry ) {
+			$sign = ( (float) $entry->post_content ) >= 0 ? 1 : -1;
+			if ( $sign === $principal_sign ) {
+				$origin_sum += (float) $entry->post_content;
+			}
+		}
+		update_term_meta( $term->term_id, self::META_PRINCIPAL, (string) abs( $origin_sum ) );
+	}
+
+	/**
+	 * Renumbers every entry currently matched to this loan (see
+	 * find_own_entries()) into a shared "{term name} i/n" description,
+	 * ordered by due date — the same outcome "Group as Loan" produces by
+	 * hand, but re-derivable at any time from whatever entries exist right
+	 * now (a single entry is left untouched, since "1/1" carries no
+	 * information). Called automatically by
+	 * ESSF_Plan_Detector::detect_for_new_entry() the moment a second entry
+	 * sharing a loan's exact name appears, so grouping needs no manual
+	 * action; also safe to re-run later (e.g. a third same-titled entry
+	 * shows up) — it always re-derives 1..n from scratch rather than
+	 * trusting a stale count.
+	 */
+	public static function renumber_and_sync( WP_Term $term ): void {
+		$entries = self::find_own_entries( $term );
+		if ( count( $entries ) < 2 ) {
+			return;
+		}
+
+		usort(
+			$entries,
+			static function ( $a, $b ) {
+				return strcmp( $a->post_date_gmt, $b->post_date_gmt );
+			}
+		);
+
+		$n = count( $entries );
+		foreach ( $entries as $index => $entry ) {
+			$new_title = $term->name . ' ' . ( $index + 1 ) . '/' . $n;
+			if ( $entry->post_title !== $new_title ) {
+				wp_update_post(
+					[
+						'ID'         => $entry->ID,
+						'post_title' => $new_title,
+					]
+				);
+			}
+		}
+
+		self::sync_principal_from_entries( $term );
+	}
+
+	/**
 	 * Splits entries matched by title into two buckets relative to the
 	 * loan's principal sign: same sign = the origin/disbursement(s) that
 	 * established the loan (shown for reference, never counted as a
@@ -251,7 +391,7 @@ class ESSF_Loan_CPT {
 	 * @return array{0: WP_Post[], 1: WP_Post[]} [ $origin, $payments ]
 	 */
 	private static function split_entries( WP_Term $term, float $principal ): array {
-		$entries        = ESSF_CPT::find_entries_by_title( $term->name );
+		$entries        = self::find_own_entries( $term );
 		$principal_sign = $principal >= 0 ? 1 : -1;
 		$origin         = [];
 		$payments       = [];
@@ -299,12 +439,18 @@ class ESSF_Loan_CPT {
 		<p>
 			<input type="number" step="0.01" min="0" id="essf_payment_amount" placeholder="0.00" required>
 			<input type="date" id="essf_payment_date" value="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>" required>
+			<select id="essf_payment_status">
+				<?php foreach ( ESSF_CPT::labels() as $status_value => $status_label ) : ?>
+					<option value="<?php echo esc_attr( $status_value ); ?>" <?php selected( 'paid', $status_value ); ?>><?php echo esc_html( $status_label ); ?></option>
+				<?php endforeach; ?>
+			</select>
 			<button type="button" class="button" id="essf_add_payment_btn"><?php esc_html_e( 'Add Payment', 'essfinance' ); ?></button>
 		</p>
 		<script>
 		document.getElementById( 'essf_add_payment_btn' ).addEventListener( 'click', function () {
 			var amount = document.getElementById( 'essf_payment_amount' ).value;
 			var date   = document.getElementById( 'essf_payment_date' ).value;
+			var status = document.getElementById( 'essf_payment_status' ).value;
 			if ( ! amount || ! date ) {
 				return;
 			}
@@ -317,6 +463,7 @@ class ESSF_Loan_CPT {
 				[ '_wpnonce', <?php echo wp_json_encode( wp_create_nonce( self::ADD_PAYMENT_NONCE . '_' . $term->term_id ) ); ?> ],
 				[ 'payment_amount', amount ],
 				[ 'payment_date', date ],
+				[ 'payment_status', status ],
 			].forEach( function ( pair ) {
 				var input = document.createElement( 'input' );
 				input.type = 'hidden';
@@ -386,7 +533,12 @@ class ESSF_Loan_CPT {
 		$date_raw = isset( $post['payment_date'] ) ? sanitize_text_field( $post['payment_date'] ) : '';
 		$date     = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date_raw ) ? $date_raw : current_time( 'Y-m-d' );
 
-		ESSF_CPT::insert_entry( $term->name, $signed, $date . ' 00:00:00', $date . ' 00:00:00', 'paid', $category, get_current_user_id() );
+		// Effective (paid) = the date is when it was paid; Scheduled (pending)
+		// = the date is only the expected due date, not yet paid.
+		$status = isset( $post['payment_status'] ) && array_key_exists( $post['payment_status'], ESSF_CPT::labels() ) ? $post['payment_status'] : 'paid';
+		$pay    = 'paid' === $status ? $date . ' 00:00:00' : '0000-00-00 00:00:00';
+
+		ESSF_CPT::insert_entry( $term->name, $signed, $date . ' 00:00:00', $pay, $status, $category, get_current_user_id() );
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -421,7 +573,7 @@ class ESSF_Loan_CPT {
 		foreach ( $terms as $term ) {
 			$principal      = (float) get_term_meta( $term->term_id, self::META_PRINCIPAL, true );
 			[ , $payments ] = self::split_entries( $term, $principal );
-			$paid           = abs( ESSF_Totals::compute_from_posts( $payments )['net'] );
+			$paid           = self::sum_realized_payments( $payments );
 			$remain         = abs( $principal ) - $paid;
 			if ( $remain > 0.01 ) {
 				$unsettled[] = [

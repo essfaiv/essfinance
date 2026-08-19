@@ -67,6 +67,23 @@ if ( ! class_exists( 'WP_Post' ) ) {
 	}
 }
 
+// ── Minimal WP_Term stub ─────────────────────────────────────────────────────
+
+if ( ! class_exists( 'WP_Term' ) ) {
+	class WP_Term {
+		public int    $term_id  = 0;
+		public string $name     = '';
+		public string $slug     = '';
+		public string $taxonomy = '';
+
+		public function __construct( array $data = [] ) {
+			foreach ( $data as $key => $value ) {
+				$this->$key = $value;
+			}
+		}
+	}
+}
+
 // ── Load plugin includes (order matters — dependencies first) ─────────────────
 
 require_once ESSF_PATH . 'includes/class-cpt.php';

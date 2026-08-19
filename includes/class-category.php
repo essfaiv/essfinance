@@ -24,6 +24,9 @@ class ESSF_Category {
 	 */
 	const AUTO_SLUG = 'auto';
 
+	/** Category slug assigned to entries created by Adjust Balance (Settings) — see is_balance_adjustment(). */
+	const BALANCE_ADJUSTMENT_SLUG = 'balance-adjustment';
+
 	/**
 	 * Canonical category list, order and slugs sourced from documents/categories.md.
 	 * Slugs are always English-derived and stable regardless of which label
@@ -133,6 +136,10 @@ class ESSF_Category {
 			'uncategorized'          => [
 				'en'    => 'Uncategorized',
 				'pt_BR' => 'Não categorizado',
+			],
+			'balance-adjustment'     => [
+				'en'    => 'Adjustment',
+				'pt_BR' => 'Ajuste',
 			],
 		];
 	}
@@ -355,6 +362,16 @@ class ESSF_Category {
 
 	public static function uncategorized_term_id(): int {
 		return self::term_id_for_slug( 'uncategorized' );
+	}
+
+	/**
+	 * True when $post_id's category is the seeded "Adjustment" term used for
+	 * balance-reconciliation entries (see ESSF_Admin_Page::handle_adjust_balance()) —
+	 * looked up via term_id_for_slug() rather than a raw slug/name comparison so
+	 * this stays correct across relabel_terms() re-slugging.
+	 */
+	public static function is_balance_adjustment( int $post_id ): bool {
+		return (bool) has_term( self::term_id_for_slug( self::BALANCE_ADJUSTMENT_SLUG ), self::TAXONOMY, $post_id );
 	}
 
 	/**

@@ -106,7 +106,17 @@ class ESSF_Plan_Detector {
 	 */
 	public static function detect_for_new_entry( string $title ): void {
 		if ( self::is_loan_title( $title ) ) {
-			if ( term_exists( $title, ESSF_Loan_CPT::TAXONOMY ) ) {
+			$existing = term_exists( $title, ESSF_Loan_CPT::TAXONOMY );
+			if ( $existing ) {
+				// A second (or later) entry sharing this exact loan title
+				// just appeared — auto-group every matching entry into
+				// numbered "i/n" installments and keep the principal in
+				// sync, no manual "Group as Loan" needed.
+				$term_id = (int) ( is_array( $existing ) ? $existing['term_id'] : $existing );
+				$term    = get_term( $term_id, ESSF_Loan_CPT::TAXONOMY );
+				if ( $term && ! is_wp_error( $term ) ) {
+					ESSF_Loan_CPT::renumber_and_sync( $term );
+				}
 				return;
 			}
 			$posts = ESSF_CPT::find_entries_by_title( $title );

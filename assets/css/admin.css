@@ -100,6 +100,33 @@ input[type="date"],
 	max-width: none !important;
 }
 
+/* ── Due Date / Pay Date row ───────────────────────────── */
+.essf-dates-row {
+	display: flex;
+	gap: 14px;
+	width: 95%;
+}
+
+.essf-dates-row .form-field {
+	flex: 1;
+}
+
+/* ── Collapsible Discount/Surcharge ────────────────────── */
+.essf-discount-surcharge {
+	width: 95%;
+	margin-bottom: 1.5em;
+}
+
+.essf-discount-surcharge summary {
+	cursor: pointer;
+	font-weight: 600;
+	margin-bottom: 0.5em;
+}
+
+.essf-discount-surcharge[open] summary {
+	margin-bottom: 1em;
+}
+
 /* ── Income checkbox + amount row ─────────────────────── */
 .essf-field-row--amount,
 .form-field.essf-field-row--amount {

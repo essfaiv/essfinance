@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-16T03:27:43+00:00\n"
+"POT-Creation-Date: 2026-08-19T05:04:21+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: essfinance\n"
@@ -17,8 +17,8 @@ msgstr ""
 #. Plugin Name of the plugin
 #. Author of the plugin
 #: essfinance.php
-#: includes/class-admin-page.php:74
-#: includes/class-admin-page.php:75
+#: includes/class-admin-page.php:81
+#: includes/class-admin-page.php:82
 msgid "EssFinance"
 msgstr ""
 
@@ -27,450 +27,758 @@ msgstr ""
 msgid "Simple personal finance management"
 msgstr ""
 
-#: includes/class-admin-page.php:85
-#: includes/class-admin-page.php:86
-#: includes/class-admin-page.php:1451
-#: includes/class-admin-page.php:1497
-#: includes/class-admin-page.php:1538
+#: includes/class-admin-page.php:92
+#: includes/class-admin-page.php:93
+#: includes/class-admin-page.php:1824
+#: includes/class-admin-page.php:1884
+#: includes/class-admin-page.php:1972
+#: includes/class-admin-page.php:2019
+#: includes/class-admin-page.php:2060
 #: includes/class-cpt.php:79
-#: includes/class-settings.php:800
-#: includes/class-shortcodes.php:1397
+#: includes/class-settings.php:977
+#: includes/class-shortcodes.php:1484
 msgid "Cash Flow"
 msgstr ""
 
-#: includes/class-admin-page.php:101
-#: includes/class-admin-page.php:102
-#: includes/class-admin-page.php:1073
-#: includes/class-category.php:164
-#: includes/class-category.php:172
+#: includes/class-admin-page.php:108
+#: includes/class-admin-page.php:109
+#: includes/class-admin-page.php:1230
+#: includes/class-category.php:171
+#: includes/class-category.php:179
 msgid "Categories"
 msgstr ""
 
-#: includes/class-admin-page.php:122
-#: includes/class-admin-page.php:139
-#: includes/class-admin-page.php:140
-#: includes/class-admin-page.php:1092
-#: includes/class-settings.php:815
+#: includes/class-admin-page.php:129
+#: includes/class-admin-page.php:146
+#: includes/class-admin-page.php:147
+#: includes/class-admin-page.php:1249
+#: includes/class-settings.php:992
 msgid "OFX Glossary"
 msgstr ""
 
-#: includes/class-admin-page.php:123
-#: includes/class-admin-page.php:148
-#: includes/class-admin-page.php:149
-#: includes/class-admin-page.php:1195
-#: includes/class-settings.php:816
+#: includes/class-admin-page.php:130
+#: includes/class-admin-page.php:155
+#: includes/class-admin-page.php:156
+#: includes/class-admin-page.php:1352
+#: includes/class-settings.php:993
 msgid "Category Glossary"
 msgstr ""
 
-#: includes/class-admin-page.php:161
+#: includes/class-admin-page.php:168
 msgid "Categories per page"
 msgstr ""
 
-#: includes/class-admin-page.php:170
+#: includes/class-admin-page.php:177
 msgid "Overview"
 msgstr ""
 
-#: includes/class-admin-page.php:171
+#: includes/class-admin-page.php:178
 msgid "This is a read-only view of the categories entries can be filed under. Names and slugs are managed automatically and change with the site language."
 msgstr ""
 
-#: includes/class-admin-page.php:183
+#: includes/class-admin-page.php:190
 msgid "Entries per page"
 msgstr ""
 
-#: includes/class-admin-page.php:300
-#: includes/class-admin-page.php:350
-#: includes/class-admin-page.php:388
-#: includes/class-admin-page.php:435
-#: includes/class-admin-page.php:849
-#: includes/class-admin-page.php:1175
-#: includes/class-admin-page.php:1245
-#: includes/class-admin-page.php:1260
-#: includes/class-admin-page.php:1325
-#: includes/class-admin-page.php:1341
-#: includes/class-admin-page.php:1373
+#: includes/class-admin-page.php:448
+#: includes/class-admin-page.php:475
+#: includes/class-admin-page.php:519
+#: includes/class-admin-page.php:566
+#: includes/class-admin-page.php:1005
+#: includes/class-admin-page.php:1332
+#: includes/class-admin-page.php:1402
+#: includes/class-admin-page.php:1417
+#: includes/class-admin-page.php:1446
+#: includes/class-admin-page.php:1462
+#: includes/class-admin-page.php:1499
+#: includes/class-admin-page.php:1532
+#: includes/class-admin-page.php:1595
+#: includes/class-admin-page.php:1674
+#: includes/class-admin-page.php:1876
+#: includes/class-admin-page.php:1957
+#: includes/class-loan.php:517
+#: includes/class-recurrence-entries-page.php:59
 msgid "Unauthorized."
 msgstr ""
 
-#: includes/class-admin-page.php:800
-#: includes/class-admin-page.php:1955
+#: includes/class-admin-page.php:956
+#: includes/class-admin-page.php:2649
 #: includes/class-cli.php:184
 #: includes/class-cli.php:305
 #: includes/class-cli.php:336
-#: includes/class-list-table.php:447
-#: includes/class-shortcodes.php:1011
+#: includes/class-list-table.php:513
+#: includes/class-shortcodes.php:1090
 msgid "Uncategorized"
 msgstr ""
 
-#: includes/class-admin-page.php:1079
-#: includes/class-category.php:166
+#: includes/class-admin-page.php:1236
+#: includes/class-category.php:173
 msgid "Search Categories"
 msgstr ""
 
-#: includes/class-admin-page.php:1094
-#: includes/class-admin-page.php:1197
-#: includes/class-settings.php:383
-#: includes/class-settings.php:841
+#: includes/class-admin-page.php:1251
+#: includes/class-admin-page.php:1354
+#: includes/class-settings.php:388
+#: includes/class-settings.php:1018
 msgid "Settings"
 msgstr ""
 
-#: includes/class-admin-page.php:1099
-#: includes/class-admin-page.php:1202
+#: includes/class-admin-page.php:1256
+#: includes/class-admin-page.php:1359
 msgid "Entry forgotten."
 msgstr ""
 
-#: includes/class-admin-page.php:1103
+#: includes/class-admin-page.php:1260
 msgid "These are the raw bank memos EssFinance has learned to recognize during OFX review, and what each currently suggests. \"Forget\" clears the learned mapping only — the underlying entry stays exactly as it is."
 msgstr ""
 
-#: includes/class-admin-page.php:1106
+#: includes/class-admin-page.php:1263
 msgid "Learned descriptions"
 msgstr ""
 
-#: includes/class-admin-page.php:1109
+#: includes/class-admin-page.php:1266
 msgid "Nothing learned yet — this fills in as you confirm OFX imports."
 msgstr ""
 
-#: includes/class-admin-page.php:1114
-#: includes/class-admin-page.php:1216
-#: includes/class-admin-page.php:1593
-#: includes/class-admin-page.php:1812
-#: includes/class-list-table.php:36
-#: includes/class-meta-boxes.php:48
-#: includes/class-meta-boxes.php:51
-#: includes/class-shortcodes.php:875
-#: includes/class-shortcodes.php:1065
+#: includes/class-admin-page.php:1271
+#: includes/class-admin-page.php:1373
+#: includes/class-admin-page.php:2132
+#: includes/class-admin-page.php:2368
+#: includes/class-list-table.php:42
+#: includes/class-meta-boxes.php:53
+#: includes/class-meta-boxes.php:56
+#: includes/class-meta-boxes.php:117
+#: includes/class-shortcodes.php:951
+#: includes/class-shortcodes.php:1161
 msgid "Description"
 msgstr ""
 
-#: includes/class-admin-page.php:1115
+#: includes/class-admin-page.php:1272
 msgid "Raw Memo"
 msgstr ""
 
-#: includes/class-admin-page.php:1116
+#: includes/class-admin-page.php:1273
 msgid "Detail"
 msgstr ""
 
-#: includes/class-admin-page.php:1128
-#: includes/class-admin-page.php:1228
+#: includes/class-admin-page.php:1285
+#: includes/class-admin-page.php:1385
 msgid "Forget this mapping? The entry itself will not be changed."
 msgstr ""
 
-#: includes/class-admin-page.php:1129
-#: includes/class-admin-page.php:1159
-#: includes/class-admin-page.php:1229
+#: includes/class-admin-page.php:1286
+#: includes/class-admin-page.php:1316
+#: includes/class-admin-page.php:1386
 msgid "Forget"
 msgstr ""
 
-#: includes/class-admin-page.php:1138
+#: includes/class-admin-page.php:1295
 msgid "Excluded patterns"
 msgstr ""
 
-#: includes/class-admin-page.php:1140
+#: includes/class-admin-page.php:1297
 msgid "Memo patterns you've excluded during review before (e.g. balances, internal transfers) — future imports matching one of these default to excluded too."
 msgstr ""
 
-#: includes/class-admin-page.php:1144
+#: includes/class-admin-page.php:1301
 msgid "Nothing excluded yet."
 msgstr ""
 
-#: includes/class-admin-page.php:1149
+#: includes/class-admin-page.php:1306
 msgid "Pattern"
 msgstr ""
 
-#: includes/class-admin-page.php:1206
+#: includes/class-admin-page.php:1363
 msgid "Every categorized entry teaches \"Auto Set Category\" by example — correct one and similar descriptions use that category from then on. \"Forget\" stops an entry from teaching by example; its own category is not changed."
 msgstr ""
 
-#: includes/class-admin-page.php:1211
+#: includes/class-admin-page.php:1368
 msgid "Nothing learned yet — this fills in as entries get categorized."
 msgstr ""
 
-#: includes/class-admin-page.php:1217
-#: includes/class-admin-page.php:1594
-#: includes/class-admin-page.php:1855
-#: includes/class-admin-page.php:1927
-#: includes/class-category.php:165
-#: includes/class-list-table.php:38
-#: includes/class-meta-boxes.php:93
-#: includes/class-shortcodes.php:792
-#: includes/class-shortcodes.php:877
-#: includes/class-shortcodes.php:1087
+#: includes/class-admin-page.php:1374
+#: includes/class-admin-page.php:2133
+#: includes/class-admin-page.php:2450
+#: includes/class-admin-page.php:2621
+#: includes/class-bill.php:176
+#: includes/class-bill.php:243
+#: includes/class-category.php:172
+#: includes/class-financing.php:169
+#: includes/class-financing.php:216
+#: includes/class-list-table.php:44
+#: includes/class-meta-boxes.php:98
+#: includes/class-shortcodes.php:865
+#: includes/class-shortcodes.php:953
+#: includes/class-shortcodes.php:1192
 msgid "Category"
 msgstr ""
 
-#: includes/class-admin-page.php:1392
+#: includes/class-admin-page.php:1690
+msgid "Balance adjustment"
+msgstr ""
+
+#: includes/class-admin-page.php:1712
 #: includes/class-cpt.php:80
 msgid "Entry"
 msgstr ""
 
-#: includes/class-admin-page.php:1453
-#: includes/class-shortcodes.php:773
+#: includes/class-admin-page.php:1753
+#: includes/class-shortcodes.php:824
+msgid "Filtered income"
+msgstr ""
+
+#: includes/class-admin-page.php:1754
+#: includes/class-shortcodes.php:825
+msgid "Filtered expenses"
+msgstr ""
+
+#: includes/class-admin-page.php:1755
+#: includes/class-shortcodes.php:826
+msgid "Filtered net"
+msgstr ""
+
+#: includes/class-admin-page.php:1756
+#: includes/class-shortcodes.php:827
+msgid "Pending balance"
+msgstr ""
+
+#: includes/class-admin-page.php:1757
+#: includes/class-shortcodes.php:828
+msgid "Overdue total"
+msgstr ""
+
+#: includes/class-admin-page.php:1758
+#: includes/class-shortcodes.php:829
+msgid "Paid this month"
+msgstr ""
+
+#: includes/class-admin-page.php:1826
+#: includes/class-shortcodes.php:846
 msgid "Export"
 msgstr ""
 
-#: includes/class-admin-page.php:1456
-#: includes/class-admin-page.php:1744
-#: includes/class-admin-page.php:1755
-#: includes/class-shortcodes.php:772
-#: includes/class-shortcodes.php:1303
+#: includes/class-admin-page.php:1829
+#: includes/class-admin-page.php:2283
+#: includes/class-admin-page.php:2301
+#: includes/class-shortcodes.php:845
+#: includes/class-shortcodes.php:1390
 msgid "Import"
 msgstr ""
 
-#: includes/class-admin-page.php:1479
+#: includes/class-admin-page.php:1854
 #: includes/class-cpt.php:86
 msgid "Search Entries"
 msgstr ""
 
-#: includes/class-admin-page.php:1495
-#: includes/class-admin-page.php:1800
+#: includes/class-admin-page.php:1883
+#: includes/class-list-table.php:88
+msgid "Group as Loan"
+msgstr ""
+
+#: includes/class-admin-page.php:1887
+msgid "These entries will be renamed to a shared, numbered description and grouped under a Loan of the same name."
+msgstr ""
+
+#: includes/class-admin-page.php:1895
+msgid "Base description"
+msgstr ""
+
+#: includes/class-admin-page.php:1897
+msgid "e.g. Lucia 202608"
+msgstr ""
+
+#: includes/class-admin-page.php:1903
+#: includes/class-admin-page.php:2130
+#: includes/class-list-table.php:46
+#: includes/class-loan.php:227
+#: includes/class-shortcodes.php:863
+#: includes/class-shortcodes.php:955
+msgid "Date"
+msgstr ""
+
+#: includes/class-admin-page.php:1904
+#: includes/class-admin-page.php:2131
+#: includes/class-admin-page.php:2376
+#: includes/class-admin-page.php:2622
+#: includes/class-bill.php:384
+#: includes/class-financing.php:327
+#: includes/class-list-table.php:45
+#: includes/class-loan.php:227
+#: includes/class-meta-boxes.php:74
+#: includes/class-meta-boxes.php:121
+#: includes/class-shortcodes.php:867
+#: includes/class-shortcodes.php:954
+#: includes/class-shortcodes.php:1164
+msgid "Amount"
+msgstr ""
+
+#: includes/class-admin-page.php:1905
+msgid "Current description"
+msgstr ""
+
+#: includes/class-admin-page.php:1906
+msgid "New description"
+msgstr ""
+
+#: includes/class-admin-page.php:1928
+msgid "Confirm"
+msgstr ""
+
+#: includes/class-admin-page.php:1961
+msgid "Entry not found."
+msgstr ""
+
+#: includes/class-admin-page.php:1971
+msgid "Split into Installments"
+msgstr ""
+
+#: includes/class-admin-page.php:1982
+msgid "No Financing plans exist yet — create one first."
+msgstr ""
+
+#: includes/class-admin-page.php:1990
+msgid "Financing plan"
+msgstr ""
+
+#: includes/class-admin-page.php:1992
+msgid "— choose —"
+msgstr ""
+
+#: includes/class-admin-page.php:1999
+msgid "How many installments does this entry represent?"
+msgstr ""
+
+#: includes/class-admin-page.php:2004
+msgid "Split"
+msgstr ""
+
+#: includes/class-admin-page.php:2017
+#: includes/class-admin-page.php:2356
 #: includes/class-cpt.php:83
-#: includes/class-shortcodes.php:1058
+#: includes/class-shortcodes.php:1154
 msgid "Edit Entry"
 msgstr ""
 
-#: includes/class-admin-page.php:1536
+#: includes/class-admin-page.php:2058
 msgid "Review OFX Import"
 msgstr ""
 
 #. translators: %d: number of duplicate transactions skipped automatically.
-#: includes/class-admin-page.php:1547
+#: includes/class-admin-page.php:2069
 #, php-format
 msgid "%d duplicate transaction was skipped automatically."
 msgid_plural "%d duplicate transactions were skipped automatically."
 msgstr[0] ""
 msgstr[1] ""
 
+#. translators: %d: number of transactions excluded for being outside the selected date range.
+#: includes/class-admin-page.php:2086
+#, php-format
+msgid "%d transaction was outside the selected date range and was not staged."
+msgid_plural "%d transactions were outside the selected date range and were not staged."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: %s is replaced client-side (assets/js/admin.js) with the description being offered, not by PHP.
-#: includes/class-admin-page.php:1561
+#: includes/class-admin-page.php:2100
 #, php-format
 msgid "Use \"%s\""
 msgstr ""
 
-#: includes/class-admin-page.php:1569
+#: includes/class-admin-page.php:2108
 msgid "Confirm entries to import"
 msgstr ""
 
-#: includes/class-admin-page.php:1571
+#: includes/class-admin-page.php:2110
 msgid "Hover a description to see the raw bank memo, or click it to edit before these transactions are saved. Click the ✕ to exclude a row (e.g. balances, internal transfers) — click again to bring it back."
 msgstr ""
 
-#: includes/class-admin-page.php:1576
+#: includes/class-admin-page.php:2115
+#: includes/class-admin-page.php:2294
 msgid "From"
 msgstr ""
 
-#: includes/class-admin-page.php:1579
+#: includes/class-admin-page.php:2118
+#: includes/class-admin-page.php:2296
 msgid "To"
 msgstr ""
 
-#: includes/class-admin-page.php:1591
-#: includes/class-list-table.php:40
-#: includes/class-shortcodes.php:790
-#: includes/class-shortcodes.php:879
-msgid "Date"
-msgstr ""
-
-#: includes/class-admin-page.php:1592
-#: includes/class-admin-page.php:1832
-#: includes/class-admin-page.php:1928
-#: includes/class-list-table.php:39
-#: includes/class-meta-boxes.php:69
-#: includes/class-shortcodes.php:794
-#: includes/class-shortcodes.php:878
-#: includes/class-shortcodes.php:1074
-msgid "Amount"
-msgstr ""
-
-#: includes/class-admin-page.php:1649
-#: includes/class-admin-page.php:1650
+#: includes/class-admin-page.php:2188
+#: includes/class-admin-page.php:2189
 msgid "Include this transaction"
 msgstr ""
 
-#: includes/class-admin-page.php:1649
-#: includes/class-admin-page.php:1651
+#: includes/class-admin-page.php:2188
+#: includes/class-admin-page.php:2190
 msgid "Exclude this transaction"
 msgstr ""
 
-#: includes/class-admin-page.php:1669
+#: includes/class-admin-page.php:2208
 msgid "Suggested from a previous import — click to change"
 msgstr ""
 
-#: includes/class-admin-page.php:1671
+#: includes/class-admin-page.php:2210
 msgid "No match found — please review this description"
 msgstr ""
 
 #. translators: 1: existing entry title, 2: existing entry date.
-#: includes/class-admin-page.php:1680
+#: includes/class-admin-page.php:2219
 #, php-format
 msgid "Possibly matches \"%1$s\" on %2$s."
 msgstr ""
 
-#: includes/class-admin-page.php:1688
+#: includes/class-admin-page.php:2227
 msgid "Looks like a transaction you've excluded before."
 msgstr ""
 
-#: includes/class-admin-page.php:1699
+#: includes/class-admin-page.php:2238
 msgid "Confirm description"
 msgstr ""
 
-#: includes/class-admin-page.php:1700
+#: includes/class-admin-page.php:2239
 msgid "Cancel edit"
 msgstr ""
 
-#: includes/class-admin-page.php:1719
+#: includes/class-admin-page.php:2258
 msgid "Finish"
 msgstr ""
 
-#: includes/class-admin-page.php:1720
-#: includes/class-admin-page.php:1756
-#: includes/class-admin-page.php:1871
-#: includes/class-shortcodes.php:1096
-#: includes/class-shortcodes.php:1304
+#: includes/class-admin-page.php:2259
+#: includes/class-admin-page.php:2302
+#: includes/class-admin-page.php:2468
+#: includes/class-shortcodes.php:1201
+#: includes/class-shortcodes.php:1391
 msgid "Cancel"
 msgstr ""
 
-#: includes/class-admin-page.php:1731
-#: includes/class-admin-page.php:1800
-#: includes/class-admin-page.php:1873
+#: includes/class-admin-page.php:2270
+#: includes/class-admin-page.php:2356
+#: includes/class-admin-page.php:2470
 #: includes/class-cpt.php:81
 #: includes/class-cpt.php:82
-#: includes/class-shortcodes.php:771
-#: includes/class-shortcodes.php:1058
-#: includes/class-shortcodes.php:1095
+#: includes/class-shortcodes.php:844
+#: includes/class-shortcodes.php:1154
+#: includes/class-shortcodes.php:1200
 msgid "Add Entry"
 msgstr ""
 
-#: includes/class-admin-page.php:1750
+#: includes/class-admin-page.php:2289
 msgid "File"
 msgstr ""
 
-#: includes/class-admin-page.php:1752
+#: includes/class-admin-page.php:2291
 msgid "Supports CSV (EssFinance export) and OFX. Duplicates are skipped automatically. OFX files open a review step before anything is saved."
 msgstr ""
 
-#: includes/class-admin-page.php:1815
+#: includes/class-admin-page.php:2298
+msgid "Optional — only applies to OFX/QFX imports. Transactions outside this range are excluded from the review step."
+msgstr ""
+
+#: includes/class-admin-page.php:2371
 msgid "A short label for this entry."
 msgstr ""
 
-#: includes/class-admin-page.php:1819
-#: includes/class-admin-page.php:1929
-#: includes/class-meta-boxes.php:56
-#: includes/class-shortcodes.php:1068
-msgid "Due Date"
-msgstr ""
-
-#: includes/class-admin-page.php:1825
-#: includes/class-meta-boxes.php:61
-#: includes/class-shortcodes.php:1070
-msgid "Pay Date"
-msgstr ""
-
-#: includes/class-admin-page.php:1839
-#: includes/class-list-table.php:159
-#: includes/class-list-table.php:441
-#: includes/class-meta-boxes.php:76
-#: includes/class-shortcodes.php:848
-#: includes/class-shortcodes.php:1025
-#: includes/class-shortcodes.php:1078
+#: includes/class-admin-page.php:2383
+#: includes/class-bill.php:172
+#: includes/class-bill.php:239
+#: includes/class-financing.php:197
+#: includes/class-list-table.php:183
+#: includes/class-list-table.php:507
+#: includes/class-meta-boxes.php:81
+#: includes/class-shortcodes.php:924
+#: includes/class-shortcodes.php:1104
+#: includes/class-shortcodes.php:1168
 msgid "Income"
 msgstr ""
 
-#: includes/class-admin-page.php:1844
-#: includes/class-admin-page.php:1930
-#: includes/class-list-table.php:41
-#: includes/class-meta-boxes.php:82
-#: includes/class-shortcodes.php:793
-#: includes/class-shortcodes.php:880
-#: includes/class-shortcodes.php:1081
+#: includes/class-admin-page.php:2388
+#: includes/class-shortcodes.php:1172
+msgid "Discount / Surcharge"
+msgstr ""
+
+#: includes/class-admin-page.php:2391
+#: includes/class-shortcodes.php:1174
+msgid "Discount"
+msgstr ""
+
+#: includes/class-admin-page.php:2397
+#: includes/class-shortcodes.php:1176
+msgid "Surcharge (interest & penalty)"
+msgstr ""
+
+#: includes/class-admin-page.php:2408
+#: includes/class-admin-page.php:2623
+#: includes/class-meta-boxes.php:61
+#: includes/class-shortcodes.php:1181
+msgid "Due Date"
+msgstr ""
+
+#: includes/class-admin-page.php:2414
+#: includes/class-meta-boxes.php:66
+#: includes/class-shortcodes.php:1183
+msgid "Pay Date"
+msgstr ""
+
+#: includes/class-admin-page.php:2431
+msgid "Base amount:"
+msgstr ""
+
+#: includes/class-admin-page.php:2439
+#: includes/class-admin-page.php:2624
+#: includes/class-bill.php:384
+#: includes/class-financing.php:328
+#: includes/class-list-table.php:47
+#: includes/class-loan.php:227
+#: includes/class-meta-boxes.php:87
+#: includes/class-meta-boxes.php:125
+#: includes/class-shortcodes.php:866
+#: includes/class-shortcodes.php:956
+#: includes/class-shortcodes.php:1186
 msgid "Status"
 msgstr ""
 
-#: includes/class-admin-page.php:1858
-#: includes/class-shortcodes.php:1089
+#: includes/class-admin-page.php:2453
+#: includes/class-shortcodes.php:1194
 msgid "Auto-categorize"
 msgstr ""
 
-#: includes/class-admin-page.php:1870
+#: includes/class-admin-page.php:2467
 msgid "Update Entry"
 msgstr ""
 
+#: includes/class-admin-page.php:2502
+msgid "Link to loan (optional)"
+msgstr ""
+
+#: includes/class-admin-page.php:2504
+msgid "— none —"
+msgstr ""
+
+#: includes/class-admin-page.php:2507
+msgid "remaining"
+msgstr ""
+
+#: includes/class-admin-page.php:2511
+msgid "Picking a loan fills in the Description (and Amount, if empty) so this entry links to it."
+msgstr ""
+
+#. translators: %d: number of balance-adjustment entries skipped by a bulk action.
+#: includes/class-admin-page.php:2567
+#, php-format
+msgid "%d balance adjustment entry was skipped (bulk actions other than Delete can't change it)."
+msgid_plural "%d balance adjustment entries were skipped (bulk actions other than Delete can't change them)."
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-#: includes/class-admin-page.php:1894
+#: includes/class-admin-page.php:2579
 #, php-format
 msgid "%1$d %2$s imported, %3$d skipped as duplicates."
 msgstr ""
 
 #. translators: 1: number of entries, 2: singular/plural "entry/entries", 3: number of skipped duplicates.
-#: includes/class-admin-page.php:1894
+#: includes/class-admin-page.php:2579
 msgid "entry"
 msgid_plural "entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-admin-page.php:1900
-#: includes/class-shortcodes.php:1379
+#. translators: %d: number of transactions excluded for being outside the selected date range.
+#: includes/class-admin-page.php:2582
+#, php-format
+msgid "%d outside the selected date range."
+msgstr ""
+
+#: includes/class-admin-page.php:2589
+#: includes/class-shortcodes.php:1466
 msgid "Entry added."
 msgstr ""
 
-#: includes/class-admin-page.php:1901
-#: includes/class-shortcodes.php:1380
+#: includes/class-admin-page.php:2590
+#: includes/class-shortcodes.php:1467
 msgid "Entry updated."
 msgstr ""
 
-#: includes/class-admin-page.php:1902
-#: includes/class-shortcodes.php:1381
+#: includes/class-admin-page.php:2591
+#: includes/class-shortcodes.php:1468
 msgid "Entry deleted."
 msgstr ""
 
-#: includes/class-admin-page.php:1903
+#: includes/class-admin-page.php:2592
 msgid "Entry marked as paid today."
 msgstr ""
 
-#: includes/class-admin-page.php:1904
+#: includes/class-admin-page.php:2593
 msgid "Entry type changed."
 msgstr ""
 
-#: includes/class-admin-page.php:1905
+#: includes/class-admin-page.php:2594
 msgid "Selected entries marked as paid today."
 msgstr ""
 
-#: includes/class-admin-page.php:1906
+#: includes/class-admin-page.php:2595
 msgid "Selected entries marked as pending."
 msgstr ""
 
-#: includes/class-admin-page.php:1907
+#: includes/class-admin-page.php:2596
 msgid "Selected entries changed to income."
 msgstr ""
 
-#: includes/class-admin-page.php:1908
+#: includes/class-admin-page.php:2597
 msgid "Selected entries changed to expense."
 msgstr ""
 
-#: includes/class-admin-page.php:1909
+#: includes/class-admin-page.php:2598
 msgid "Category updated for selected entries."
 msgstr ""
 
-#: includes/class-admin-page.php:1910
+#: includes/class-admin-page.php:2599
 msgid "Category auto-detected for selected entries."
 msgstr ""
 
-#: includes/class-admin-page.php:1911
+#: includes/class-admin-page.php:2600
+msgid "Entries renamed and grouped into a Loan."
+msgstr ""
+
+#: includes/class-admin-page.php:2601
+msgid "Entry split into installments."
+msgstr ""
+
+#: includes/class-admin-page.php:2602
+msgid "That entry is a balance adjustment and can't be edited directly — delete and re-run Adjust Balance instead."
+msgstr ""
+
+#: includes/class-admin-page.php:2603
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/class-admin-page.php:1912
+#: includes/class-admin-page.php:2604
 msgid "Import failed. Please upload a valid CSV file."
 msgstr ""
 
-#: includes/class-admin-page.php:1925
+#: includes/class-admin-page.php:2605
+msgid "Select at least 2 entries to group as a Loan."
+msgstr ""
+
+#: includes/class-admin-page.php:2606
+msgid "Select exactly 1 entry, and make sure the chosen Financing plan has enough remaining installments."
+msgstr ""
+
+#: includes/class-admin-page.php:2619
 msgid "Title"
 msgstr ""
 
-#: includes/class-admin-page.php:1926
-#: includes/class-list-table.php:37
-#: includes/class-shortcodes.php:791
-#: includes/class-shortcodes.php:876
+#: includes/class-admin-page.php:2620
+#: includes/class-list-table.php:43
+#: includes/class-shortcodes.php:864
+#: includes/class-shortcodes.php:952
 msgid "Type"
+msgstr ""
+
+#: includes/class-bill.php:110
+#: includes/class-bill.php:115
+#: includes/class-bill.php:133
+#: includes/class-bill.php:134
+msgid "Bills"
+msgstr ""
+
+#: includes/class-bill.php:111
+msgid "Bill"
+msgstr ""
+
+#: includes/class-bill.php:112
+msgid "Add New Bill"
+msgstr ""
+
+#: includes/class-bill.php:113
+msgid "New Bill Name (e.g. Electricity)"
+msgstr ""
+
+#: includes/class-bill.php:114
+msgid "All Bills"
+msgstr ""
+
+#: includes/class-bill.php:146
+#: includes/class-bill.php:263
+msgid "History"
+msgstr ""
+
+#: includes/class-bill.php:147
+#: includes/class-financing.php:139
+#: includes/class-loan.php:134
+msgid "View entries"
+msgstr ""
+
+#: includes/class-bill.php:165
+#: includes/class-bill.php:233
+msgid "Tip: the bill name above can optionally include YYYY-MM-DD or YYYY-MM as a placeholder — it will be replaced with the real due date (or year and month) each time an occurrence is generated, e.g. \"Electricity YYYY-MM\" becomes \"Electricity 2026-08\"."
+msgstr ""
+
+#: includes/class-bill.php:167
+#: includes/class-bill.php:236
+msgid "Default amount"
+msgstr ""
+
+#: includes/class-bill.php:169
+msgid "Suggested amount for each monthly occurrence — editable per month on the generated entry."
+msgstr ""
+
+#: includes/class-bill.php:180
+#: includes/class-bill.php:247
+msgid "Recurrence"
+msgstr ""
+
+#: includes/class-bill.php:184
+#: includes/class-bill.php:251
+msgid "Due day of month (used when Recurrence = Monthly)"
+msgstr ""
+
+#: includes/class-bill.php:188
+#: includes/class-bill.php:255
+msgid "Due day of week (used when Recurrence = Weekly)"
+msgstr ""
+
+#: includes/class-bill.php:192
+#: includes/class-bill.php:259
+msgid "Active"
+msgstr ""
+
+#: includes/class-bill.php:194
+msgid "Uncheck to stop generating new monthly occurrences for this bill."
+msgstr ""
+
+#: includes/class-bill.php:201
+msgid "Monthly"
+msgstr ""
+
+#: includes/class-bill.php:202
+msgid "Weekly"
+msgstr ""
+
+#: includes/class-bill.php:232
+msgid "Tip"
+msgstr ""
+
+#: includes/class-bill.php:264
+msgid "View history →"
+msgstr ""
+
+#: includes/class-bill.php:381
+msgid "Week"
+msgstr ""
+
+#: includes/class-bill.php:381
+msgid "Month"
+msgstr ""
+
+#. translators: %s: the Monday date that starts the week, e.g. "Aug 17, 2026".
+#: includes/class-bill.php:393
+#, php-format
+msgid "Week of %s"
+msgstr ""
+
+#: includes/class-bill.php:414
+msgid "Not generated"
 msgstr ""
 
 #: includes/class-category-list-table.php:35
@@ -489,367 +797,369 @@ msgstr ""
 msgid "No categories found."
 msgstr ""
 
-#: includes/class-category.php:167
+#: includes/class-category.php:174
 msgid "All Categories"
 msgstr ""
 
-#: includes/class-category.php:168
+#: includes/class-category.php:175
 msgid "Edit Category"
 msgstr ""
 
-#: includes/class-category.php:169
+#: includes/class-category.php:176
 msgid "Update Category"
 msgstr ""
 
-#: includes/class-category.php:170
+#: includes/class-category.php:177
 msgid "Add New Category"
 msgstr ""
 
-#: includes/class-category.php:171
+#: includes/class-category.php:178
 msgid "New Category Name"
 msgstr ""
 
-#: includes/class-category.php:448
+#: includes/class-category.php:465
 msgid "loan"
 msgstr ""
 
-#: includes/class-category.php:449
+#: includes/class-category.php:466
 msgid "income received"
 msgstr ""
 
-#: includes/class-category.php:449
+#: includes/class-category.php:466
 msgid "salary"
 msgstr ""
 
-#: includes/class-category.php:449
+#: includes/class-category.php:466
 msgid "profit"
 msgstr ""
 
-#: includes/class-category.php:450
+#: includes/class-category.php:467
 msgid "transfer"
 msgstr ""
 
-#: includes/class-category.php:450
+#: includes/class-category.php:467
 msgid "refund"
 msgstr ""
 
-#: includes/class-category.php:451
+#: includes/class-category.php:468
 msgid "pet"
 msgstr ""
 
-#: includes/class-category.php:451
+#: includes/class-category.php:468
 msgid "grooming"
 msgstr ""
 
-#: includes/class-category.php:451
+#: includes/class-category.php:468
 msgid "veterinary"
 msgstr ""
 
-#: includes/class-category.php:451
+#: includes/class-category.php:468
 msgid "pet food"
 msgstr ""
 
-#: includes/class-category.php:452
+#: includes/class-category.php:469
 msgid "subscription"
 msgstr ""
 
-#: includes/class-category.php:453
+#: includes/class-category.php:470
 msgid "pharmacy"
 msgstr ""
 
-#: includes/class-category.php:453
+#: includes/class-category.php:470
 msgid "dentist"
 msgstr ""
 
-#: includes/class-category.php:453
+#: includes/class-category.php:470
 msgid "doctor"
 msgstr ""
 
-#: includes/class-category.php:453
+#: includes/class-category.php:470
 msgid "appointment"
 msgstr ""
 
-#: includes/class-category.php:453
+#: includes/class-category.php:470
 msgid "medical exam"
 msgstr ""
 
-#: includes/class-category.php:453
+#: includes/class-category.php:470
 msgid "health plan"
 msgstr ""
 
-#: includes/class-category.php:454
+#: includes/class-category.php:471
 msgid "insurance"
 msgstr ""
 
-#: includes/class-category.php:455
+#: includes/class-category.php:472
 msgid "tax"
 msgstr ""
 
-#: includes/class-category.php:455
+#: includes/class-category.php:472
 msgid "licensing"
 msgstr ""
 
-#: includes/class-category.php:456
+#: includes/class-category.php:473
 msgid "investment"
 msgstr ""
 
-#: includes/class-category.php:456
+#: includes/class-category.php:473
 msgid "treasury bond"
 msgstr ""
 
-#: includes/class-category.php:456
+#: includes/class-category.php:473
 msgid "stocks"
 msgstr ""
 
-#: includes/class-category.php:457
+#: includes/class-category.php:474
 msgid "housing"
 msgstr ""
 
-#: includes/class-category.php:457
+#: includes/class-category.php:474
 msgid "condo fee"
 msgstr ""
 
-#: includes/class-category.php:457
+#: includes/class-category.php:474
 msgid "rent"
 msgstr ""
 
-#: includes/class-category.php:457
+#: includes/class-category.php:474
 msgid "mortgage"
 msgstr ""
 
-#: includes/class-category.php:458
+#: includes/class-category.php:475
 msgid "groceries"
 msgstr ""
 
-#: includes/class-category.php:458
+#: includes/class-category.php:475
 msgid "supermarket"
 msgstr ""
 
-#: includes/class-category.php:458
+#: includes/class-category.php:475
 msgid "corner store"
 msgstr ""
 
-#: includes/class-category.php:458
+#: includes/class-category.php:475
 msgid "wholesale"
 msgstr ""
 
-#: includes/class-category.php:458
+#: includes/class-category.php:475
 msgid "produce market"
 msgstr ""
 
-#: includes/class-category.php:459
+#: includes/class-category.php:476
 msgid "movie theater"
 msgstr ""
 
-#: includes/class-category.php:459
+#: includes/class-category.php:476
 msgid "leisure"
 msgstr ""
 
-#: includes/class-category.php:459
+#: includes/class-category.php:476
 msgid "ticket"
 msgstr ""
 
-#: includes/class-category.php:459
+#: includes/class-category.php:476
 msgid "amusement park"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "food"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "restaurant"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "lunch"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "dinner"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "snack"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "coffee shop"
 msgstr ""
 
-#: includes/class-category.php:460
+#: includes/class-category.php:477
 msgid "bakery"
 msgstr ""
 
-#: includes/class-category.php:461
+#: includes/class-category.php:478
 msgid "school"
 msgstr ""
 
-#: includes/class-category.php:461
+#: includes/class-category.php:478
 msgid "college"
 msgstr ""
 
-#: includes/class-category.php:461
+#: includes/class-category.php:478
 msgid "course"
 msgstr ""
 
-#: includes/class-category.php:461
+#: includes/class-category.php:478
 msgid "entrance exam prep"
 msgstr ""
 
-#: includes/class-category.php:461
+#: includes/class-category.php:478
 msgid "university"
 msgstr ""
 
-#: includes/class-category.php:461
+#: includes/class-category.php:478
 msgid "enrollment"
 msgstr ""
 
-#: includes/class-category.php:462
+#: includes/class-category.php:479
 msgid "donation"
 msgstr ""
 
-#: includes/class-category.php:462
+#: includes/class-category.php:479
 msgid "tithe"
 msgstr ""
 
-#: includes/class-category.php:463
+#: includes/class-category.php:480
 msgid "gym"
 msgstr ""
 
-#: includes/class-category.php:463
+#: includes/class-category.php:480
 msgid "soccer"
 msgstr ""
 
-#: includes/class-category.php:464
+#: includes/class-category.php:481
 msgid "hairdresser"
 msgstr ""
 
-#: includes/class-category.php:464
+#: includes/class-category.php:481
 msgid "beauty salon"
 msgstr ""
 
-#: includes/class-category.php:464
+#: includes/class-category.php:481
 msgid "barbershop"
 msgstr ""
 
-#: includes/class-category.php:465
+#: includes/class-category.php:482
 msgid "lawyer"
 msgstr ""
 
-#: includes/class-category.php:465
+#: includes/class-category.php:482
 msgid "service"
 msgstr ""
 
-#: includes/class-category.php:465
+#: includes/class-category.php:482
 msgid "cleaning"
 msgstr ""
 
-#: includes/class-category.php:465
+#: includes/class-category.php:482
 msgid "plumber"
 msgstr ""
 
-#: includes/class-category.php:465
+#: includes/class-category.php:482
 msgid "electrician"
 msgstr ""
 
-#: includes/class-category.php:465
+#: includes/class-category.php:482
 msgid "maintenance"
 msgstr ""
 
-#: includes/class-category.php:466
+#: includes/class-category.php:483
 msgid "fee"
 msgstr ""
 
-#: includes/class-category.php:466
+#: includes/class-category.php:483
 msgid "account maintenance fee"
 msgstr ""
 
-#: includes/class-category.php:466
+#: includes/class-category.php:483
 msgid "bank fee"
 msgstr ""
 
-#: includes/class-category.php:466
+#: includes/class-category.php:483
 msgid "annual fee"
 msgstr ""
 
-#: includes/class-category.php:466
+#: includes/class-category.php:483
 msgid "interest"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "transportation"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "fuel"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "parking"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "toll"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "fine"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "collision"
 msgstr ""
 
-#: includes/class-category.php:467
+#: includes/class-category.php:484
 msgid "car"
 msgstr ""
 
-#: includes/class-category.php:468
+#: includes/class-category.php:485
 msgid "purchase"
 msgstr ""
 
-#: includes/class-category.php:469
+#: includes/class-category.php:486
 msgid "electricity"
 msgstr ""
 
-#: includes/class-category.php:469
+#: includes/class-category.php:486
 msgid "power bill"
 msgstr ""
 
-#: includes/class-category.php:469
+#: includes/class-category.php:486
 msgid "phone bill"
 msgstr ""
 
-#: includes/class-category.php:470
+#: includes/class-category.php:487
 msgid "travel"
 msgstr ""
 
-#: includes/class-category.php:470
+#: includes/class-category.php:487
 msgid "airfare"
 msgstr ""
 
-#: includes/class-category.php:470
+#: includes/class-category.php:487
 msgid "lodging"
 msgstr ""
 
 #: includes/class-cpt.php:26
 #: includes/class-cpt.php:104
-#: includes/class-list-table.php:122
-#: includes/class-shortcodes.php:839
+#: includes/class-list-table.php:146
+#: includes/class-shortcodes.php:915
+#: legacy/pre-0.3.0/includes/core.php:178
 msgid "Pending"
 msgstr ""
 
 #: includes/class-cpt.php:27
 #: includes/class-cpt.php:114
-#: includes/class-list-table.php:123
-#: includes/class-shortcodes.php:838
+#: includes/class-list-table.php:147
+#: includes/class-shortcodes.php:914
+#: legacy/pre-0.3.0/includes/core.php:185
 msgid "Paid"
 msgstr ""
 
 #: includes/class-cpt.php:39
-#: includes/class-list-table.php:124
-#: includes/class-shortcodes.php:840
+#: includes/class-list-table.php:148
+#: includes/class-shortcodes.php:916
 msgid "Overdue"
 msgstr ""
 
@@ -862,7 +1172,7 @@ msgid "View Entry"
 msgstr ""
 
 #: includes/class-cpt.php:87
-#: includes/class-shortcodes.php:801
+#: includes/class-shortcodes.php:877
 msgid "No entries found."
 msgstr ""
 
@@ -870,1136 +1180,1471 @@ msgstr ""
 msgid "No entries in trash."
 msgstr ""
 
-#: includes/class-list-table.php:60
-#: includes/class-shortcodes.php:816
+#: includes/class-financing.php:102
+msgid "Financing Plans"
+msgstr ""
+
+#: includes/class-financing.php:103
+msgid "Financing Plan"
+msgstr ""
+
+#: includes/class-financing.php:104
+msgid "Add New Financing Plan"
+msgstr ""
+
+#: includes/class-financing.php:105
+msgid "New Financing Plan Name"
+msgstr ""
+
+#: includes/class-financing.php:106
+msgid "All Financing Plans"
+msgstr ""
+
+#: includes/class-financing.php:107
+#: includes/class-financing.php:125
+#: includes/class-financing.php:126
+msgid "Financing"
+msgstr ""
+
+#: includes/class-financing.php:138
+#: includes/class-financing.php:266
+msgid "Installments"
+msgstr ""
+
+#: includes/class-financing.php:148
+#: includes/class-financing.php:194
+msgid "Total amount"
+msgstr ""
+
+#: includes/class-financing.php:152
+msgid "Income (unchecked = expense)"
+msgstr ""
+
+#: includes/class-financing.php:156
+#: includes/class-financing.php:201
+msgid "Number of installments"
+msgstr ""
+
+#: includes/class-financing.php:160
+#: includes/class-financing.php:205
+msgid "First installment date"
+msgstr ""
+
+#: includes/class-financing.php:164
+#: includes/class-financing.php:209
+msgid "Every"
+msgstr ""
+
+#: includes/class-financing.php:173
+#: includes/class-financing.php:227
+msgid "Installment type"
+msgstr ""
+
+#: includes/class-financing.php:177
+#: includes/class-financing.php:220
+msgid "Nominal annual interest rate, % (amortization mode only)"
+msgstr ""
+
+#: includes/class-financing.php:179
+msgid "Used to estimate SAC-style declining installments (Total amount = financed principal) until enough real installments exist to calculate the trend from actual data instead."
+msgstr ""
+
+#: includes/class-financing.php:223
+msgid "Used to estimate SAC-style declining installments (Total amount above = financed principal) until enough real installments exist to calculate the trend from actual data instead."
+msgstr ""
+
+#. translators: %s: change in installment size per period, e.g. "-R$0.19" means installments are getting smaller.
+#: includes/class-financing.php:246
+#, php-format
+msgid "Step: %s per installment (calculated from the two most recent real installments)."
+msgstr ""
+
+#: includes/class-financing.php:254
+msgid "Not enough real installments yet to calculate the trend from actual data — estimating with the SAC formula from the principal/rate above for now. This won't exactly match the bank (monetary correction, insurance and fees aren't modeled) but is closer than a flat average."
+msgstr ""
+
+#: includes/class-financing.php:258
+msgid "Not enough real installments yet to calculate the progression, and no interest rate set — using a flat estimate for now."
+msgstr ""
+
+#: includes/class-financing.php:267
+msgid "View installments →"
+msgstr ""
+
+#: includes/class-financing.php:274
+msgid "day(s)"
+msgstr ""
+
+#: includes/class-financing.php:275
+msgid "week(s)"
+msgstr ""
+
+#: includes/class-financing.php:276
+msgid "month(s)"
+msgstr ""
+
+#: includes/class-financing.php:277
+msgid "year(s)"
+msgstr ""
+
+#: includes/class-financing.php:296
+msgid "Fixed (same amount every installment)"
+msgstr ""
+
+#: includes/class-financing.php:297
+msgid "Amortization (decreasing — calculated automatically once 2+ real installments exist)"
+msgstr ""
+
+#: includes/class-financing.php:325
+msgid "#"
+msgstr ""
+
+#: includes/class-financing.php:326
+msgid "Due date"
+msgstr ""
+
+#: includes/class-financing.php:361
+msgid "Projected"
+msgstr ""
+
+#: includes/class-list-table.php:51
+#: includes/class-settings.php:948
+#: includes/class-shortcodes.php:869
+#: includes/class-shortcodes.php:958
+msgid "Balance"
+msgstr ""
+
+#: includes/class-list-table.php:82
+#: includes/class-shortcodes.php:892
 msgid "Mark as Paid Today"
 msgstr ""
 
-#: includes/class-list-table.php:61
-#: includes/class-shortcodes.php:817
+#: includes/class-list-table.php:83
+#: includes/class-shortcodes.php:893
 msgid "Mark as Pending"
 msgstr ""
 
-#: includes/class-list-table.php:62
-#: includes/class-list-table.php:430
-#: includes/class-shortcodes.php:818
+#: includes/class-list-table.php:84
+#: includes/class-list-table.php:496
+#: includes/class-shortcodes.php:894
 msgid "Make Income"
 msgstr ""
 
-#: includes/class-list-table.php:63
-#: includes/class-list-table.php:429
-#: includes/class-shortcodes.php:819
+#: includes/class-list-table.php:85
+#: includes/class-list-table.php:495
+#: includes/class-shortcodes.php:895
 msgid "Make Expense"
 msgstr ""
 
-#: includes/class-list-table.php:64
-#: includes/class-shortcodes.php:820
+#: includes/class-list-table.php:86
+#: includes/class-shortcodes.php:896
 msgid "Set Category"
 msgstr ""
 
-#: includes/class-list-table.php:65
-#: includes/class-shortcodes.php:821
+#: includes/class-list-table.php:87
+#: includes/class-shortcodes.php:897
 msgid "Auto Set Category"
 msgstr ""
 
-#: includes/class-list-table.php:66
-#: includes/class-list-table.php:431
-#: includes/class-shortcodes.php:822
-#: includes/class-shortcodes.php:1022
+#: includes/class-list-table.php:89
+msgid "Split into installments"
+msgstr ""
+
+#: includes/class-list-table.php:90
+#: includes/class-list-table.php:498
+#: includes/class-shortcodes.php:898
+#: includes/class-shortcodes.php:1101
 msgid "Delete"
 msgstr ""
 
-#: includes/class-list-table.php:91
+#: includes/class-list-table.php:115
 msgid "All"
 msgstr ""
 
-#: includes/class-list-table.php:156
+#: includes/class-list-table.php:180
 msgid "Filter by type"
 msgstr ""
 
-#: includes/class-list-table.php:158
-#: includes/class-shortcodes.php:847
+#: includes/class-list-table.php:182
+#: includes/class-shortcodes.php:923
 msgid "All types"
 msgstr ""
 
-#: includes/class-list-table.php:160
-#: includes/class-list-table.php:441
-#: includes/class-shortcodes.php:849
-#: includes/class-shortcodes.php:1025
+#: includes/class-list-table.php:184
+#: includes/class-list-table.php:507
+#: includes/class-shortcodes.php:925
+#: includes/class-shortcodes.php:1104
 msgid "Expense"
 msgstr ""
 
-#: includes/class-list-table.php:164
+#: includes/class-list-table.php:188
 msgid "Filter by category"
 msgstr ""
 
-#: includes/class-list-table.php:166
-#: includes/class-shortcodes.php:853
+#: includes/class-list-table.php:190
+#: includes/class-shortcodes.php:929
 msgid "All categories"
 msgstr ""
 
-#: includes/class-list-table.php:176
+#: includes/class-list-table.php:200
 msgid "Filter"
 msgstr ""
 
-#: includes/class-list-table.php:187
+#: includes/class-list-table.php:211
 msgid "Filter by month"
 msgstr ""
 
-#: includes/class-list-table.php:189
-#: includes/class-shortcodes.php:863
+#: includes/class-list-table.php:213
+#: includes/class-shortcodes.php:939
 msgid "All months"
 msgstr ""
 
-#: includes/class-list-table.php:425
-#: includes/class-settings.php:680
-#: includes/class-shortcodes.php:1018
+#: includes/class-list-table.php:491
+#: includes/class-settings.php:816
+#: includes/class-shortcodes.php:1097
 msgid "Edit"
 msgstr ""
 
-#: includes/class-list-table.php:426
+#: includes/class-list-table.php:492
 msgid "Paid Today"
 msgstr ""
 
-#: includes/class-list-table.php:427
+#: includes/class-list-table.php:493
 msgid "Paid Date"
 msgstr ""
 
-#: includes/class-list-table.php:431
+#: includes/class-list-table.php:498
 msgid "Delete this entry? This cannot be undone."
+msgstr ""
+
+#: includes/class-loan.php:98
+#: includes/class-loan.php:103
+#: includes/class-loan.php:121
+#: includes/class-loan.php:122
+msgid "Loans"
+msgstr ""
+
+#: includes/class-loan.php:99
+msgid "Loan"
+msgstr ""
+
+#: includes/class-loan.php:100
+msgid "Add New Loan"
+msgstr ""
+
+#: includes/class-loan.php:101
+msgid "New Loan Name (add a date if the name repeats, e.g. \"Lucia 20260816\")"
+msgstr ""
+
+#: includes/class-loan.php:102
+msgid "All Loans"
+msgstr ""
+
+#: includes/class-loan.php:143
+#: includes/class-loan.php:167
+msgid "Principal amount"
+msgstr ""
+
+#: includes/class-loan.php:147
+#: includes/class-loan.php:170
+msgid "I lent this money (unchecked = I borrowed it)"
+msgstr ""
+
+#: includes/class-loan.php:150
+#: includes/class-loan.php:174
+msgid "Counterparty"
+msgstr ""
+
+#: includes/class-loan.php:151
+#: includes/class-loan.php:175
+msgid "e.g. Lucia"
+msgstr ""
+
+#: includes/class-loan.php:154
+#: includes/class-loan.php:178
+msgid "Category for payments"
+msgstr ""
+
+#: includes/class-loan.php:182
+#: includes/class-loan.php:424
+msgid "Payments"
+msgstr ""
+
+#: includes/class-loan.php:185
+msgid "View payments →"
+msgstr ""
+
+#: includes/class-loan.php:214
+msgid "Paid so far:"
+msgstr ""
+
+#: includes/class-loan.php:216
+msgid "Remaining:"
+msgstr ""
+
+#: includes/class-loan.php:218
+msgid "Paid off"
+msgstr ""
+
+#: includes/class-loan.php:218
+msgid "Outstanding"
+msgstr ""
+
+#: includes/class-loan.php:419
+msgid "Origin"
+msgstr ""
+
+#: includes/class-loan.php:438
+#: includes/class-loan.php:447
+msgid "Add Payment"
+msgstr ""
+
+#: includes/class-loan.php:522
+msgid "Loan not found."
 msgstr ""
 
 #: includes/class-meta-boxes.php:23
 msgid "Entry Details"
 msgstr ""
 
-#: includes/class-settings.php:34
-msgid "United Arab Emirates dirham (د.إ) — AED"
+#: includes/class-meta-boxes.php:114
+msgid "This is a balance adjustment entry created by EssFinance to reconcile the running balance — it can only be deleted, not edited."
 msgstr ""
 
-#: includes/class-settings.php:35
-msgid "Afghan afghani (؋) — AFN"
+#: includes/class-recurrence-entries-page.php:40
+#: includes/class-recurrence-entries-page.php:43
+msgid "Entries"
 msgstr ""
 
-#: includes/class-settings.php:36
-msgid "Albanian lek (L) — ALL"
+#: includes/class-recurrence-entries-page.php:67
+msgid "Unknown taxonomy."
 msgstr ""
 
-#: includes/class-settings.php:37
-msgid "Armenian dram (AMD) — AMD"
+#: includes/class-recurrence-entries-page.php:72
+msgid "Not found."
 msgstr ""
 
-#: includes/class-settings.php:38
-msgid "Netherlands Antillean guilder (ƒ) — ANG"
+#: includes/class-recurrence-entries-page.php:79
+msgid "Back"
 msgstr ""
 
 #: includes/class-settings.php:39
-msgid "Angolan kwanza (Kz) — AOA"
+msgid "United Arab Emirates dirham (د.إ) — AED"
 msgstr ""
 
 #: includes/class-settings.php:40
-msgid "Argentine peso ($) — ARS"
+msgid "Afghan afghani (؋) — AFN"
 msgstr ""
 
 #: includes/class-settings.php:41
-msgid "Australian dollar ($) — AUD"
+msgid "Albanian lek (L) — ALL"
 msgstr ""
 
 #: includes/class-settings.php:42
-msgid "Aruban florin (ƒ) — AWG"
+msgid "Armenian dram (AMD) — AMD"
 msgstr ""
 
 #: includes/class-settings.php:43
-msgid "Azerbaijani manat (₼) — AZN"
+msgid "Netherlands Antillean guilder (ƒ) — ANG"
 msgstr ""
 
 #: includes/class-settings.php:44
-msgid "Bosnia and Herzegovina convertible mark (KM) — BAM"
+msgid "Angolan kwanza (Kz) — AOA"
 msgstr ""
 
 #: includes/class-settings.php:45
-msgid "Barbadian dollar ($) — BBD"
+msgid "Argentine peso ($) — ARS"
 msgstr ""
 
 #: includes/class-settings.php:46
-msgid "Bangladeshi taka (৳) — BDT"
+msgid "Australian dollar ($) — AUD"
 msgstr ""
 
 #: includes/class-settings.php:47
-msgid "Bulgarian lev (лв.) — BGN"
+msgid "Aruban florin (ƒ) — AWG"
 msgstr ""
 
 #: includes/class-settings.php:48
-msgid "Bahraini dinar (.د.ب) — BHD"
+msgid "Azerbaijani manat (₼) — AZN"
 msgstr ""
 
 #: includes/class-settings.php:49
-msgid "Burundian franc (Fr) — BIF"
+msgid "Bosnia and Herzegovina convertible mark (KM) — BAM"
 msgstr ""
 
 #: includes/class-settings.php:50
-msgid "Bermudian dollar ($) — BMD"
+msgid "Barbadian dollar ($) — BBD"
 msgstr ""
 
 #: includes/class-settings.php:51
-msgid "Brunei dollar ($) — BND"
+msgid "Bangladeshi taka (৳) — BDT"
 msgstr ""
 
 #: includes/class-settings.php:52
-msgid "Bolivian boliviano (Bs.) — BOB"
+msgid "Bulgarian lev (лв.) — BGN"
 msgstr ""
 
 #: includes/class-settings.php:53
-msgid "Brazilian real (R$) — BRL"
+msgid "Bahraini dinar (.د.ب) — BHD"
 msgstr ""
 
 #: includes/class-settings.php:54
-msgid "Bahamian dollar ($) — BSD"
+msgid "Burundian franc (Fr) — BIF"
 msgstr ""
 
 #: includes/class-settings.php:55
-msgid "Bitcoin (₿) — BTC"
+msgid "Bermudian dollar ($) — BMD"
 msgstr ""
 
 #: includes/class-settings.php:56
-msgid "Bhutanese ngultrum (Nu) — BTN"
+msgid "Brunei dollar ($) — BND"
 msgstr ""
 
 #: includes/class-settings.php:57
-msgid "Botswana pula (P) — BWP"
+msgid "Bolivian boliviano (Bs.) — BOB"
 msgstr ""
 
 #: includes/class-settings.php:58
-msgid "Belarusian ruble (Br) — BYN"
+msgid "Brazilian real (R$) — BRL"
 msgstr ""
 
 #: includes/class-settings.php:59
-msgid "Belize dollar (BZ$) — BZD"
+msgid "Bahamian dollar ($) — BSD"
 msgstr ""
 
 #: includes/class-settings.php:60
-msgid "Canadian dollar ($) — CAD"
+msgid "Bitcoin (₿) — BTC"
 msgstr ""
 
 #: includes/class-settings.php:61
-msgid "Congolese franc (Fr) — CDF"
+msgid "Bhutanese ngultrum (Nu) — BTN"
 msgstr ""
 
 #: includes/class-settings.php:62
-msgid "Swiss franc (CHF) — CHF"
+msgid "Botswana pula (P) — BWP"
 msgstr ""
 
 #: includes/class-settings.php:63
-msgid "Chilean peso ($) — CLP"
+msgid "Belarusian ruble (Br) — BYN"
 msgstr ""
 
 #: includes/class-settings.php:64
-msgid "Chinese yuan (¥) — CNY"
+msgid "Belize dollar (BZ$) — BZD"
 msgstr ""
 
 #: includes/class-settings.php:65
-msgid "Colombian peso ($) — COP"
+msgid "Canadian dollar ($) — CAD"
 msgstr ""
 
 #: includes/class-settings.php:66
-msgid "Costa Rican colón (₡) — CRC"
+msgid "Congolese franc (Fr) — CDF"
 msgstr ""
 
 #: includes/class-settings.php:67
-msgid "Cuban convertible peso ($) — CUC"
+msgid "Swiss franc (CHF) — CHF"
 msgstr ""
 
 #: includes/class-settings.php:68
-msgid "Cape Verdean escudo ($) — CVE"
+msgid "Chilean peso ($) — CLP"
 msgstr ""
 
 #: includes/class-settings.php:69
-msgid "Czech koruna (Kč) — CZK"
+msgid "Chinese yuan (¥) — CNY"
 msgstr ""
 
 #: includes/class-settings.php:70
-msgid "Djiboutian franc (Fr) — DJF"
+msgid "Colombian peso ($) — COP"
 msgstr ""
 
 #: includes/class-settings.php:71
-msgid "Danish krone (DKK) — DKK"
+msgid "Costa Rican colón (₡) — CRC"
 msgstr ""
 
 #: includes/class-settings.php:72
-msgid "Dominican peso (RD$) — DOP"
+msgid "Cuban convertible peso ($) — CUC"
 msgstr ""
 
 #: includes/class-settings.php:73
-msgid "Algerian dinar (د.ج) — DZD"
+msgid "Cape Verdean escudo ($) — CVE"
 msgstr ""
 
 #: includes/class-settings.php:74
-msgid "Egyptian pound (EGP) — EGP"
+msgid "Czech koruna (Kč) — CZK"
 msgstr ""
 
 #: includes/class-settings.php:75
-msgid "Eritrean nakfa (Nfk) — ERN"
+msgid "Djiboutian franc (Fr) — DJF"
 msgstr ""
 
 #: includes/class-settings.php:76
-msgid "Ethiopian birr (Br) — ETB"
+msgid "Danish krone (DKK) — DKK"
 msgstr ""
 
 #: includes/class-settings.php:77
-msgid "Euro (€) — EUR"
+msgid "Dominican peso (RD$) — DOP"
 msgstr ""
 
 #: includes/class-settings.php:78
-msgid "Fijian dollar ($) — FJD"
+msgid "Algerian dinar (د.ج) — DZD"
 msgstr ""
 
 #: includes/class-settings.php:79
-msgid "Falkland Islands pound (£) — FKP"
+msgid "Egyptian pound (EGP) — EGP"
 msgstr ""
 
 #: includes/class-settings.php:80
-msgid "Pound sterling (£) — GBP"
+msgid "Eritrean nakfa (Nfk) — ERN"
 msgstr ""
 
 #: includes/class-settings.php:81
-msgid "Georgian lari (₾) — GEL"
+msgid "Ethiopian birr (Br) — ETB"
 msgstr ""
 
 #: includes/class-settings.php:82
-msgid "Ghana cedi (₵) — GHS"
+msgid "Euro (€) — EUR"
 msgstr ""
 
 #: includes/class-settings.php:83
-msgid "Gibraltar pound (£) — GIP"
+msgid "Fijian dollar ($) — FJD"
 msgstr ""
 
 #: includes/class-settings.php:84
-msgid "Gambian dalasi (D) — GMD"
+msgid "Falkland Islands pound (£) — FKP"
 msgstr ""
 
 #: includes/class-settings.php:85
-msgid "Guinean franc (Fr) — GNF"
+msgid "Pound sterling (£) — GBP"
 msgstr ""
 
 #: includes/class-settings.php:86
-msgid "Guatemalan quetzal (Q) — GTQ"
+msgid "Georgian lari (₾) — GEL"
 msgstr ""
 
 #: includes/class-settings.php:87
-msgid "Guyanese dollar ($) — GYD"
+msgid "Ghana cedi (₵) — GHS"
 msgstr ""
 
 #: includes/class-settings.php:88
-msgid "Hong Kong dollar ($) — HKD"
+msgid "Gibraltar pound (£) — GIP"
 msgstr ""
 
 #: includes/class-settings.php:89
-msgid "Honduran lempira (L) — HNL"
+msgid "Gambian dalasi (D) — GMD"
 msgstr ""
 
 #: includes/class-settings.php:90
-msgid "Croatian kuna (kn) — HRK"
+msgid "Guinean franc (Fr) — GNF"
 msgstr ""
 
 #: includes/class-settings.php:91
-msgid "Haitian gourde (G) — HTG"
+msgid "Guatemalan quetzal (Q) — GTQ"
 msgstr ""
 
 #: includes/class-settings.php:92
-msgid "Hungarian forint (Ft) — HUF"
+msgid "Guyanese dollar ($) — GYD"
 msgstr ""
 
 #: includes/class-settings.php:93
-msgid "Indonesian rupiah (Rp) — IDR"
+msgid "Hong Kong dollar ($) — HKD"
 msgstr ""
 
 #: includes/class-settings.php:94
-msgid "Israeli new shekel (₪) — ILS"
+msgid "Honduran lempira (L) — HNL"
 msgstr ""
 
 #: includes/class-settings.php:95
-msgid "Manx pound (£) — IMP"
+msgid "Croatian kuna (kn) — HRK"
 msgstr ""
 
 #: includes/class-settings.php:96
-msgid "Indian rupee (₹) — INR"
+msgid "Haitian gourde (G) — HTG"
 msgstr ""
 
 #: includes/class-settings.php:97
-msgid "Iraqi dinar (ع.د) — IQD"
+msgid "Hungarian forint (Ft) — HUF"
 msgstr ""
 
 #: includes/class-settings.php:98
-msgid "Iranian rial (﷼) — IRR"
+msgid "Indonesian rupiah (Rp) — IDR"
 msgstr ""
 
 #: includes/class-settings.php:99
-msgid "Iranian toman (تومان) — IRT"
+msgid "Israeli new shekel (₪) — ILS"
 msgstr ""
 
 #: includes/class-settings.php:100
-msgid "Icelandic króna (kr.) — ISK"
+msgid "Manx pound (£) — IMP"
 msgstr ""
 
 #: includes/class-settings.php:101
-msgid "Jersey pound (£) — JEP"
+msgid "Indian rupee (₹) — INR"
 msgstr ""
 
 #: includes/class-settings.php:102
-msgid "Jamaican dollar ($) — JMD"
+msgid "Iraqi dinar (ع.د) — IQD"
 msgstr ""
 
 #: includes/class-settings.php:103
-msgid "Jordanian dinar (JD) — JOD"
+msgid "Iranian rial (﷼) — IRR"
 msgstr ""
 
 #: includes/class-settings.php:104
-msgid "Japanese yen (¥) — JPY"
+msgid "Iranian toman (تومان) — IRT"
 msgstr ""
 
 #: includes/class-settings.php:105
-msgid "Kenyan shilling (KSh) — KES"
+msgid "Icelandic króna (kr.) — ISK"
 msgstr ""
 
 #: includes/class-settings.php:106
-msgid "Kyrgyzstani som (лв) — KGS"
+msgid "Jersey pound (£) — JEP"
 msgstr ""
 
 #: includes/class-settings.php:107
-msgid "Cambodian riel (៛) — KHR"
+msgid "Jamaican dollar ($) — JMD"
 msgstr ""
 
 #: includes/class-settings.php:108
-msgid "Comorian franc (Fr) — KMF"
+msgid "Jordanian dinar (JD) — JOD"
 msgstr ""
 
 #: includes/class-settings.php:109
-msgid "North Korean won (₩) — KPW"
+msgid "Japanese yen (¥) — JPY"
 msgstr ""
 
 #: includes/class-settings.php:110
-msgid "South Korean won (₩) — KRW"
+msgid "Kenyan shilling (KSh) — KES"
 msgstr ""
 
 #: includes/class-settings.php:111
-msgid "Kuwaiti dinar (د.ك) — KWD"
+msgid "Kyrgyzstani som (лв) — KGS"
 msgstr ""
 
 #: includes/class-settings.php:112
-msgid "Cayman Islands dollar ($) — KYD"
+msgid "Cambodian riel (៛) — KHR"
 msgstr ""
 
 #: includes/class-settings.php:113
-msgid "Kazakhstani tenge (₸) — KZT"
+msgid "Comorian franc (Fr) — KMF"
 msgstr ""
 
 #: includes/class-settings.php:114
-msgid "Lao kip (₭) — LAK"
+msgid "North Korean won (₩) — KPW"
 msgstr ""
 
 #: includes/class-settings.php:115
-msgid "Lebanese pound (ل.ل) — LBP"
+msgid "South Korean won (₩) — KRW"
 msgstr ""
 
 #: includes/class-settings.php:116
-msgid "Sri Lankan rupee (රු) — LKR"
+msgid "Kuwaiti dinar (د.ك) — KWD"
 msgstr ""
 
 #: includes/class-settings.php:117
-msgid "Liberian dollar ($) — LRD"
+msgid "Cayman Islands dollar ($) — KYD"
 msgstr ""
 
 #: includes/class-settings.php:118
-msgid "Lesotho loti (L) — LSL"
+msgid "Kazakhstani tenge (₸) — KZT"
 msgstr ""
 
 #: includes/class-settings.php:119
-msgid "Libyan dinar (ل.د) — LYD"
+msgid "Lao kip (₭) — LAK"
 msgstr ""
 
 #: includes/class-settings.php:120
-msgid "Moroccan dirham (م.د.) — MAD"
+msgid "Lebanese pound (ل.ل) — LBP"
 msgstr ""
 
 #: includes/class-settings.php:121
-msgid "Moldovan leu (MDL) — MDL"
+msgid "Sri Lankan rupee (රු) — LKR"
 msgstr ""
 
 #: includes/class-settings.php:122
-msgid "Malagasy ariary (Ar) — MGA"
+msgid "Liberian dollar ($) — LRD"
 msgstr ""
 
 #: includes/class-settings.php:123
-msgid "Macedonian denar (ден) — MKD"
+msgid "Lesotho loti (L) — LSL"
 msgstr ""
 
 #: includes/class-settings.php:124
-msgid "Burmese kyat (K) — MMK"
+msgid "Libyan dinar (ل.د) — LYD"
 msgstr ""
 
 #: includes/class-settings.php:125
-msgid "Mongolian tögrög (₮) — MNT"
+msgid "Moroccan dirham (م.د.) — MAD"
 msgstr ""
 
 #: includes/class-settings.php:126
-msgid "Macanese pataca (P) — MOP"
+msgid "Moldovan leu (MDL) — MDL"
 msgstr ""
 
 #: includes/class-settings.php:127
-msgid "Mauritanian ouguiya (UM) — MRU"
+msgid "Malagasy ariary (Ar) — MGA"
 msgstr ""
 
 #: includes/class-settings.php:128
-msgid "Mauritian rupee (₨) — MUR"
+msgid "Macedonian denar (ден) — MKD"
 msgstr ""
 
 #: includes/class-settings.php:129
-msgid "Maldivian rufiyaa (Rf) — MVR"
+msgid "Burmese kyat (K) — MMK"
 msgstr ""
 
 #: includes/class-settings.php:130
-msgid "Malawian kwacha (MK) — MWK"
+msgid "Mongolian tögrög (₮) — MNT"
 msgstr ""
 
 #: includes/class-settings.php:131
-msgid "Mexican peso ($) — MXN"
+msgid "Macanese pataca (P) — MOP"
 msgstr ""
 
 #: includes/class-settings.php:132
-msgid "Malaysian ringgit (RM) — MYR"
+msgid "Mauritanian ouguiya (UM) — MRU"
 msgstr ""
 
 #: includes/class-settings.php:133
-msgid "Mozambican metical (MT) — MZN"
+msgid "Mauritian rupee (₨) — MUR"
 msgstr ""
 
 #: includes/class-settings.php:134
-msgid "Namibian dollar (N$) — NAD"
+msgid "Maldivian rufiyaa (Rf) — MVR"
 msgstr ""
 
 #: includes/class-settings.php:135
-msgid "Nigerian naira (₦) — NGN"
+msgid "Malawian kwacha (MK) — MWK"
 msgstr ""
 
 #: includes/class-settings.php:136
-msgid "Nicaraguan córdoba (C$) — NIO"
+msgid "Mexican peso ($) — MXN"
 msgstr ""
 
 #: includes/class-settings.php:137
-msgid "Norwegian krone (kr) — NOK"
+msgid "Malaysian ringgit (RM) — MYR"
 msgstr ""
 
 #: includes/class-settings.php:138
-msgid "Nepalese rupee (₨) — NPR"
+msgid "Mozambican metical (MT) — MZN"
 msgstr ""
 
 #: includes/class-settings.php:139
-msgid "New Zealand dollar ($) — NZD"
+msgid "Namibian dollar (N$) — NAD"
 msgstr ""
 
 #: includes/class-settings.php:140
-msgid "Omani rial (ر.ع.) — OMR"
+msgid "Nigerian naira (₦) — NGN"
 msgstr ""
 
 #: includes/class-settings.php:141
-msgid "Panamanian balboa (B/.) — PAB"
+msgid "Nicaraguan córdoba (C$) — NIO"
 msgstr ""
 
 #: includes/class-settings.php:142
-msgid "Peruvian sol (S/.) — PEN"
+msgid "Norwegian krone (kr) — NOK"
 msgstr ""
 
 #: includes/class-settings.php:143
-msgid "Papua New Guinean kina (K) — PGK"
+msgid "Nepalese rupee (₨) — NPR"
 msgstr ""
 
 #: includes/class-settings.php:144
-msgid "Philippine peso (₱) — PHP"
+msgid "New Zealand dollar ($) — NZD"
 msgstr ""
 
 #: includes/class-settings.php:145
-msgid "Pakistani rupee (₨) — PKR"
+msgid "Omani rial (ر.ع.) — OMR"
 msgstr ""
 
 #: includes/class-settings.php:146
-msgid "Polish złoty (zł) — PLN"
+msgid "Panamanian balboa (B/.) — PAB"
 msgstr ""
 
 #: includes/class-settings.php:147
-msgid "Transnistrian ruble (р.) — PRB"
+msgid "Peruvian sol (S/.) — PEN"
 msgstr ""
 
 #: includes/class-settings.php:148
-msgid "Paraguayan guaraní (₲) — PYG"
+msgid "Papua New Guinean kina (K) — PGK"
 msgstr ""
 
 #: includes/class-settings.php:149
-msgid "Qatari riyal (ر.ق) — QAR"
+msgid "Philippine peso (₱) — PHP"
 msgstr ""
 
 #: includes/class-settings.php:150
-msgid "Romanian leu (lei) — RON"
+msgid "Pakistani rupee (₨) — PKR"
 msgstr ""
 
 #: includes/class-settings.php:151
-msgid "Serbian dinar (дин.) — RSD"
+msgid "Polish złoty (zł) — PLN"
 msgstr ""
 
 #: includes/class-settings.php:152
-msgid "Russian ruble (₽) — RUB"
+msgid "Transnistrian ruble (р.) — PRB"
 msgstr ""
 
 #: includes/class-settings.php:153
-msgid "Rwandan franc (Fr) — RWF"
+msgid "Paraguayan guaraní (₲) — PYG"
 msgstr ""
 
 #: includes/class-settings.php:154
-msgid "Saudi riyal (ر.س) — SAR"
+msgid "Qatari riyal (ر.ق) — QAR"
 msgstr ""
 
 #: includes/class-settings.php:155
-msgid "Solomon Islands dollar ($) — SBD"
+msgid "Romanian leu (lei) — RON"
 msgstr ""
 
 #: includes/class-settings.php:156
-msgid "Seychellois rupee (₨) — SCR"
+msgid "Serbian dinar (дин.) — RSD"
 msgstr ""
 
 #: includes/class-settings.php:157
-msgid "Sudanese pound (ج.س.) — SDG"
+msgid "Russian ruble (₽) — RUB"
 msgstr ""
 
 #: includes/class-settings.php:158
-msgid "Swedish krona (kr) — SEK"
+msgid "Rwandan franc (Fr) — RWF"
 msgstr ""
 
 #: includes/class-settings.php:159
-msgid "Singapore dollar ($) — SGD"
+msgid "Saudi riyal (ر.س) — SAR"
 msgstr ""
 
 #: includes/class-settings.php:160
-msgid "Saint Helena pound (£) — SHP"
+msgid "Solomon Islands dollar ($) — SBD"
 msgstr ""
 
 #: includes/class-settings.php:161
-msgid "Sierra Leonean leone (Le) — SLL"
+msgid "Seychellois rupee (₨) — SCR"
 msgstr ""
 
 #: includes/class-settings.php:162
-msgid "Somali shilling (Sh) — SOS"
+msgid "Sudanese pound (ج.س.) — SDG"
 msgstr ""
 
 #: includes/class-settings.php:163
-msgid "Surinamese dollar ($) — SRD"
+msgid "Swedish krona (kr) — SEK"
 msgstr ""
 
 #: includes/class-settings.php:164
-msgid "South Sudanese pound (£) — SSP"
+msgid "Singapore dollar ($) — SGD"
 msgstr ""
 
 #: includes/class-settings.php:165
-msgid "São Tomé and Príncipe dobra (Db) — STN"
+msgid "Saint Helena pound (£) — SHP"
 msgstr ""
 
 #: includes/class-settings.php:166
-msgid "Syrian pound (ل.س) — SYP"
+msgid "Sierra Leonean leone (Le) — SLL"
 msgstr ""
 
 #: includes/class-settings.php:167
-msgid "Swazi lilangeni (L) — SZL"
+msgid "Somali shilling (Sh) — SOS"
 msgstr ""
 
 #: includes/class-settings.php:168
-msgid "Thai baht (฿) — THB"
+msgid "Surinamese dollar ($) — SRD"
 msgstr ""
 
 #: includes/class-settings.php:169
-msgid "Tajikistani somoni (SM) — TJS"
+msgid "South Sudanese pound (£) — SSP"
 msgstr ""
 
 #: includes/class-settings.php:170
-msgid "Turkmenistan manat (T) — TMT"
+msgid "São Tomé and Príncipe dobra (Db) — STN"
 msgstr ""
 
 #: includes/class-settings.php:171
-msgid "Tunisian dinar (د.ت) — TND"
+msgid "Syrian pound (ل.س) — SYP"
 msgstr ""
 
 #: includes/class-settings.php:172
-msgid "Tongan paʻanga (T$) — TOP"
+msgid "Swazi lilangeni (L) — SZL"
 msgstr ""
 
 #: includes/class-settings.php:173
-msgid "Turkish lira (₺) — TRY"
+msgid "Thai baht (฿) — THB"
 msgstr ""
 
 #: includes/class-settings.php:174
-msgid "Trinidad and Tobago dollar ($) — TTD"
+msgid "Tajikistani somoni (SM) — TJS"
 msgstr ""
 
 #: includes/class-settings.php:175
-msgid "New Taiwan dollar (NT$) — TWD"
+msgid "Turkmenistan manat (T) — TMT"
 msgstr ""
 
 #: includes/class-settings.php:176
-msgid "Tanzanian shilling (Sh) — TZS"
+msgid "Tunisian dinar (د.ت) — TND"
 msgstr ""
 
 #: includes/class-settings.php:177
-msgid "Ukrainian hryvnia (₴) — UAH"
+msgid "Tongan paʻanga (T$) — TOP"
 msgstr ""
 
 #: includes/class-settings.php:178
-msgid "Ugandan shilling (UGX) — UGX"
+msgid "Turkish lira (₺) — TRY"
 msgstr ""
 
 #: includes/class-settings.php:179
-msgid "United States (US) dollar ($) — USD"
+msgid "Trinidad and Tobago dollar ($) — TTD"
 msgstr ""
 
 #: includes/class-settings.php:180
-msgid "Uruguayan peso ($) — UYU"
+msgid "New Taiwan dollar (NT$) — TWD"
 msgstr ""
 
 #: includes/class-settings.php:181
-msgid "Uzbekistani som (UZS) — UZS"
+msgid "Tanzanian shilling (Sh) — TZS"
 msgstr ""
 
 #: includes/class-settings.php:182
-msgid "Venezuelan bolívar 2008–2018 (Bs.F) — VEF"
+msgid "Ukrainian hryvnia (₴) — UAH"
 msgstr ""
 
 #: includes/class-settings.php:183
-msgid "Venezuelan bolívar soberano (Bs.S) — VES"
+msgid "Ugandan shilling (UGX) — UGX"
 msgstr ""
 
 #: includes/class-settings.php:184
-msgid "Vietnamese đồng (₫) — VND"
+msgid "United States (US) dollar ($) — USD"
 msgstr ""
 
 #: includes/class-settings.php:185
-msgid "Vanuatu vatu (Vt) — VUV"
+msgid "Uruguayan peso ($) — UYU"
 msgstr ""
 
 #: includes/class-settings.php:186
-msgid "Samoan tālā (T) — WST"
+msgid "Uzbekistani som (UZS) — UZS"
 msgstr ""
 
 #: includes/class-settings.php:187
-msgid "Central African CFA franc (CFA) — XAF"
+msgid "Venezuelan bolívar 2008–2018 (Bs.F) — VEF"
 msgstr ""
 
 #: includes/class-settings.php:188
-msgid "East Caribbean dollar ($) — XCD"
+msgid "Venezuelan bolívar soberano (Bs.S) — VES"
 msgstr ""
 
 #: includes/class-settings.php:189
-msgid "West African CFA franc (CFA) — XOF"
+msgid "Vietnamese đồng (₫) — VND"
 msgstr ""
 
 #: includes/class-settings.php:190
-msgid "CFP franc (Fr) — XPF"
+msgid "Vanuatu vatu (Vt) — VUV"
 msgstr ""
 
 #: includes/class-settings.php:191
-msgid "Yemeni rial (﷼) — YER"
+msgid "Samoan tālā (T) — WST"
 msgstr ""
 
 #: includes/class-settings.php:192
-msgid "South African rand (R) — ZAR"
+msgid "Central African CFA franc (CFA) — XAF"
 msgstr ""
 
 #: includes/class-settings.php:193
+msgid "East Caribbean dollar ($) — XCD"
+msgstr ""
+
+#: includes/class-settings.php:194
+msgid "West African CFA franc (CFA) — XOF"
+msgstr ""
+
+#: includes/class-settings.php:195
+msgid "CFP franc (Fr) — XPF"
+msgstr ""
+
+#: includes/class-settings.php:196
+msgid "Yemeni rial (﷼) — YER"
+msgstr ""
+
+#: includes/class-settings.php:197
+msgid "South African rand (R) — ZAR"
+msgstr ""
+
+#: includes/class-settings.php:198
 msgid "Zambian kwacha (ZK) — ZMW"
 msgstr ""
 
-#: includes/class-settings.php:372
+#: includes/class-settings.php:377
 msgid "Security check failed."
 msgstr ""
 
-#: includes/class-settings.php:382
-#: includes/class-settings.php:785
-#: includes/class-settings.php:834
+#: includes/class-settings.php:387
+#: includes/class-settings.php:921
+#: includes/class-settings.php:1011
 msgid "EssFinance Settings"
 msgstr ""
 
-#: includes/class-settings.php:411
+#: includes/class-settings.php:418
 msgid "Display"
 msgstr ""
 
-#: includes/class-settings.php:412
+#: includes/class-settings.php:419
 msgid "Show status as badge"
 msgstr ""
 
-#: includes/class-settings.php:413
+#: includes/class-settings.php:420
 msgid "Show icons in Status"
 msgstr ""
 
-#: includes/class-settings.php:414
+#: includes/class-settings.php:421
 msgid "Show amount with colors"
 msgstr ""
 
-#: includes/class-settings.php:415
+#: includes/class-settings.php:422
 msgid "Show positive prefix"
 msgstr ""
 
-#: includes/class-settings.php:416
+#: includes/class-settings.php:423
 msgid "Show negative prefix"
 msgstr ""
 
-#: includes/class-settings.php:417
+#: includes/class-settings.php:424
 msgid "Show type filter"
 msgstr ""
 
-#: includes/class-settings.php:474
-msgid "Currency options"
+#: includes/class-settings.php:425
+msgid "Show balances"
 msgstr ""
 
-#: includes/class-settings.php:476
-msgid "The following options affect how amounts are displayed."
+#: includes/class-settings.php:426
+msgid "Show running balance column"
 msgstr ""
 
 #: includes/class-settings.php:483
+msgid "Currency options"
+msgstr ""
+
+#: includes/class-settings.php:485
+msgid "The following options affect how amounts are displayed."
+msgstr ""
+
+#: includes/class-settings.php:492
 msgid "Currency"
 msgstr ""
 
-#: includes/class-settings.php:490
+#: includes/class-settings.php:499
 msgid "Currency position"
 msgstr ""
 
-#: includes/class-settings.php:497
+#: includes/class-settings.php:506
 msgid "Thousand separator"
 msgstr ""
 
-#: includes/class-settings.php:504
+#: includes/class-settings.php:513
 msgid "Decimal separator"
 msgstr ""
 
-#: includes/class-settings.php:511
+#: includes/class-settings.php:520
 msgid "Number of decimals"
 msgstr ""
 
-#: includes/class-settings.php:525
-msgid "Display entry status as a colored badge in the list"
+#: includes/class-settings.php:563
+msgid "Running Balance"
 msgstr ""
 
-#: includes/class-settings.php:546
-msgid "Show the Income/Expense filter dropdown above the entries list"
-msgstr ""
-
-#: includes/class-settings.php:556
-msgid "Show a dashicon before the status label"
+#: includes/class-settings.php:565
+msgid "These options control the cumulative \"Balance\" column shown alongside cash flow entries."
 msgstr ""
 
 #: includes/class-settings.php:572
-msgid "Colorize income and expense amounts"
+msgid "Initial balance"
 msgstr ""
 
-#: includes/class-settings.php:582
-msgid "Show + sign before positive amounts (income)"
+#: includes/class-settings.php:579
+msgid "Balance basis"
 msgstr ""
 
-#: includes/class-settings.php:592
-msgid "Show − sign before negative amounts"
+#: includes/class-settings.php:586
+msgid "Pending entries"
 msgstr ""
 
-#: includes/class-settings.php:601
-msgid "This controls which currency symbol is shown next to amounts."
+#: includes/class-settings.php:600
+msgid "Display entry status as a colored badge in the list"
 msgstr ""
 
-#: includes/class-settings.php:612
-msgid "Do not display"
-msgstr ""
-
-#: includes/class-settings.php:613
-msgid "Left"
-msgstr ""
-
-#: includes/class-settings.php:614
-msgid "Right"
-msgstr ""
-
-#: includes/class-settings.php:615
-msgid "Left with space"
-msgstr ""
-
-#: includes/class-settings.php:616
-msgid "Right with space"
-msgstr ""
-
-#: includes/class-settings.php:618
-msgid "This controls the position of the currency symbol, or choose \"Do not display\" to hide it."
-msgstr ""
-
-#: includes/class-settings.php:629
-msgid "Comma (1,000)"
-msgstr ""
-
-#: includes/class-settings.php:630
-msgid "Period (1.000)"
+#: includes/class-settings.php:621
+msgid "Show the Income/Expense filter dropdown above the entries list"
 msgstr ""
 
 #: includes/class-settings.php:631
+msgid "Show balance/total cards above the entries list (admin and frontend)"
+msgstr ""
+
+#: includes/class-settings.php:641
+msgid "Show a dashicon before the status label"
+msgstr ""
+
+#: includes/class-settings.php:657
+msgid "Colorize income and expense amounts"
+msgstr ""
+
+#: includes/class-settings.php:667
+msgid "Show + sign before positive amounts (income)"
+msgstr ""
+
+#: includes/class-settings.php:677
+msgid "Show − sign before negative amounts"
+msgstr ""
+
+#: includes/class-settings.php:686
+msgid "This controls which currency symbol is shown next to amounts."
+msgstr ""
+
+#: includes/class-settings.php:697
+msgid "Do not display"
+msgstr ""
+
+#: includes/class-settings.php:698
+msgid "Left"
+msgstr ""
+
+#: includes/class-settings.php:699
+msgid "Right"
+msgstr ""
+
+#: includes/class-settings.php:700
+msgid "Left with space"
+msgstr ""
+
+#: includes/class-settings.php:701
+msgid "Right with space"
+msgstr ""
+
+#: includes/class-settings.php:703
+msgid "This controls the position of the currency symbol, or choose \"Do not display\" to hide it."
+msgstr ""
+
+#: includes/class-settings.php:714
+msgid "Comma (1,000)"
+msgstr ""
+
+#: includes/class-settings.php:715
+msgid "Period (1.000)"
+msgstr ""
+
+#: includes/class-settings.php:716
 msgid "Space (1 000)"
 msgstr ""
 
-#: includes/class-settings.php:632
+#: includes/class-settings.php:717
 msgid "Apostrophe (1'000)"
 msgstr ""
 
-#: includes/class-settings.php:633
+#: includes/class-settings.php:718
 msgid "None (1000)"
 msgstr ""
 
-#: includes/class-settings.php:635
+#: includes/class-settings.php:720
 msgid "This sets the thousand separator of displayed amounts."
 msgstr ""
 
-#: includes/class-settings.php:646
+#: includes/class-settings.php:731
 msgid "Period (0.00)"
 msgstr ""
 
-#: includes/class-settings.php:647
+#: includes/class-settings.php:732
 msgid "Comma (0,00)"
 msgstr ""
 
-#: includes/class-settings.php:649
+#: includes/class-settings.php:734
 msgid "This sets the decimal separator of displayed amounts."
 msgstr ""
 
-#: includes/class-settings.php:659
+#: includes/class-settings.php:744
 msgid "This sets the number of decimal points shown in displayed amounts."
 msgstr ""
 
-#: includes/class-settings.php:685
-msgid "Page not created"
+#: includes/class-settings.php:760
+msgid "Show a cumulative \"Balance\" column on the entries list (admin and frontend)"
 msgstr ""
 
-#: includes/class-settings.php:788
-msgid "Pages created successfully."
+#: includes/class-settings.php:767
+msgid "The starting balance the running balance column is calculated from."
 msgstr ""
 
-#: includes/class-settings.php:792
-msgid "Pages"
+#: includes/class-settings.php:779
+msgid "Paid entries only (bank-ledger balance)"
+msgstr ""
+
+#: includes/class-settings.php:780
+msgid "Paid + pending entries (forecast balance)"
+msgstr ""
+
+#: includes/class-settings.php:782
+msgid "Which entries count toward the running balance."
 msgstr ""
 
 #: includes/class-settings.php:793
-msgid "The following pages are used by EssFinance on the frontend:"
+msgid "Show a dash for pending rows"
+msgstr ""
+
+#: includes/class-settings.php:794
+msgid "Show the last paid balance (forward-fill)"
 msgstr ""
 
 #: includes/class-settings.php:796
-#: includes/class-shortcodes.php:1393
+msgid "How pending rows are displayed in the Balance column when the balance basis is \"Paid entries only\"."
+msgstr ""
+
+#: includes/class-settings.php:821
+msgid "Page not created"
+msgstr ""
+
+#: includes/class-settings.php:924
+msgid "Pages created successfully."
+msgstr ""
+
+#. translators: %s: the signed amount of the adjustment entry that was created.
+#: includes/class-settings.php:937
+#, php-format
+msgid "Balance adjustment entry created for %s."
+msgstr ""
+
+#: includes/class-settings.php:943
+msgid "The balance already matches — no adjustment entry was needed."
+msgstr ""
+
+#: includes/class-settings.php:949
+msgid "Use this when the running balance drifts from your actual account balance (e.g. a bank fee or interest that was never entered). An adjustment entry is created for the difference."
+msgstr ""
+
+#: includes/class-settings.php:955
+msgid "As of date"
+msgstr ""
+
+#: includes/class-settings.php:959
+msgid "Actual balance on that date"
+msgstr ""
+
+#: includes/class-settings.php:963
+msgid "Adjust Balance"
+msgstr ""
+
+#: includes/class-settings.php:969
+msgid "Pages"
+msgstr ""
+
+#: includes/class-settings.php:970
+msgid "The following pages are used by EssFinance on the frontend:"
+msgstr ""
+
+#: includes/class-settings.php:973
+#: includes/class-shortcodes.php:1480
 msgid "My Account"
 msgstr ""
 
-#: includes/class-settings.php:807
+#: includes/class-settings.php:984
 msgid "Create pages"
 msgstr ""
 
-#: includes/class-settings.php:812
+#: includes/class-settings.php:989
 msgid "Glossaries"
 msgstr ""
 
-#: includes/class-settings.php:813
+#: includes/class-settings.php:990
 msgid "Review or forget what EssFinance has learned to suggest automatically."
 msgstr ""
 
 #. translators: %s is the user's display name.
-#: includes/class-shortcodes.php:527
+#: includes/class-shortcodes.php:553
 #, php-format
 msgid "Hello, %s"
 msgstr ""
 
-#: includes/class-shortcodes.php:530
+#: includes/class-shortcodes.php:556
 msgid "My Cash Flow"
 msgstr ""
 
-#: includes/class-shortcodes.php:533
+#: includes/class-shortcodes.php:559
 msgid "Log out"
 msgstr ""
 
-#: includes/class-shortcodes.php:549
+#: includes/class-shortcodes.php:575
 msgid "Login"
 msgstr ""
 
-#: includes/class-shortcodes.php:553
-#: includes/class-shortcodes.php:574
+#: includes/class-shortcodes.php:579
+#: includes/class-shortcodes.php:600
 msgid "Register"
 msgstr ""
 
-#: includes/class-shortcodes.php:563
+#: includes/class-shortcodes.php:589
 msgid "Registration successful. Check your email for your password."
 msgstr ""
 
-#: includes/class-shortcodes.php:570
+#: includes/class-shortcodes.php:596
 msgid "Username"
 msgstr ""
 
-#: includes/class-shortcodes.php:572
+#: includes/class-shortcodes.php:598
 msgid "Email address"
 msgstr ""
 
-#: includes/class-shortcodes.php:581
+#: includes/class-shortcodes.php:607
 msgid "Username or email address"
 msgstr ""
 
-#: includes/class-shortcodes.php:583
+#: includes/class-shortcodes.php:609
 msgid "Password"
 msgstr ""
 
-#: includes/class-shortcodes.php:586
+#: includes/class-shortcodes.php:612
 msgid "Remember me"
 msgstr ""
 
-#: includes/class-shortcodes.php:587
+#: includes/class-shortcodes.php:613
 msgid "Lost password?"
 msgstr ""
 
-#: includes/class-shortcodes.php:589
-#: includes/class-shortcodes.php:622
+#: includes/class-shortcodes.php:615
+#: includes/class-shortcodes.php:648
 msgid "Log in"
 msgstr ""
 
-#: includes/class-shortcodes.php:598
+#: includes/class-shortcodes.php:624
 msgid "Unknown username."
 msgstr ""
 
-#: includes/class-shortcodes.php:599
+#: includes/class-shortcodes.php:625
 msgid "Unknown email address."
 msgstr ""
 
-#: includes/class-shortcodes.php:600
+#: includes/class-shortcodes.php:626
 msgid "Incorrect password."
 msgstr ""
 
-#: includes/class-shortcodes.php:601
+#: includes/class-shortcodes.php:627
 msgid "Please enter your username."
 msgstr ""
 
-#: includes/class-shortcodes.php:602
+#: includes/class-shortcodes.php:628
 msgid "Please enter your password."
 msgstr ""
 
-#: includes/class-shortcodes.php:603
+#: includes/class-shortcodes.php:629
 msgid "User registration is currently not allowed."
 msgstr ""
 
-#: includes/class-shortcodes.php:604
+#: includes/class-shortcodes.php:630
 msgid "This username is already registered."
 msgstr ""
 
-#: includes/class-shortcodes.php:605
+#: includes/class-shortcodes.php:631
 msgid "This email is already registered."
 msgstr ""
 
-#: includes/class-shortcodes.php:606
+#: includes/class-shortcodes.php:632
 msgid "Security check failed. Please try again."
 msgstr ""
 
-#: includes/class-shortcodes.php:608
+#: includes/class-shortcodes.php:634
 msgid "An error occurred. Please try again."
 msgstr ""
 
-#: includes/class-shortcodes.php:623
+#: includes/class-shortcodes.php:649
 msgid "to view your cash flow."
 msgstr ""
 
 #. translators: %d is the number of imported entries.
-#: includes/class-shortcodes.php:766
+#: includes/class-shortcodes.php:818
 #, php-format
 msgid "%d entry imported."
 msgid_plural "%d entries imported."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-shortcodes.php:781
+#: includes/class-shortcodes.php:854
 msgid "Search entries…"
 msgstr ""
 
-#: includes/class-shortcodes.php:782
+#: includes/class-shortcodes.php:855
 msgid "Search"
 msgstr ""
 
-#: includes/class-shortcodes.php:788
+#: includes/class-shortcodes.php:861
 msgid "Columns"
 msgstr ""
 
-#: includes/class-shortcodes.php:815
+#: includes/class-shortcodes.php:891
 msgid "Bulk actions"
 msgstr ""
 
-#: includes/class-shortcodes.php:829
+#: includes/class-shortcodes.php:905
 msgid "Apply"
 msgstr ""
 
-#: includes/class-shortcodes.php:837
+#: includes/class-shortcodes.php:913
 msgid "All statuses"
 msgstr ""
 
 #. translators: %d is the total number of entries.
-#: includes/class-shortcodes.php:868
+#: includes/class-shortcodes.php:944
 #, php-format
 msgid "%d entry"
 msgid_plural "%d entries"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-shortcodes.php:1019
+#: includes/class-shortcodes.php:1098
 msgid "Paid today"
 msgstr ""
 
-#: includes/class-shortcodes.php:1020
+#: includes/class-shortcodes.php:1099
 msgid "Paid date"
 msgstr ""
 
-#: includes/class-shortcodes.php:1021
+#: includes/class-shortcodes.php:1100
 msgid "Make expense"
 msgstr ""
 
-#: includes/class-shortcodes.php:1021
+#: includes/class-shortcodes.php:1100
 msgid "Make income"
 msgstr ""
 
-#: includes/class-shortcodes.php:1022
+#: includes/class-shortcodes.php:1101
 msgid "Delete this entry?"
 msgstr ""
 
-#: includes/class-shortcodes.php:1095
+#: includes/class-shortcodes.php:1200
 msgid "Update"
 msgstr ""
 
-#: includes/class-shortcodes.php:1285
+#: includes/class-shortcodes.php:1372
 msgid "Please select a CSV file to import."
 msgstr ""
 
-#: includes/class-shortcodes.php:1286
+#: includes/class-shortcodes.php:1373
 msgid "Could not read the uploaded file."
 msgstr ""
 
-#: includes/class-shortcodes.php:1287
+#: includes/class-shortcodes.php:1374
 msgid "The file appears to be empty or invalid."
 msgstr ""
 
-#: includes/class-shortcodes.php:1288
+#: includes/class-shortcodes.php:1375
 msgid "CSV must contain columns: description, type, amount, status."
 msgstr ""
 
-#: includes/class-shortcodes.php:1292
+#: includes/class-shortcodes.php:1379
 msgid "Import Entries"
 msgstr ""
 
-#: includes/class-shortcodes.php:1296
+#: includes/class-shortcodes.php:1383
 msgid "Upload a CSV with columns: due_date, pay_date, description, type (income/expense), amount, status, category (optional)."
 msgstr ""
 
-#: includes/class-shortcodes.php:1300
+#: includes/class-shortcodes.php:1387
 msgid "CSV File"
 msgstr ""
 
-#: includes/class-shortcodes.php:1382
+#: includes/class-shortcodes.php:1469
 msgid "Entry marked as paid."
 msgstr ""
 
-#: includes/class-shortcodes.php:1383
+#: includes/class-shortcodes.php:1470
 msgid "Bulk action applied."
 msgstr ""

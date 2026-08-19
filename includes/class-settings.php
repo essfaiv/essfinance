@@ -924,6 +924,47 @@ class ESSF_Settings {
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Pages created successfully.', 'essfinance' ); ?></p></div>
 			<?php endif; ?>
 
+			<?php
+			$settings_msg = isset( $_GET['essf_msg'] ) ? sanitize_key( $_GET['essf_msg'] ) : '';
+			if ( 'balance_adjusted' === $settings_msg ) :
+				$adjust_amount = (float) ( $_GET['essf_adjust_amount'] ?? 0 ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- numeric cast is the sanitization
+				$sign          = $adjust_amount < 0 ? '-' : '+';
+				?>
+				<div class="notice notice-success is-dismissible"><p>
+					<?php
+					printf(
+						/* translators: %s: the signed amount of the adjustment entry that was created. */
+						esc_html__( 'Balance adjustment entry created for %s.', 'essfinance' ),
+						esc_html( $sign . self::format_amount( $adjust_amount ) )
+					);
+					?>
+				</p></div>
+			<?php elseif ( 'balance_adjustment_noop' === $settings_msg ) : ?>
+				<div class="notice notice-info is-dismissible"><p><?php esc_html_e( 'The balance already matches — no adjustment entry was needed.', 'essfinance' ); ?></p></div>
+			<?php endif; ?>
+
+			<?php if ( self::show_balance_column() ) : ?>
+			<div class="postbox" style="margin-bottom:20px;padding:0 16px 16px;">
+				<h2 class="hndle" style="padding:12px 0 8px;"><?php esc_html_e( 'Balance', 'essfinance' ); ?></h2>
+				<p><?php esc_html_e( 'Use this when the running balance drifts from your actual account balance (e.g. a bank fee or interest that was never entered). An adjustment entry is created for the difference.', 'essfinance' ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="essf_adjust_balance">
+					<?php wp_nonce_field( ESSF_Admin_Page::ADJUST_BALANCE_NONCE ); ?>
+					<table class="form-table" role="presentation" style="margin-top:0;">
+						<tr>
+							<th scope="row"><label for="essf_adjust_date"><?php esc_html_e( 'As of date', 'essfinance' ); ?></label></th>
+							<td><input type="date" id="essf_adjust_date" name="essf_adjust_date" value="<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>" required></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="essf_adjust_target"><?php esc_html_e( 'Actual balance on that date', 'essfinance' ); ?></label></th>
+							<td><input type="number" step="0.01" id="essf_adjust_target" name="essf_adjust_target" required></td>
+						</tr>
+					</table>
+					<?php submit_button( __( 'Adjust Balance', 'essfinance' ), 'secondary', 'submit', false ); ?>
+				</form>
+			</div>
+			<?php endif; ?>
+
 			<div class="postbox" style="margin-bottom:20px;padding:0 16px 16px;">
 				<h2 class="hndle" style="padding:12px 0 8px;"><?php esc_html_e( 'Pages', 'essfinance' ); ?></h2>
 				<p><?php esc_html_e( 'The following pages are used by EssFinance on the frontend:', 'essfinance' ); ?></p>

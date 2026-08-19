@@ -511,6 +511,9 @@ class ESSF_Shortcodes {
 		.essf-field-row-amount { display: flex; align-items: flex-end; gap: 14px; }
 		.essf-field-row-amount > p { margin: 0; }
 		.essf-income-label { display: flex; align-items: center; gap: 5px; font-size: 14px; padding-bottom: 9px; white-space: nowrap; cursor: pointer; }
+		.essf-discount-surcharge { margin-bottom: 14px; }
+		.essf-discount-surcharge summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+		.essf-discount-surcharge[open] summary { margin-bottom: 14px; }
 		/* Search */
 		.essf-search-form { display: flex; gap: 6px; align-items: center; }
 		.essf-search-form input[type=search] { padding: 6px 10px; border: 1px solid #c3c4c7; border-radius: 4px; font-size: 13px; width: 180px; }
@@ -1126,7 +1129,9 @@ class ESSF_Shortcodes {
 		$focus      = sanitize_key( wp_unslash( $_GET['essf_focus'] ?? '' ) );
 		$amount_val = $entry ? abs( (float) $entry->post_content ) : '';
 		$type_val   = $entry ? ( (float) $entry->post_content >= 0 ? 'income' : 'expense' ) : 'expense';
-		$status_val = $entry ? $entry->post_status : 'pending';
+		// A brand-new entry defaults to Paid rather than Pending — most entries
+		// added by hand are being logged after the fact, already settled.
+		$status_val = $entry ? $entry->post_status : 'paid';
 		$due_val    = ( $entry && '0000-00-00' !== substr( $entry->post_date_gmt, 0, 10 ) ) ? substr( $entry->post_date_gmt, 0, 10 ) : '';
 		$pay_val    = ( $entry && '0000-00-00' !== substr( $entry->post_modified_gmt, 0, 10 ) ) ? substr( $entry->post_modified_gmt, 0, 10 ) : '';
 		// A new entry defaults to the Auto-categorize sentinel rather than a
@@ -1155,12 +1160,6 @@ class ESSF_Shortcodes {
 				<?php endif; ?>
 				<p><label><?php esc_html_e( 'Description', 'essfinance' ); ?><br>
 				<input type="text" name="essf_description" value="<?php echo esc_attr( $entry ? $entry->post_title : '' ); ?>" required></label></p>
-				<div class="essf-dates-row">
-					<p><label><?php esc_html_e( 'Due Date', 'essfinance' ); ?><br>
-					<input type="date" name="essf_due_date" value="<?php echo esc_attr( $due_val ); ?>"></label></p>
-					<p><label><?php esc_html_e( 'Pay Date', 'essfinance' ); ?><br>
-					<input type="date" name="essf_pay_date" value="<?php echo esc_attr( $pay_val ); ?>"<?php echo 'pay_date' === $focus ? ' autofocus' : ''; ?>></label></p>
-				</div>
 				<div class="essf-field-row-amount">
 					<p><label><?php esc_html_e( 'Amount', 'essfinance' ); ?><br>
 					<input type="number" name="essf_amount" value="<?php echo esc_attr( (string) $amount_val ); ?>" step="0.01" min="0" placeholder="0.00" required></label></p>
@@ -1169,11 +1168,20 @@ class ESSF_Shortcodes {
 						<?php esc_html_e( 'Income', 'essfinance' ); ?>
 					</label>
 				</div>
-				<div class="essf-field-row-amount">
-					<p><label><?php esc_html_e( 'Discount', 'essfinance' ); ?><br>
-					<input type="number" name="essf_discount" value="<?php echo esc_attr( $discount_val ? (string) $discount_val : '' ); ?>" step="0.01" min="0" placeholder="0.00"></label></p>
-					<p><label><?php esc_html_e( 'Surcharge (interest & penalty)', 'essfinance' ); ?><br>
-					<input type="number" name="essf_surcharge" value="<?php echo esc_attr( $surcharge_val ? (string) $surcharge_val : '' ); ?>" step="0.01" min="0" placeholder="0.00"></label></p>
+				<details class="essf-discount-surcharge"<?php echo ( $discount_val || $surcharge_val ) ? ' open' : ''; ?>>
+					<summary><?php esc_html_e( 'Discount / Surcharge', 'essfinance' ); ?></summary>
+					<div class="essf-field-row-amount">
+						<p><label><?php esc_html_e( 'Discount', 'essfinance' ); ?><br>
+						<input type="number" name="essf_discount" value="<?php echo esc_attr( $discount_val ? (string) $discount_val : '' ); ?>" step="0.01" min="0" placeholder="0.00"></label></p>
+						<p><label><?php esc_html_e( 'Surcharge (interest & penalty)', 'essfinance' ); ?><br>
+						<input type="number" name="essf_surcharge" value="<?php echo esc_attr( $surcharge_val ? (string) $surcharge_val : '' ); ?>" step="0.01" min="0" placeholder="0.00"></label></p>
+					</div>
+				</details>
+				<div class="essf-dates-row">
+					<p><label><?php esc_html_e( 'Due Date', 'essfinance' ); ?><br>
+					<input type="date" name="essf_due_date" value="<?php echo esc_attr( $due_val ); ?>"></label></p>
+					<p><label><?php esc_html_e( 'Pay Date', 'essfinance' ); ?><br>
+					<input type="date" name="essf_pay_date" value="<?php echo esc_attr( $pay_val ); ?>"<?php echo 'pay_date' === $focus ? ' autofocus' : ''; ?>></label></p>
 				</div>
 				<p><label><?php esc_html_e( 'Status', 'essfinance' ); ?><br>
 				<select name="essf_status">

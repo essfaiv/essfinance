@@ -37,13 +37,26 @@ class ESSF_Bill_CPT {
 	/** Shared with ESSF_Financing_CPT — one daily sweep materializes both. */
 	const CRON_HOOK = 'essf_recurrence_sweep';
 
-	const META_AMOUNT   = '_essf_bill_amount';
-	const META_CATEGORY = '_essf_bill_category';
-	const META_DUE_DAY  = '_essf_bill_due_day';
-	const META_ACTIVE   = '_essf_bill_active';
+	const META_AMOUNT      = '_essf_bill_amount';
+	const META_CATEGORY    = '_essf_bill_category';
+	const META_DUE_DAY     = '_essf_bill_due_day';
+	const META_ACTIVE      = '_essf_bill_active';
+	const META_RECURRENCE  = '_essf_bill_recurrence';
+	const META_DUE_WEEKDAY = '_essf_bill_due_weekday';
 
-	/** How many past months render_history_table() shows. */
-	const HISTORY_MONTHS = 6;
+	/**
+	 * Optional placeholder tokens a bill's name may embed, substituted with
+	 * the real due date when each occurrence's title is generated (see
+	 * expand_title()). TOKEN_FULL_DATE must always be checked/replaced before
+	 * TOKEN_YEAR_MONTH — it contains TOKEN_YEAR_MONTH as a literal substring,
+	 * so the reverse order would corrupt it (e.g. "YYYY-MM-DD" would become
+	 * "2026-08-DD" instead of "2026-08-14").
+	 */
+	const TOKEN_FULL_DATE  = 'YYYY-MM-DD';
+	const TOKEN_YEAR_MONTH = 'YYYY-MM';
+
+	/** How many past periods (months or weeks, depending on recurrence) render_history_table() shows. */
+	const HISTORY_PERIODS = 6;
 
 	/**
 	 * Set only for the duration of create_term_from_detection() — lets
@@ -131,7 +144,7 @@ class ESSF_Bill_CPT {
 	 */
 	public function row_actions( $actions, $term ): array {
 		$actions['view_history'] = '<a href="' . esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ) . '">' . esc_html__( 'History', 'essfinance' ) . '</a>';
-		$actions['view_entries'] = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( $term->name ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
+		$actions['view_entries'] = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( self::strip_tokens( $term->name ) ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
 		return $actions;
 	}
 
@@ -149,6 +162,7 @@ class ESSF_Bill_CPT {
 
 	public function render_add_term_fields(): void {
 		?>
+		<p class="description"><?php esc_html_e( 'Tip: the bill name above can optionally include YYYY-MM-DD or YYYY-MM as a placeholder — it will be replaced with the real due date (or year and month) each time an occurrence is generated, e.g. "Electricity YYYY-MM" becomes "Electricity 2026-08".', 'essfinance' ); ?></p>
 		<div class="form-field">
 			<label for="essf_bill_amount"><?php esc_html_e( 'Default amount', 'essfinance' ); ?></label>
 			<input type="number" step="0.01" min="0" name="essf_bill_amount" id="essf_bill_amount" value="0.00">
@@ -163,8 +177,16 @@ class ESSF_Bill_CPT {
 			<?php $this->render_category_select( '' ); ?>
 		</div>
 		<div class="form-field">
-			<label for="essf_bill_due_day"><?php esc_html_e( 'Due day of month', 'essfinance' ); ?></label>
+			<label for="essf_bill_recurrence"><?php esc_html_e( 'Recurrence', 'essfinance' ); ?></label>
+			<?php $this->render_recurrence_select( 'month' ); ?>
+		</div>
+		<div class="form-field">
+			<label for="essf_bill_due_day"><?php esc_html_e( 'Due day of month (used when Recurrence = Monthly)', 'essfinance' ); ?></label>
 			<input type="number" min="1" max="31" name="essf_bill_due_day" id="essf_bill_due_day" value="5">
+		</div>
+		<div class="form-field">
+			<label for="essf_bill_due_weekday"><?php esc_html_e( 'Due day of week (used when Recurrence = Weekly)', 'essfinance' ); ?></label>
+			<?php $this->render_due_weekday_select( 1 ); ?>
 		</div>
 		<div class="form-field">
 			<label for="essf_bill_active"><?php esc_html_e( 'Active', 'essfinance' ); ?></label>
@@ -174,14 +196,42 @@ class ESSF_Bill_CPT {
 		<?php
 	}
 
+	private function render_recurrence_select( string $selected ): void {
+		$options = [
+			'month' => __( 'Monthly', 'essfinance' ),
+			'week'  => __( 'Weekly', 'essfinance' ),
+		];
+		echo '<select name="essf_bill_recurrence" id="essf_bill_recurrence">';
+		foreach ( $options as $value => $label ) {
+			printf( '<option value="%s"%s>%s</option>', esc_attr( $value ), selected( $selected, $value, false ), esc_html( $label ) );
+		}
+		echo '</select>';
+	}
+
+	private function render_due_weekday_select( int $selected ): void {
+		echo '<select name="essf_bill_due_weekday" id="essf_bill_due_weekday">';
+		for ( $n = 1; $n <= 7; $n++ ) {
+			$dt = new DateTime();
+			$dt->setISODate( (int) current_time( 'Y' ), 1, $n ); // ISO week 1 — only the weekday name is used
+			printf( '<option value="%s"%s>%s</option>', esc_attr( (string) $n ), selected( $selected, $n, false ), esc_html( date_i18n( 'l', $dt->getTimestamp() ) ) );
+		}
+		echo '</select>';
+	}
+
 	/** @param WP_Term $term */
 	public function render_edit_term_fields( $term ): void {
-		$amount    = (float) get_term_meta( $term->term_id, self::META_AMOUNT, true );
-		$category  = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true );
-		$due_day   = (int) get_term_meta( $term->term_id, self::META_DUE_DAY, true ) ?: 5;
-		$active    = get_term_meta( $term->term_id, self::META_ACTIVE, true );
-		$is_active = '' === $active || (bool) $active;
+		$amount      = (float) get_term_meta( $term->term_id, self::META_AMOUNT, true );
+		$category    = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true );
+		$recurrence  = self::get_recurrence( $term );
+		$due_day     = self::get_due_day( $term );
+		$due_weekday = self::get_due_weekday( $term );
+		$active      = get_term_meta( $term->term_id, self::META_ACTIVE, true );
+		$is_active   = '' === $active || (bool) $active;
 		?>
+		<tr class="form-field">
+			<th scope="row"><?php esc_html_e( 'Tip', 'essfinance' ); ?></th>
+			<td><p class="description"><?php esc_html_e( 'Tip: the bill name above can optionally include YYYY-MM-DD or YYYY-MM as a placeholder — it will be replaced with the real due date (or year and month) each time an occurrence is generated, e.g. "Electricity YYYY-MM" becomes "Electricity 2026-08".', 'essfinance' ); ?></p></td>
+		</tr>
 		<tr class="form-field">
 			<th scope="row"><label for="essf_bill_amount"><?php esc_html_e( 'Default amount', 'essfinance' ); ?></label></th>
 			<td>
@@ -194,8 +244,16 @@ class ESSF_Bill_CPT {
 			<td><?php $this->render_category_select( $category ); ?></td>
 		</tr>
 		<tr class="form-field">
-			<th scope="row"><label for="essf_bill_due_day"><?php esc_html_e( 'Due day of month', 'essfinance' ); ?></label></th>
+			<th scope="row"><label for="essf_bill_recurrence"><?php esc_html_e( 'Recurrence', 'essfinance' ); ?></label></th>
+			<td><?php $this->render_recurrence_select( $recurrence ); ?></td>
+		</tr>
+		<tr class="form-field">
+			<th scope="row"><label for="essf_bill_due_day"><?php esc_html_e( 'Due day of month (used when Recurrence = Monthly)', 'essfinance' ); ?></label></th>
 			<td><input type="number" min="1" max="31" name="essf_bill_due_day" id="essf_bill_due_day" value="<?php echo esc_attr( (string) $due_day ); ?>"></td>
+		</tr>
+		<tr class="form-field">
+			<th scope="row"><label for="essf_bill_due_weekday"><?php esc_html_e( 'Due day of week (used when Recurrence = Weekly)', 'essfinance' ); ?></label></th>
+			<td><?php $this->render_due_weekday_select( $due_weekday ); ?></td>
 		</tr>
 		<tr class="form-field">
 			<th scope="row"><label for="essf_bill_active"><?php esc_html_e( 'Active', 'essfinance' ); ?></label></th>
@@ -216,32 +274,128 @@ class ESSF_Bill_CPT {
 		echo '</select>';
 	}
 
+	/* ── Recurrence/token helpers ───────────────────────────────── */
+
+	/** 'month' (default) or 'week'. */
+	private static function get_recurrence( WP_Term $term ): string {
+		return 'week' === get_term_meta( $term->term_id, self::META_RECURRENCE, true ) ? 'week' : 'month';
+	}
+
+	private static function get_due_day( WP_Term $term ): int {
+		return (int) get_term_meta( $term->term_id, self::META_DUE_DAY, true ) ?: 5;
+	}
+
+	/** 1 (Monday) .. 7 (Sunday), PHP date('N') convention. */
+	private static function get_due_weekday( WP_Term $term ): int {
+		$weekday = (int) get_term_meta( $term->term_id, self::META_DUE_WEEKDAY, true );
+		return ( $weekday >= 1 && $weekday <= 7 ) ? $weekday : 1;
+	}
+
+	/**
+	 * Substitutes optional YYYY-MM-DD/YYYY-MM placeholder tokens anywhere in
+	 * a bill's name with the real due date, producing the actual entry
+	 * title. A name with no tokens passes through unchanged.
+	 */
+	private static function expand_title( string $name, string $due_ymd ): string {
+		$title = str_replace( self::TOKEN_FULL_DATE, $due_ymd, $name );
+		$title = str_replace( self::TOKEN_YEAR_MONTH, substr( $due_ymd, 0, 7 ), $title );
+		return $title;
+	}
+
+	/** Removes both placeholder tokens from a name, collapsing extra whitespace — used for search links. */
+	private static function strip_tokens( string $name ): string {
+		$stripped = str_replace( [ self::TOKEN_FULL_DATE, self::TOKEN_YEAR_MONTH ], '', $name );
+		return trim( (string) preg_replace( '/\s+/', ' ', $stripped ) );
+	}
+
+	/**
+	 * The start/end/due 'Y-m-d' dates of a bill's period, $periods_back
+	 * periods before the current one (0 = current). For monthly bills this
+	 * is a calendar month; for weekly bills, a Monday-Sunday ISO week.
+	 * Shared by ensure_current_occurrence() (periods_back = 0) and
+	 * render_history_table() (0..HISTORY_PERIODS-1), so both compute due
+	 * dates identically.
+	 *
+	 * @return array{start:string,end:string,due:string}
+	 */
+	private static function period_bounds( WP_Term $term, int $periods_back = 0 ): array {
+		if ( 'week' === self::get_recurrence( $term ) ) {
+			$today_n       = (int) current_time( 'N' ); // 1 (Mon) .. 7 (Sun)
+			$this_monday   = strtotime( current_time( 'Y-m-d' ) . ' -' . ( $today_n - 1 ) . ' days' );
+			$target_monday = strtotime( gmdate( 'Y-m-d', $this_monday ) . ' -' . ( 7 * $periods_back ) . ' days' );
+
+			$start = gmdate( 'Y-m-d', $target_monday );
+			$end   = gmdate( 'Y-m-d', strtotime( $start . ' +6 days' ) );
+			$due   = gmdate( 'Y-m-d', strtotime( $start . ' +' . ( self::get_due_weekday( $term ) - 1 ) . ' days' ) );
+
+			return [
+				'start' => $start,
+				'end'   => $end,
+				'due'   => $due,
+			];
+		}
+
+		$target_ts     = strtotime( current_time( 'Y-m-01' ) . " -{$periods_back} months" );
+		$days_in_month = (int) date_i18n( 't', $target_ts );
+		$due_day       = min( self::get_due_day( $term ), $days_in_month );
+
+		$year_month = date_i18n( 'Y-m', $target_ts );
+
+		return [
+			'start' => $year_month . '-01',
+			'end'   => sprintf( '%s-%02d', $year_month, $days_in_month ),
+			'due'   => sprintf( '%s-%02d', $year_month, $due_day ),
+		];
+	}
+
+	/** @return array<int, array<string, mixed>> A date_query scoped to $bounds's period, matching $term's recurrence type. */
+	private static function period_date_query( WP_Term $term, array $bounds ): array {
+		if ( 'week' === self::get_recurrence( $term ) ) {
+			return [
+				[
+					'column'    => 'post_date_gmt',
+					'after'     => $bounds['start'] . ' 00:00:00',
+					'before'    => $bounds['end'] . ' 23:59:59',
+					'inclusive' => true,
+				],
+			];
+		}
+		return [
+			[
+				'column' => 'post_date_gmt',
+				'year'   => (int) substr( $bounds['start'], 0, 4 ),
+				'month'  => (int) substr( $bounds['start'], 5, 2 ),
+			],
+		];
+	}
+
 	/**
 	 * Read-only "virtual" history — no stored link, just
-	 * ESSF_CPT::find_entries_by_title() per month, same mechanism the
+	 * ESSF_CPT::find_entries_by_title() per period, same mechanism the
 	 * generation sweep itself uses to decide what's already there.
 	 *
 	 * @param WP_Term $term
 	 */
 	public static function render_history_table( WP_Term $term ): void {
-		echo '<table class="widefat striped" style="max-width:400px;">';
-		echo '<thead><tr><th>' . esc_html__( 'Month', 'essfinance' ) . '</th><th>' . esc_html__( 'Amount', 'essfinance' ) . '</th><th>' . esc_html__( 'Status', 'essfinance' ) . '</th></tr></thead><tbody>';
+		$is_weekly     = 'week' === self::get_recurrence( $term );
+		$period_header = $is_weekly ? __( 'Week', 'essfinance' ) : __( 'Month', 'essfinance' );
 
-		for ( $i = 0; $i < self::HISTORY_MONTHS; $i++ ) {
-			$ts      = strtotime( current_time( 'Y-m-01' ) . " -{$i} months" );
-			$year    = (int) date_i18n( 'Y', $ts );
-			$month   = (int) date_i18n( 'n', $ts );
-			$label   = date_i18n( 'F Y', $ts );
-			$entries = ESSF_CPT::find_entries_by_title(
-				$term->name,
-				[
-					[
-						'column' => 'post_date_gmt',
-						'year'   => $year,
-						'month'  => $month,
-					],
-				]
-			);
+		echo '<table class="widefat striped" style="max-width:400px;">';
+		echo '<thead><tr><th>' . esc_html( $period_header ) . '</th><th>' . esc_html__( 'Amount', 'essfinance' ) . '</th><th>' . esc_html__( 'Status', 'essfinance' ) . '</th></tr></thead><tbody>';
+
+		for ( $i = 0; $i < self::HISTORY_PERIODS; $i++ ) {
+			$bounds = self::period_bounds( $term, $i );
+			$title  = self::expand_title( $term->name, $bounds['due'] );
+
+			$label = $is_weekly
+				? sprintf(
+					/* translators: %s: the Monday date that starts the week, e.g. "Aug 17, 2026". */
+					__( 'Week of %s', 'essfinance' ),
+					date_i18n( get_option( 'date_format' ), strtotime( $bounds['start'] ) )
+				)
+				: date_i18n( 'F Y', strtotime( $bounds['start'] ) );
+
+			$entries = ESSF_CPT::find_entries_by_title( $title, self::period_date_query( $term, $bounds ) );
 
 			echo '<tr>';
 			echo '<td>' . esc_html( $label ) . '</td>';
@@ -286,6 +440,12 @@ class ESSF_Bill_CPT {
 		$due_day = isset( $post['essf_bill_due_day'] ) ? absint( $post['essf_bill_due_day'] ) : 5;
 		update_term_meta( $term_id, self::META_DUE_DAY, min( 31, max( 1, $due_day ) ) );
 
+		$recurrence = ( isset( $post['essf_bill_recurrence'] ) && 'week' === $post['essf_bill_recurrence'] ) ? 'week' : 'month';
+		update_term_meta( $term_id, self::META_RECURRENCE, $recurrence );
+
+		$due_weekday = isset( $post['essf_bill_due_weekday'] ) ? absint( $post['essf_bill_due_weekday'] ) : 1;
+		update_term_meta( $term_id, self::META_DUE_WEEKDAY, min( 7, max( 1, $due_weekday ?: 1 ) ) );
+
 		$active = isset( $post['essf_bill_active'] ) && '1' === $post['essf_bill_active'];
 		update_term_meta( $term_id, self::META_ACTIVE, $active ? '1' : '0' );
 	}
@@ -327,29 +487,17 @@ class ESSF_Bill_CPT {
 			return;
 		}
 
-		$current_ym = current_time( 'Y-m' );
+		$bounds = self::period_bounds( $term, 0 );
+		$title  = self::expand_title( $term->name, $bounds['due'] );
 
-		$existing = ESSF_CPT::find_entries_by_title(
-			$term->name,
-			[
-				[
-					'column' => 'post_date_gmt',
-					'year'   => (int) substr( $current_ym, 0, 4 ),
-					'month'  => (int) substr( $current_ym, 5, 2 ),
-				],
-			]
-		);
+		$existing = ESSF_CPT::find_entries_by_title( $title, self::period_date_query( $term, $bounds ) );
 		if ( $existing ) {
 			return;
 		}
 
-		$due_day       = (int) get_term_meta( $term->term_id, self::META_DUE_DAY, true ) ?: 5;
-		$days_in_month = (int) date_i18n( 't', strtotime( $current_ym . '-01' ) );
-		$due_date      = sprintf( '%s-%02d', $current_ym, min( $due_day, $days_in_month ) );
-
 		$amount   = (float) get_term_meta( $term->term_id, self::META_AMOUNT, true );
 		$category = (string) get_term_meta( $term->term_id, self::META_CATEGORY, true ) ?: 'bills';
 
-		ESSF_CPT::insert_entry( $term->name, $amount, $due_date . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category, get_current_user_id() );
+		ESSF_CPT::insert_entry( $title, $amount, $bounds['due'] . ' 00:00:00', '0000-00-00 00:00:00', 'pending', $category, get_current_user_id() );
 	}
 }

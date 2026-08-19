@@ -29,6 +29,11 @@ class ESSF_Meta_Boxes {
 	}
 
 	public function render( $post ) {
+		if ( ESSF_Category::is_balance_adjustment( $post->ID ) ) {
+			$this->render_locked_summary( $post );
+			return;
+		}
+
 		wp_nonce_field( self::NONCE, self::NONCE );
 
 		$amount   = (float) $post->post_content;
@@ -103,6 +108,27 @@ class ESSF_Meta_Boxes {
 		<?php
 	}
 
+	private function render_locked_summary( WP_Post $post ): void {
+		$amount = (float) $post->post_content;
+		?>
+		<p><?php esc_html_e( 'This is a balance adjustment entry created by EssFinance to reconcile the running balance — it can only be deleted, not edited.', 'essfinance' ); ?></p>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Description', 'essfinance' ); ?></th>
+				<td><?php echo esc_html( $post->post_title ); ?></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Amount', 'essfinance' ); ?></th>
+				<td><?php echo esc_html( ESSF_Settings::format_amount( $amount ) ); ?></td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Status', 'essfinance' ); ?></th>
+				<td><?php echo esc_html( ESSF_CPT::status_label( $post->post_status ) ); ?></td>
+			</tr>
+		</table>
+		<?php
+	}
+
 	public function save( $post_id ) {
 		if ( ! isset( $_POST[ self::NONCE ] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST[ self::NONCE ] ) ), self::NONCE ) ) {
 			return;
@@ -111,6 +137,9 @@ class ESSF_Meta_Boxes {
 			return;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ESSF_Category::is_balance_adjustment( $post_id ) ) {
 			return;
 		}
 

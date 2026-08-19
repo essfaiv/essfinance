@@ -23,7 +23,16 @@ class ESSF_Assets {
 		global $post;
 		$is_essf_post = $post && 'essf_cashflow' === $post->post_type;
 
-		if ( ! $is_essf_screen && ! $is_cpt_screen && ! $is_essf_post ) {
+		// Bills/Loans/Financing term screens (native edit-tags.php/term.php,
+		// shared by every taxonomy — scoped here to just our own three) and
+		// their shared "History"/payments listing page (registered with an
+		// empty parent slug, so it carries no distinctive $hook of its own).
+		$essf_taxonomies = [ ESSF_Bill_CPT::TAXONOMY, ESSF_Loan_CPT::TAXONOMY, ESSF_Financing_CPT::TAXONOMY ];
+		$is_term_screen  = in_array( $hook, [ 'edit-tags.php', 'term.php' ], true )
+			&& isset( $_GET['taxonomy'] ) && in_array( $_GET['taxonomy'], $essf_taxonomies, true );
+		$is_entries_page = isset( $_GET['page'] ) && ESSF_Recurrence_Entries_Page::SLUG === $_GET['page'];
+
+		if ( ! $is_essf_screen && ! $is_cpt_screen && ! $is_essf_post && ! $is_term_screen && ! $is_entries_page ) {
 			return;
 		}
 

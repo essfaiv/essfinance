@@ -150,15 +150,15 @@ class CategoryTest extends TestCase {
 		$this->addToAssertionCount( 1 );
 	}
 
-	public function test_seed_terms_inserts_all_25_terms_and_sets_flag(): void {
+	public function test_seed_terms_inserts_all_26_terms_and_sets_flag(): void {
 		Functions\expect( 'get_option' )
 			->once()
 			->with( 'essf_category_seeded' )
 			->andReturn( false );
 		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
-		Functions\expect( 'term_exists' )->times( 25 )->andReturn( false );
+		Functions\expect( 'term_exists' )->times( 26 )->andReturn( false );
 		Functions\expect( 'wp_insert_term' )
-			->times( 25 )
+			->times( 26 )
 			->with(
 				\Mockery::type( 'string' ),
 				'essf_cashflow_cat',
@@ -208,7 +208,7 @@ class CategoryTest extends TestCase {
 	public function test_seed_terms_skips_terms_that_already_exist(): void {
 		Functions\expect( 'get_option' )->once()->andReturn( false );
 		Functions\expect( 'get_locale' )->once()->andReturn( 'en_US' );
-		Functions\expect( 'term_exists' )->times( 25 )->andReturn( true );
+		Functions\expect( 'term_exists' )->times( 26 )->andReturn( true );
 		Functions\expect( 'wp_insert_term' )->never();
 		Functions\expect( 'update_option' )->once();
 
