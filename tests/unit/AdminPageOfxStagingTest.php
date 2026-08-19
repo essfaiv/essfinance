@@ -188,7 +188,7 @@ class AdminPageOfxStagingTest extends TestCase {
 			[ 'fitid' => 'TXN030', 'amount' => -20.0, 'due_date' => '2026-01-01', 'name' => '', 'memo' => 'Trimania' ],
 		];
 
-		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], '2026-02-01', null );
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], [], '2026-02-01', null );
 
 		$this->assertSame( [], $result['rows'] );
 		$this->assertSame( 0, $result['skipped'] );
@@ -200,7 +200,7 @@ class AdminPageOfxStagingTest extends TestCase {
 			[ 'fitid' => 'TXN031', 'amount' => -20.0, 'due_date' => '2026-03-01', 'name' => '', 'memo' => 'Trimania' ],
 		];
 
-		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], null, '2026-02-01' );
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], [], null, '2026-02-01' );
 
 		$this->assertSame( [], $result['rows'] );
 		$this->assertSame( 0, $result['skipped'] );
@@ -212,7 +212,7 @@ class AdminPageOfxStagingTest extends TestCase {
 			[ 'fitid' => 'TXN032', 'amount' => -20.0, 'due_date' => '2026-02-15', 'name' => '', 'memo' => 'Trimania' ],
 		];
 
-		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], '2026-02-01', '2026-02-28' );
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, [], [], [], [], [], [], '2026-02-01', '2026-02-28' );
 
 		$this->assertCount( 1, $result['rows'] );
 		$this->assertSame( 0, $result['out_of_range'] );
@@ -225,7 +225,7 @@ class AdminPageOfxStagingTest extends TestCase {
 		];
 		$existing = [ 'trimania|2026-02-15|-20' => true ];
 
-		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, $existing, [], [], [], [], '2026-02-01', '2026-02-28' );
+		$result = \ESSF_Admin_Page::build_ofx_stage_rows( $transactions, $existing, [], [], [], [], [], '2026-02-01', '2026-02-28' );
 
 		$this->assertSame( [], $result['rows'] );
 		$this->assertSame( 1, $result['skipped'] );

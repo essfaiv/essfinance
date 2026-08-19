@@ -124,7 +124,7 @@ class ESSF_CLI {
 			WP_CLI::error( 'Invalid --format. Use csv or md.' );
 		}
 
-		$rows = self::replay_suggestions( self::query_ofx_history(), ESSF_Category::category_glossary_history() );
+		$rows = self::replay_suggestions( self::query_ofx_history(), ESSF_Category::category_glossary_history(), ESSF_Category::get_prefix_rules() );
 
 		if ( isset( $assoc_args['only-opportunities'] ) ) {
 			$rows = array_values(
@@ -259,11 +259,13 @@ class ESSF_CLI {
 	/**
 	 * Predict what category the import-review pipeline would suggest for a raw
 	 * OFX memo today: a learned OFX-memo suggestion first (matched against
-	 * the raw memo, same as ESSF_Admin_Page::render_review_page()), then the
-	 * category glossary (ESSF_Category::match_glossary() — descriptions the
-	 * operator has categorized before, regardless of whether via OFX or
-	 * not), then ESSF_Category::guess_slug_from_description() (keyword
-	 * classifier) against the *resolved* description (same as
+	 * the raw memo, same as ESSF_Admin_Page::render_review_page()), then an
+	 * operator-authored prefix rule (ESSF_Category::match_prefix_rule() —
+	 * same priority as guess_slug() gives it), then the category glossary
+	 * (ESSF_Category::match_glossary() — descriptions the operator has
+	 * categorized before, regardless of whether via OFX or not), then
+	 * ESSF_Category::guess_slug_from_description() (keyword classifier)
+	 * against the *resolved* description (same as
 	 * ESSF_Admin_Page::build_ofx_stage_rows() — runs on the cleaned title,
 	 * not the noisy raw memo), then 'Uncategorized'.
 	 *
@@ -271,15 +273,25 @@ class ESSF_CLI {
 	 * @param string $description      Resolved description for this entry (predict_description()'s title).
 	 * @param array  $history          Prior OFX-memo entries, shape per ESSF_OFX_Suggestions::suggest().
 	 * @param array  $glossary_history From ESSF_Category::category_glossary_history(), built once by the caller — see replay_suggestions()'s note on why this one isn't chronologically replayed.
+	 * @param array  $prefix_rules     From ESSF_Category::get_prefix_rules().
 	 * @return array{title: string, source: string, score: string}
 	 */
-	public static function predict_category( string $raw_memo, string $description, array $history, array $glossary_history = [] ): array {
+	public static function predict_category( string $raw_memo, string $description, array $history, array $glossary_history = [], array $prefix_rules = [] ): array {
 		$suggestions = ESSF_OFX_Suggestions::suggest( $raw_memo, $history, 1 );
 		if ( $suggestions ) {
 			return [
 				'title'  => $suggestions[0]['title'],
 				'source' => 'suggestion',
 				'score'  => number_format( $suggestions[0]['score'], 1 ),
+			];
+		}
+
+		$rule_slug = ESSF_Category::match_prefix_rule( $description, $prefix_rules );
+		if ( $rule_slug ) {
+			return [
+				'title'  => ESSF_Category::label_for_slug( $rule_slug ),
+				'source' => 'prefix-rule',
+				'score'  => '',
 			];
 		}
 
@@ -325,9 +337,10 @@ class ESSF_CLI {
 	 *
 	 * @param array $entries          Chronologically ordered (oldest first) rows: {id: int, date: string, title: string, memo: string, category: string}.
 	 * @param array $glossary_history From ESSF_Category::category_glossary_history().
+	 * @param array $prefix_rules     From ESSF_Category::get_prefix_rules().
 	 * @return array<int, array{ID: int, Date: string, Title: string, 'Raw Memo': string, Predicted: string, Source: string, Score: string, 'Auto-fill': string, Category: string, 'Predicted Category': string, 'Category Auto-fill': string}>
 	 */
-	public static function replay_suggestions( array $entries, array $glossary_history = [] ): array {
+	public static function replay_suggestions( array $entries, array $glossary_history = [], array $prefix_rules = [] ): array {
 		$rows        = [];
 		$history     = [];
 		$cat_history = [];
@@ -335,7 +348,7 @@ class ESSF_CLI {
 		foreach ( $entries as $entry ) {
 			$category      = $entry['category'] ?? __( 'Uncategorized', 'essfinance' );
 			$predicted     = self::predict_description( $entry['memo'], $history );
-			$predicted_cat = self::predict_category( $entry['memo'], $predicted['title'], $cat_history, $glossary_history );
+			$predicted_cat = self::predict_category( $entry['memo'], $predicted['title'], $cat_history, $glossary_history, $prefix_rules );
 
 			$rows[] = [
 				'ID'                 => $entry['id'],

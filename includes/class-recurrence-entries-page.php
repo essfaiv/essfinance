@@ -82,6 +82,7 @@ class ESSF_Recurrence_Entries_Page {
 			switch ( $taxonomy ) {
 				case ESSF_Bill_CPT::TAXONOMY:
 					ESSF_Bill_CPT::render_history_table( $term );
+					ESSF_Bill_CPT::render_launch_widget( $term );
 					break;
 				case ESSF_Financing_CPT::TAXONOMY:
 					ESSF_Financing_CPT::render_installments_table_for_term( $term );

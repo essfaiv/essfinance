@@ -51,6 +51,22 @@ class LoanTest extends TestCase {
 		return $method->invoke( null, $term );
 	}
 
+	/** Installs a fresh $wpdb spy so renumber_and_sync()'s renames (via $wpdb->update(), never wp_update_post()) can be asserted on. */
+	private function fresh_wpdb(): \wpdb {
+		global $wpdb;
+		$wpdb = new \wpdb();
+		return $wpdb;
+	}
+
+	/** @return array<int, string> post ID => renamed post_title, from every $wpdb->update() call the test observed. */
+	private function renamed_titles( \wpdb $wpdb ): array {
+		$renamed = [];
+		foreach ( $wpdb->update_calls as $call ) {
+			$renamed[ $call['where']['ID'] ] = $call['data']['post_title'];
+		}
+		return $renamed;
+	}
+
 	// ── find_own_entries() ────────────────────────────────────────────────
 
 	public function test_find_own_entries_returns_exact_title_match(): void {
@@ -158,16 +174,17 @@ class LoanTest extends TestCase {
 	// ── renumber_and_sync() ──────────────────────────────────────────────
 
 	public function test_renumber_and_sync_leaves_single_entry_untouched(): void {
-		$term = new WP_Term( [ 'term_id' => 1, 'name' => 'Empréstimo Lucia' ] );
-		$post = $this->make_post( [ 'ID' => 40, 'post_title' => 'Empréstimo Lucia' ] );
+		$term  = new WP_Term( [ 'term_id' => 1, 'name' => 'Empréstimo Lucia' ] );
+		$post  = $this->make_post( [ 'ID' => 40, 'post_title' => 'Empréstimo Lucia' ] );
+		$wpdb  = $this->fresh_wpdb();
 
 		Functions\expect( 'get_posts' )->andReturn( [ $post ] );
-		Functions\expect( 'wp_update_post' )->never();
 		Functions\expect( 'get_term_meta' )->never();
 		Functions\expect( 'update_term_meta' )->never();
 
 		\ESSF_Loan_CPT::renumber_and_sync( $term );
-		$this->addToAssertionCount( 1 );
+
+		$this->assertSame( [], $wpdb->update_calls );
 	}
 
 	public function test_renumber_and_sync_numbers_two_entries_by_date_order(): void {
@@ -190,14 +207,7 @@ class LoanTest extends TestCase {
 		);
 
 		Functions\expect( 'get_posts' )->andReturn( [ $later, $earlier ] ); // deliberately out of order
-
-		$renamed = [];
-		Functions\expect( 'wp_update_post' )
-			->twice()
-			->andReturnUsing( static function ( array $args ) use ( &$renamed ) {
-				$renamed[ $args['ID'] ] = $args['post_title'];
-				return $args['ID'];
-			} );
+		$wpdb = $this->fresh_wpdb();
 
 		Functions\expect( 'get_term_meta' )
 			->with( 1, \ESSF_Loan_CPT::META_PRINCIPAL, true )
@@ -205,9 +215,116 @@ class LoanTest extends TestCase {
 		Functions\expect( 'update_term_meta' )->once();
 
 		\ESSF_Loan_CPT::renumber_and_sync( $term );
+		$renamed = $this->renamed_titles( $wpdb );
 
 		$this->assertSame( 'Empréstimo Lucia 202608Q1 1/2', $renamed[41] );
 		$this->assertSame( 'Empréstimo Lucia 202608Q1 2/2', $renamed[42] );
+		foreach ( $wpdb->update_calls as $call ) {
+			$this->assertSame( [ 'post_title' ], array_keys( $call['data'] ), 'Rename must only touch post_title — never post_modified_gmt (Pay Date)' );
+		}
+	}
+
+	public function test_renumber_and_sync_numbers_origin_and_payments_independently(): void {
+		$term      = new WP_Term( [ 'term_id' => 1, 'name' => 'Empréstimo Lucia' ] );
+		$origin_1  = $this->make_post(
+			[
+				'ID'            => 61,
+				'post_title'    => 'Empréstimo Lucia',
+				'post_content'  => '210',
+				'post_date_gmt' => '2026-08-01 00:00:00',
+			]
+		);
+		$origin_2  = $this->make_post(
+			[
+				'ID'            => 62,
+				'post_title'    => 'Empréstimo Lucia',
+				'post_content'  => '600',
+				'post_date_gmt' => '2026-08-15 00:00:00',
+			]
+		);
+		$payment_1 = $this->make_post(
+			[
+				'ID'                => 63,
+				'post_title'        => 'Empréstimo Lucia',
+				'post_content'      => '-100',
+				'post_status'       => 'paid',
+				'post_date_gmt'     => '2026-08-10 00:00:00',
+				'post_modified_gmt' => '2026-08-10 00:00:00',
+			]
+		);
+		$payment_2 = $this->make_post(
+			[
+				'ID'                => 64,
+				'post_title'        => 'Empréstimo Lucia',
+				'post_content'      => '-200',
+				'post_status'       => 'paid',
+				'post_date_gmt'     => '2026-08-20 00:00:00',
+				'post_modified_gmt' => '2026-08-20 00:00:00',
+			]
+		);
+
+		Functions\expect( 'get_posts' )->andReturn( [ $payment_2, $payment_1, $origin_2, $origin_1 ] );
+		$wpdb = $this->fresh_wpdb();
+
+		Functions\expect( 'get_term_meta' )
+			->with( 1, \ESSF_Loan_CPT::META_PRINCIPAL, true )
+			->andReturn( '' );
+		Functions\expect( 'update_term_meta' )->once()->with( 1, \ESSF_Loan_CPT::META_PRINCIPAL, '810' );
+
+		\ESSF_Loan_CPT::renumber_and_sync( $term );
+		$renamed = $this->renamed_titles( $wpdb );
+
+		$this->assertCount( 4, $wpdb->update_calls, 'origin (2) and payments (2) each numbered 1/2, 2/2 — never 1/4..4/4' );
+		$this->assertSame( 'Empréstimo Lucia 1/2', $renamed[61] );
+		$this->assertSame( 'Empréstimo Lucia 2/2', $renamed[62] );
+		$this->assertSame( 'Empréstimo Lucia 1/2', $renamed[63] );
+		$this->assertSame( 'Empréstimo Lucia 2/2', $renamed[64] );
+	}
+
+	public function test_renumber_and_sync_leaves_lone_payment_unsuffixed(): void {
+		$term     = new WP_Term( [ 'term_id' => 1, 'name' => 'Empréstimo Lucia' ] );
+		$origin_1 = $this->make_post(
+			[
+				'ID'            => 65,
+				'post_title'    => 'Empréstimo Lucia',
+				'post_content'  => '210',
+				'post_date_gmt' => '2026-08-01 00:00:00',
+			]
+		);
+		$origin_2 = $this->make_post(
+			[
+				'ID'            => 66,
+				'post_title'    => 'Empréstimo Lucia',
+				'post_content'  => '600',
+				'post_date_gmt' => '2026-08-15 00:00:00',
+			]
+		);
+		$payment  = $this->make_post(
+			[
+				'ID'                => 67,
+				'post_title'        => 'Empréstimo Lucia',
+				'post_content'      => '-300',
+				'post_status'       => 'paid',
+				'post_date_gmt'     => '2026-08-10 00:00:00',
+				'post_modified_gmt' => '2026-08-20 00:00:00',
+			]
+		);
+
+		Functions\expect( 'get_posts' )->andReturn( [ $payment, $origin_2, $origin_1 ] );
+		$wpdb = $this->fresh_wpdb();
+
+		Functions\expect( 'get_term_meta' )
+			->with( 1, \ESSF_Loan_CPT::META_PRINCIPAL, true )
+			->andReturn( '' );
+		Functions\expect( 'update_term_meta' )->once()->with( 1, \ESSF_Loan_CPT::META_PRINCIPAL, '810' );
+
+		\ESSF_Loan_CPT::renumber_and_sync( $term );
+		$renamed = $this->renamed_titles( $wpdb );
+
+		$this->assertCount( 2, $wpdb->update_calls, 'only the two origin entries — the lone payment has no pair to number against' );
+		$this->assertSame( 'Empréstimo Lucia 1/2', $renamed[65] );
+		$this->assertSame( 'Empréstimo Lucia 2/2', $renamed[66] );
+		$this->assertArrayNotHasKey( 67, $renamed, 'A lone payment with no pair stays unsuffixed' );
 	}
 
 	// ── sum_realized_payments() ─────────────────────────────────────────────
@@ -229,5 +346,48 @@ class LoanTest extends TestCase {
 		$pending = $this->make_post( [ 'ID' => 53, 'post_status' => 'pending', 'post_content' => '-450' ] );
 
 		$this->assertSame( 0.0, $this->call_sum_realized_payments( [ $pending ] ) );
+	}
+
+	// ── sort_entries() ──────────────────────────────────────────────────────
+
+	private function call_sort_entries( array $entries ): array {
+		$method = new ReflectionMethod( \ESSF_Loan_CPT::class, 'sort_entries' );
+		$method->setAccessible( true );
+		return $method->invoke( null, $entries );
+	}
+
+	public function test_sort_entries_orders_by_date_ascending(): void {
+		$later   = $this->make_post( [ 'ID' => 71, 'post_status' => 'pending', 'post_date_gmt' => '2026-08-15 00:00:00' ] );
+		$earlier = $this->make_post( [ 'ID' => 72, 'post_status' => 'pending', 'post_date_gmt' => '2026-08-01 00:00:00' ] );
+
+		$sorted = $this->call_sort_entries( [ $later, $earlier ] );
+
+		$this->assertSame( [ 72, 71 ], array_map( static fn( $p ) => $p->ID, $sorted ) );
+	}
+
+	public function test_sort_entries_breaks_same_date_tie_by_id_ascending(): void {
+		$higher_id = $this->make_post( [ 'ID' => 82, 'post_status' => 'pending', 'post_date_gmt' => '2026-08-10 00:00:00' ] );
+		$lower_id  = $this->make_post( [ 'ID' => 81, 'post_status' => 'pending', 'post_date_gmt' => '2026-08-10 00:00:00' ] );
+
+		$sorted = $this->call_sort_entries( [ $higher_id, $lower_id ] );
+
+		$this->assertSame( [ 81, 82 ], array_map( static fn( $p ) => $p->ID, $sorted ) );
+	}
+
+	public function test_sort_entries_uses_pay_date_for_paid_entries(): void {
+		// Paid: sorted by post_modified_gmt (pay date). Pending: sorted by post_date_gmt (due date).
+		$paid_but_later_due_date = $this->make_post(
+			[
+				'ID'                => 91,
+				'post_status'       => 'paid',
+				'post_date_gmt'     => '2026-08-20 00:00:00',
+				'post_modified_gmt' => '2026-08-05 00:00:00',
+			]
+		);
+		$pending = $this->make_post( [ 'ID' => 92, 'post_status' => 'pending', 'post_date_gmt' => '2026-08-10 00:00:00' ] );
+
+		$sorted = $this->call_sort_entries( [ $pending, $paid_but_later_due_date ] );
+
+		$this->assertSame( [ 91, 92 ], array_map( static fn( $p ) => $p->ID, $sorted ) );
 	}
 }

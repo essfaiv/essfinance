@@ -150,15 +150,21 @@ class ESSF_Meta_Boxes {
 
 		$due_raw = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ?? '' ) );
 		$pay_raw = sanitize_text_field( wp_unslash( $_POST['essf_pay_date'] ?? '' ) );
-		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
-		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
-		$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
-		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
 		$status = sanitize_key( wp_unslash( $_POST['essf_status'] ?? 'pending' ) );
 		if ( ! array_key_exists( $status, ESSF_CPT::labels() ) ) {
 			$status = 'pending';
 		}
+
+		// A Paid entry with no explicit pay date is assumed settled on its due date.
+		if ( '' === $pay_raw && 'paid' === $status ) {
+			$pay_raw = $due_raw;
+		}
+
+		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
+		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
+		$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
 		global $wpdb;
 		$wpdb->update(

@@ -243,6 +243,42 @@ class CliTest extends TestCase {
 		$this->assertSame( '', $prediction['score'] );
 	}
 
+	public function test_predict_category_prefers_prefix_rule_over_keyword(): void {
+		// "Mercado JC" would otherwise keyword-match 'groceries' via its own
+		// 'mercado' keyword — an authored rule to a different category must win.
+		$prediction = \ESSF_CLI::predict_category(
+			'Mercado JC',
+			'Mercado JC',
+			[],
+			[],
+			[ [ 'prefix' => 'Mercado', 'slug' => 'miscellaneous-expenses' ] ]
+		);
+
+		$this->assertSame( 'Miscellaneous expenses', $prediction['title'] );
+		$this->assertSame( 'prefix-rule', $prediction['source'] );
+	}
+
+	public function test_predict_category_prefix_rule_loses_to_learned_suggestion(): void {
+		// The raw-memo-based learned suggestion is a stronger, per-transaction
+		// signal than a generic prefix rule — it still wins.
+		$prediction = \ESSF_CLI::predict_category(
+			'Compra no débito - MERCADO JC',
+			'Mercado JC',
+			[
+				[
+					'memo'  => 'Compra no débito - MERCADO JC',
+					'title' => 'Groceries',
+					'date'  => '2026-01-01',
+				],
+			],
+			[],
+			[ [ 'prefix' => 'Mercado', 'slug' => 'miscellaneous-expenses' ] ]
+		);
+
+		$this->assertSame( 'Groceries', $prediction['title'] );
+		$this->assertSame( 'suggestion', $prediction['source'] );
+	}
+
 	// ── replay_suggestions() ─────────────────────────────────────────────
 
 	public function test_replay_suggestions_learns_from_earlier_manual_corrections(): void {

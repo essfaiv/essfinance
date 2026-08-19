@@ -191,13 +191,16 @@ class ESSF_Shortcodes {
 		$surcharge   = abs( (float) str_replace( ',', '.', wp_unslash( $_POST['essf_surcharge'] ?? '0' ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cast to float immediately; value is never output
 		$category    = sanitize_key( wp_unslash( $_POST['essf_category'] ?? 'uncategorized' ) );
 		if ( ESSF_Category::AUTO_SLUG === $category ) {
-			$category = ESSF_Category::guess_slug( $description, ESSF_Category::category_glossary_history() );
+			$category = ESSF_Category::guess_slug( $description, ESSF_Category::category_glossary_history(), ESSF_Category::get_prefix_rules() );
 		}
 
 		if ( '' === $due_raw && 'edit_entry' !== $action ) {
 			$due_raw = current_time( 'Y-m-d' );
 		}
-		if ( '' === $pay_raw && 'paid' === $status && 'edit_entry' !== $action ) {
+		// A Paid entry with no explicit pay date is assumed settled on its
+		// due date — applies to both add and edit, unlike the due-date
+		// default above.
+		if ( '' === $pay_raw && 'paid' === $status ) {
 			$pay_raw = $due_raw;
 		}
 
@@ -413,7 +416,8 @@ class ESSF_Shortcodes {
 					break;
 				case 'auto_set_category':
 					$glossary_history ??= ESSF_Category::category_glossary_history();
-					$guessed_slug       = ESSF_Category::guess_slug( $post->post_title, $glossary_history );
+					$prefix_rules     ??= ESSF_Category::get_prefix_rules();
+					$guessed_slug       = ESSF_Category::guess_slug( $post->post_title, $glossary_history, $prefix_rules );
 					wp_set_post_terms( $post_id, [ ESSF_Category::term_id_for_slug( $guessed_slug ) ], ESSF_Category::TAXONOMY );
 					break;
 			}

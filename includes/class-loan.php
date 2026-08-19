@@ -85,6 +85,8 @@ class ESSF_Loan_CPT {
 		add_action( 'created_' . self::TAXONOMY, [ $this, 'save_term_fields' ] );
 		add_action( 'edited_' . self::TAXONOMY, [ $this, 'save_term_fields' ] );
 		add_filter( self::TAXONOMY . '_row_actions', [ $this, 'row_actions' ], 10, 2 );
+		add_filter( 'manage_edit-' . self::TAXONOMY . '_columns', [ $this, 'columns' ] );
+		add_filter( 'manage_' . self::TAXONOMY . '_custom_column', [ $this, 'column_content' ], 10, 3 );
 
 		add_action( 'admin_post_' . self::ADD_PAYMENT_ACTION, [ $this, 'handle_add_payment' ] );
 	}
@@ -131,8 +133,41 @@ class ESSF_Loan_CPT {
 	 * @return array
 	 */
 	public function row_actions( $actions, $term ): array {
-		$actions['view_entries'] = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( $term->name ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
+		$actions['view_payments'] = '<a href="' . esc_url( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term->term_id ) ) . '">' . esc_html__( 'View payments', 'essfinance' ) . '</a>';
+		$actions['view_entries']  = '<a href="' . esc_url( ESSF_CPT::cashflow_search_url( $term->name ) ) . '">' . esc_html__( 'View entries', 'essfinance' ) . '</a>';
 		return $actions;
+	}
+
+	/** @return array<string, string> */
+	public function columns( array $columns ): array {
+		$columns['essf_paid']      = __( 'Paid', 'essfinance' );
+		$columns['essf_remaining'] = __( 'Remaining', 'essfinance' );
+		$columns['essf_status']    = __( 'Status', 'essfinance' );
+		return $columns;
+	}
+
+	public function column_content( string $content, string $column_name, int $term_id ): string {
+		if ( ! in_array( $column_name, [ 'essf_paid', 'essf_remaining', 'essf_status' ], true ) ) {
+			return $content;
+		}
+
+		$term = get_term( $term_id, self::TAXONOMY );
+		if ( ! $term || is_wp_error( $term ) ) {
+			return $content;
+		}
+
+		$principal = (float) get_term_meta( $term_id, self::META_PRINCIPAL, true );
+		$summary   = self::compute_summary( $term, $principal );
+
+		if ( 'essf_paid' === $column_name ) {
+			return esc_html( ESSF_Settings::format_amount( $summary['paid'] ) );
+		}
+		if ( 'essf_remaining' === $column_name ) {
+			return esc_html( ESSF_Settings::format_amount( $summary['remain'] ) );
+		}
+		return $summary['settled']
+			? '<span class="essf-badge essf-badge--paid">' . esc_html__( 'Paid off', 'essfinance' ) . '</span>'
+			: '<span class="essf-badge essf-badge--pending">' . esc_html__( 'Outstanding', 'essfinance' ) . '</span>';
 	}
 
 	/* ── Term fields ─────────────────────────────────────────────── */
@@ -205,30 +240,76 @@ class ESSF_Loan_CPT {
 
 	/** Short summary shown on the term edit screen — full table lives on ESSF_Recurrence_Entries_Page. */
 	private static function render_payments_overview( WP_Term $term, float $principal ): void {
-		[ , $payments ] = self::split_entries( $term, $principal );
-		$paid           = self::sum_realized_payments( $payments );
-		$remain         = abs( $principal ) - $paid;
-		$settled        = abs( $remain ) < 0.01;
+		$summary = self::compute_summary( $term, $principal );
 		?>
 		<p>
-			<strong><?php esc_html_e( 'Paid so far:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $paid ) ); ?>
+			<strong><?php esc_html_e( 'Paid so far:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $summary['paid'] ) ); ?>
 			&nbsp;·&nbsp;
-			<strong><?php esc_html_e( 'Remaining:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $remain ) ); ?>
+			<strong><?php esc_html_e( 'Remaining:', 'essfinance' ); ?></strong> <?php echo esc_html( ESSF_Settings::format_amount( $summary['remain'] ) ); ?>
 			&nbsp;·&nbsp;
-			<?php echo $settled ? esc_html__( 'Paid off', 'essfinance' ) : esc_html__( 'Outstanding', 'essfinance' ); ?>
+			<?php echo $summary['settled'] ? esc_html__( 'Paid off', 'essfinance' ) : esc_html__( 'Outstanding', 'essfinance' ); ?>
 		</p>
 		<?php
 	}
 
+	/**
+	 * Paid-so-far/remaining/settled summary for a loan — shared by the term
+	 * edit screen's overview paragraph and the Paid/Remaining/Status columns
+	 * on the native essf_loan_cat terms list table.
+	 *
+	 * @return array{paid: float, remain: float, settled: bool}
+	 */
+	private static function compute_summary( WP_Term $term, float $principal ): array {
+		[ , $payments ] = self::split_entries( $term, $principal );
+		$paid           = self::sum_realized_payments( $payments );
+		$remain         = abs( $principal ) - $paid;
+		return [
+			'paid'    => $paid,
+			'remain'  => $remain,
+			'settled' => abs( $remain ) < 0.01,
+		];
+	}
+
+	/** Sign of an entry's amount — 1 for income/positive, -1 for expense/negative. */
+	private static function entry_sign( WP_Post $entry ): int {
+		return ( (float) $entry->post_content ) >= 0 ? 1 : -1;
+	}
+
+	/** The date actually shown for an entry — pay date once paid, due date until then. */
+	private static function display_date( WP_Post $entry ): string {
+		return substr( 'paid' === $entry->post_status ? $entry->post_modified_gmt : $entry->post_date_gmt, 0, 10 );
+	}
+
+	/**
+	 * Sorts entries by display date then ID, both ascending (oldest/lowest
+	 * first) — the order the Origin/Payments tables show them in, and the
+	 * order renumber_and_sync() numbers installments in, so the two never
+	 * disagree.
+	 *
+	 * @param WP_Post[] $entries
+	 * @return WP_Post[]
+	 */
+	private static function sort_entries( array $entries ): array {
+		usort(
+			$entries,
+			static function ( $a, $b ) {
+				$cmp = self::display_date( $a ) <=> self::display_date( $b );
+				return 0 !== $cmp ? $cmp : $a->ID <=> $b->ID;
+			}
+		);
+		return $entries;
+	}
+
 	/** @param WP_Post[] $entries */
 	private static function render_entries_table( array $entries ): void {
+		$entries = self::sort_entries( $entries );
 		?>
 		<table class="widefat striped" style="max-width:500px;">
 			<thead><tr><th><?php esc_html_e( 'Date', 'essfinance' ); ?></th><th><?php esc_html_e( 'Amount', 'essfinance' ); ?></th><th><?php esc_html_e( 'Status', 'essfinance' ); ?></th></tr></thead>
 			<tbody>
 			<?php foreach ( $entries as $entry ) : ?>
 				<?php
-				$date     = substr( 'paid' === $entry->post_status ? $entry->post_modified_gmt : $entry->post_date_gmt, 0, 10 );
+				$date     = self::display_date( $entry );
 				$edit_url = add_query_arg(
 					[
 						'page'  => 'essfinance',
@@ -296,42 +377,41 @@ class ESSF_Loan_CPT {
 	}
 
 	/**
+	 * Which sign counts as the loan's "origin" side. A term that already has
+	 * a real principal keeps its established sign convention; a brand new
+	 * one (principal still 0 — nothing recorded yet) falls back to the sign
+	 * of its chronologically earliest entry, since every loan necessarily
+	 * starts with a disbursement before any repayment can exist.
+	 *
+	 * @param WP_Post[] $sorted_entries Already sorted by sort_entries() (oldest first).
+	 */
+	private static function resolve_origin_sign( WP_Term $term, array $sorted_entries ): int {
+		$stored_principal = (float) get_term_meta( $term->term_id, self::META_PRINCIPAL, true );
+		if ( 0.0 !== $stored_principal ) {
+			return $stored_principal >= 0 ? 1 : -1;
+		}
+		return self::entry_sign( $sorted_entries[0] );
+	}
+
+	/**
 	 * Recomputes and saves the loan's principal from its currently-matched
-	 * entries (see find_own_entries()) — called whenever a new entry joins
-	 * an existing loan, so the stored principal never goes stale.
-	 *
-	 * A term with no principal recorded yet (brand new — e.g. just created
-	 * by "Group as Loan", which leaves it at 0) bootstraps the same way
-	 * ESSF_Plan_Detector::infer_loan_meta() already does: sum every matched
-	 * entry, magnitude becomes the principal, sign decides is_lender.
-	 *
-	 * A term that already has a real principal keeps its existing sign
-	 * convention and only re-sums the origin-side entries (same sign as the
-	 * stored principal) — summing everything here would incorrectly net
-	 * already-recorded payments against the principal.
+	 * origin-side entries (see find_own_entries()/resolve_origin_sign()) —
+	 * called whenever a new entry joins an existing loan, so the stored
+	 * principal never goes stale. Payment-side entries (opposite sign) are
+	 * never summed in here — otherwise an already-recorded payment would be
+	 * incorrectly netted against the principal.
 	 */
 	public static function sync_principal_from_entries( WP_Term $term ): void {
 		$entries = self::find_own_entries( $term );
 		if ( ! $entries ) {
 			return;
 		}
+		$entries = self::sort_entries( $entries );
 
-		$stored_principal = (float) get_term_meta( $term->term_id, self::META_PRINCIPAL, true );
-
-		if ( 0.0 === $stored_principal ) {
-			$sum = 0.0;
-			foreach ( $entries as $entry ) {
-				$sum += (float) $entry->post_content;
-			}
-			update_term_meta( $term->term_id, self::META_PRINCIPAL, (string) abs( $sum ) );
-			return;
-		}
-
-		$principal_sign = $stored_principal >= 0 ? 1 : -1;
-		$origin_sum     = 0.0;
+		$origin_sign = self::resolve_origin_sign( $term, $entries );
+		$origin_sum  = 0.0;
 		foreach ( $entries as $entry ) {
-			$sign = ( (float) $entry->post_content ) >= 0 ? 1 : -1;
-			if ( $sign === $principal_sign ) {
+			if ( self::entry_sign( $entry ) === $origin_sign ) {
 				$origin_sum += (float) $entry->post_content;
 			}
 		}
@@ -339,43 +419,68 @@ class ESSF_Loan_CPT {
 	}
 
 	/**
+	 * Numbers one sign-group of entries (either the origin/disbursement side
+	 * or the payment side) into a shared "{term name} i/n" description,
+	 * ordered oldest first. A single entry is left untouched, since "1/1"
+	 * carries no information.
+	 *
+	 * Renames via $wpdb->update() rather than wp_update_post() — the latter
+	 * always restamps post_modified/post_modified_gmt to "now" on every
+	 * update no matter which fields are passed, and post_modified_gmt *is*
+	 * this plugin's Pay Date, so a title-only wp_update_post() call would
+	 * silently wipe an already-correct Pay Date to today every time an
+	 * entry gets renumbered.
+	 *
+	 * @param WP_Post[] $group Already sorted oldest-first, all the same sign.
+	 */
+	private static function renumber_group( WP_Term $term, array $group ): void {
+		if ( count( $group ) < 2 ) {
+			return;
+		}
+		$n = count( $group );
+		global $wpdb;
+		foreach ( $group as $index => $entry ) {
+			$new_title = $term->name . ' ' . ( $index + 1 ) . '/' . $n;
+			if ( $entry->post_title !== $new_title ) {
+				$wpdb->update( $wpdb->posts, [ 'post_title' => $new_title ], [ 'ID' => $entry->ID ], [ '%s' ], [ '%d' ] );
+			}
+		}
+	}
+
+	/**
 	 * Renumbers every entry currently matched to this loan (see
 	 * find_own_entries()) into a shared "{term name} i/n" description,
-	 * ordered by due date — the same outcome "Group as Loan" produces by
-	 * hand, but re-derivable at any time from whatever entries exist right
-	 * now (a single entry is left untouched, since "1/1" carries no
-	 * information). Called automatically by
-	 * ESSF_Plan_Detector::detect_for_new_entry() the moment a second entry
-	 * sharing a loan's exact name appears, so grouping needs no manual
-	 * action; also safe to re-run later (e.g. a third same-titled entry
-	 * shows up) — it always re-derives 1..n from scratch rather than
-	 * trusting a stale count.
+	 * ordered oldest first — the same outcome "Group as Loan" produces by
+	 * hand for a manually-selected set, but re-derivable automatically at
+	 * any time from whatever entries exist right now. The origin/
+	 * disbursement side and the payment side (opposite sign — see
+	 * resolve_origin_sign()) are numbered entirely independently, each with
+	 * its own count restarting at 1/n — e.g. 2 disbursements + 2 repayments
+	 * become "1/2"/"2/2" on each side, never a single "1/4".."4/4" sequence
+	 * mixing income and expense together.
+	 *
+	 * Called automatically by ESSF_Plan_Detector::detect_for_new_entry() the
+	 * moment a second entry sharing a loan's exact name appears (including a
+	 * payment added via handle_add_payment(), which always inserts with the
+	 * plain, unsuffixed title, and relies on this to pick up the numbering)
+	 * — so grouping needs no manual action; also safe to re-run later (e.g.
+	 * a third same-titled entry shows up on either side) — it always
+	 * re-derives 1..n from scratch per side rather than trusting a stale
+	 * count.
 	 */
 	public static function renumber_and_sync( WP_Term $term ): void {
 		$entries = self::find_own_entries( $term );
 		if ( count( $entries ) < 2 ) {
 			return;
 		}
+		$entries = self::sort_entries( $entries );
 
-		usort(
-			$entries,
-			static function ( $a, $b ) {
-				return strcmp( $a->post_date_gmt, $b->post_date_gmt );
-			}
-		);
+		$origin_sign = self::resolve_origin_sign( $term, $entries );
+		$origin      = array_values( array_filter( $entries, static fn( $entry ) => self::entry_sign( $entry ) === $origin_sign ) );
+		$payments    = array_values( array_filter( $entries, static fn( $entry ) => self::entry_sign( $entry ) !== $origin_sign ) );
 
-		$n = count( $entries );
-		foreach ( $entries as $index => $entry ) {
-			$new_title = $term->name . ' ' . ( $index + 1 ) . '/' . $n;
-			if ( $entry->post_title !== $new_title ) {
-				wp_update_post(
-					[
-						'ID'         => $entry->ID,
-						'post_title' => $new_title,
-					]
-				);
-			}
-		}
+		self::renumber_group( $term, $origin );
+		self::renumber_group( $term, $payments );
 
 		self::sync_principal_from_entries( $term );
 	}
@@ -396,8 +501,7 @@ class ESSF_Loan_CPT {
 		$origin         = [];
 		$payments       = [];
 		foreach ( $entries as $entry ) {
-			$sign = ( (float) $entry->post_content ) >= 0 ? 1 : -1;
-			if ( $sign === $principal_sign ) {
+			if ( self::entry_sign( $entry ) === $principal_sign ) {
 				$origin[] = $entry;
 			} else {
 				$payments[] = $entry;
@@ -540,15 +644,7 @@ class ESSF_Loan_CPT {
 
 		ESSF_CPT::insert_entry( $term->name, $signed, $date . ' 00:00:00', $pay, $status, $category, get_current_user_id() );
 
-		wp_safe_redirect(
-			add_query_arg(
-				[
-					'taxonomy' => self::TAXONOMY,
-					'tag_ID'   => $term_id,
-				],
-				admin_url( 'term.php' )
-			)
-		);
+		wp_safe_redirect( ESSF_Recurrence_Entries_Page::url( self::TAXONOMY, $term_id ) );
 		exit;
 	}
 

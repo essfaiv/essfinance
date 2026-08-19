@@ -174,6 +174,36 @@ class AdminPageTest extends TestCase {
 		$this->assertSame( '2026-02-28', $data['order_date'] );
 	}
 
+	public function test_parse_form_data_paid_with_no_pay_date_defaults_pay_date_to_due_date(): void {
+		Functions\expect( 'sanitize_text_field' )->andReturnFirstArg();
+		Functions\expect( 'wp_unslash' )->andReturnFirstArg();
+
+		$data = $this->call_parse_form( [
+			'essf_description' => 'Test',
+			'essf_amount'      => '200',
+			'essf_due_date'    => '2026-08-14',
+			'essf_status'      => 'paid',
+		] );
+
+		$this->assertSame( '2026-08-14 00:00:00', $data['due_gmt'] );
+		$this->assertSame( '2026-08-14 00:00:00', $data['pay_gmt'], 'Pay date must default to the due date, not today' );
+	}
+
+	public function test_parse_form_data_paid_with_explicit_pay_date_keeps_it(): void {
+		Functions\expect( 'sanitize_text_field' )->andReturnFirstArg();
+		Functions\expect( 'wp_unslash' )->andReturnFirstArg();
+
+		$data = $this->call_parse_form( [
+			'essf_description' => 'Test',
+			'essf_amount'      => '200',
+			'essf_due_date'    => '2026-08-14',
+			'essf_pay_date'    => '2026-08-19',
+			'essf_status'      => 'paid',
+		] );
+
+		$this->assertSame( '2026-08-19 00:00:00', $data['pay_gmt'] );
+	}
+
 	// ── format_amount_csv ────────────────────────────────────────────────────
 
 	/**

@@ -17,6 +17,19 @@ class ESSF_Category {
 	const GLOSSARY_EXCLUDED_META = '_essf_category_glossary_excluded';
 
 	/**
+	 * Operator-authored "description starts with X → category Y" rules —
+	 * read by both admin and frontend surfaces (and the WP-CLI ofx-audit
+	 * command), so the option and its accessor live here rather than in
+	 * ESSF_Admin_Page (unlike ESSF_Admin_Page::EXCLUDED_MEMOS_OPTION, which
+	 * is admin-only). Not autoloaded — same rationale as every other
+	 * infrequently-bootstrapped option in this plugin.
+	 *
+	 * @see get_prefix_rules()
+	 * @see match_prefix_rule()
+	 */
+	const PREFIX_RULES_OPTION = 'essf_category_prefix_rules';
+
+	/**
 	 * Sentinel category <select> value meaning "run guess_slug() at save
 	 * time" instead of a real taxonomy slug — never passed to
 	 * term_id_for_slug() as-is (it would self-heal into a bogus real term
@@ -688,14 +701,67 @@ class ESSF_Category {
 	}
 
 	/**
-	 * The combined guesser "Auto Set Category" and the OFX review flow use:
-	 * the glossary (repetition-learned from real corrections) first, falling
-	 * back to the keyword classifier when nothing in the glossary is similar
-	 * enough. $glossary_history is required, not fetched internally, so
-	 * callers looping over many descriptions fetch it once and pass it in —
-	 * see category_glossary_history()'s docblock.
+	 * Operator-authored prefix rules, e.g. [['prefix' => 'Mercado', 'slug' =>
+	 * 'groceries'], ...] — see PREFIX_RULES_OPTION. Cheap (a single,
+	 * WP-cached get_option() call), so — unlike category_glossary_history(),
+	 * whose cost is a real post query — callers don't strictly need to
+	 * memoize this themselves, though guess_slug() still takes it as a
+	 * parameter rather than fetching internally, matching $glossary_history's
+	 * explicit-parameter, easily-unit-testable convention.
+	 *
+	 * @return array<int, array{prefix: string, slug: string}>
 	 */
-	public static function guess_slug( string $description, array $glossary_history ): string {
+	public static function get_prefix_rules(): array {
+		$rules = get_option( self::PREFIX_RULES_OPTION, [] );
+		return is_array( $rules ) ? $rules : [];
+	}
+
+	/**
+	 * Match a description's start against operator-authored prefix rules
+	 * (see get_prefix_rules()), accent-folded and case-insensitive like
+	 * guess_slug_from_description()'s keyword matching. The first rule that
+	 * matches wins — unlike guess_slug_from_description()'s longest-match
+	 * logic, rule order is deliberately significant here: it's the
+	 * operator's own authored list, in the order they built it.
+	 *
+	 * @param array $prefix_rules From get_prefix_rules().
+	 */
+	public static function match_prefix_rule( string $description, array $prefix_rules ): ?string {
+		if ( ! $prefix_rules ) {
+			return null;
+		}
+
+		$haystack = self::fold_accents( mb_strtolower( trim( $description ) ) );
+
+		foreach ( $prefix_rules as $rule ) {
+			$prefix = self::fold_accents( mb_strtolower( trim( (string) ( $rule['prefix'] ?? '' ) ) ) );
+			$slug   = (string) ( $rule['slug'] ?? '' );
+			if ( '' !== $prefix && '' !== $slug && 0 === mb_stripos( $haystack, $prefix ) ) {
+				return $slug;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * The combined guesser "Auto Set Category" and the OFX review flow use:
+	 * an explicit prefix rule (see match_prefix_rule()) first — an operator-
+	 * authored rule is a deliberate decision and always wins — then the
+	 * glossary (repetition-learned from real corrections), falling back to
+	 * the keyword classifier when nothing else matches. $glossary_history and
+	 * $prefix_rules are required, not fetched internally, so callers looping
+	 * over many descriptions fetch each once and pass it in — see
+	 * category_glossary_history()'s and get_prefix_rules()'s docblocks.
+	 *
+	 * @param array $prefix_rules From get_prefix_rules(); defaults to none for callers that don't care about rules.
+	 */
+	public static function guess_slug( string $description, array $glossary_history, array $prefix_rules = [] ): string {
+		$rule_slug = self::match_prefix_rule( $description, $prefix_rules );
+		if ( $rule_slug ) {
+			return $rule_slug;
+		}
+
 		$match = self::match_glossary( $description, $glossary_history );
 		return $match ? $match['slug'] : self::guess_slug_from_description( $description );
 	}

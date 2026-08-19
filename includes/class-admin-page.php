@@ -19,6 +19,8 @@ class ESSF_Admin_Page {
 	const FORGET_MEMO_NONCE              = 'essf_forget_memo';
 	const FORGET_EXCLUDED_NONCE          = 'essf_forget_excluded';
 	const FORGET_CATEGORY_GLOSSARY_NONCE = 'essf_forget_category_glossary';
+	const ADD_PREFIX_RULE_NONCE          = 'essf_add_prefix_rule';
+	const FORGET_PREFIX_RULE_NONCE       = 'essf_forget_prefix_rule';
 	const GROUP_CONFIRM_NONCE            = 'essf_group_confirm';
 	const SPLIT_CONFIRM_NONCE            = 'essf_split_confirm';
 	const ADJUST_BALANCE_NONCE           = 'essf_adjust_balance';
@@ -68,12 +70,47 @@ class ESSF_Admin_Page {
 		add_action( 'admin_post_essf_forget_memo', [ $this, 'handle_forget_memo' ] );
 		add_action( 'admin_post_essf_forget_excluded', [ $this, 'handle_forget_excluded' ] );
 		add_action( 'admin_post_essf_forget_category_glossary', [ $this, 'handle_forget_category_glossary' ] );
+		add_action( 'admin_post_essf_add_prefix_rule', [ $this, 'handle_add_prefix_rule' ] );
+		add_action( 'admin_post_essf_forget_prefix_rule', [ $this, 'handle_forget_prefix_rule' ] );
 		add_action( 'admin_post_essf_group_confirm', [ $this, 'handle_group_confirm' ] );
 		add_action( 'admin_post_essf_split_confirm', [ $this, 'handle_split_confirm' ] );
 		add_action( 'admin_post_essf_adjust_balance', [ $this, 'handle_adjust_balance' ] );
 		add_filter( 'manage_essf_cashflow_posts_columns', [ $this, 'columns' ] );
 		add_action( 'manage_essf_cashflow_posts_custom_column', [ $this, 'column_content' ], 10, 2 );
 		add_filter( 'manage_edit-essf_cashflow_sortable_columns', [ $this, 'sortable_columns' ] );
+		add_filter( 'parent_file', [ $this, 'fix_taxonomy_parent_file' ] );
+		add_filter( 'submenu_file', [ $this, 'fix_taxonomy_submenu_file' ] );
+	}
+
+	/**
+	 * WordPress's native edit-tags.php/term.php parent-menu resolution
+	 * guesses the parent by which post type(s) a taxonomy is registered
+	 * against — essf_bill_cat/essf_loan_cat/essf_financing_cat have none
+	 * (config-only taxonomies, see ESSF_Bill_CPT/ESSF_Loan_CPT/
+	 * ESSF_Financing_CPT), so it falls back to highlighting "Posts" instead
+	 * of the "EssFinance" top-level menu these taxonomies are actually
+	 * registered under (see each class's own register_menu()). The
+	 * registration itself is correct — this only fixes which menu item
+	 * lights up.
+	 */
+	private function is_essf_taxonomy_screen(): bool {
+		global $pagenow;
+		$known = [ ESSF_Bill_CPT::TAXONOMY, ESSF_Loan_CPT::TAXONOMY, ESSF_Financing_CPT::TAXONOMY ];
+		return in_array( $pagenow, [ 'edit-tags.php', 'term.php' ], true )
+			&& isset( $_GET['taxonomy'] ) && in_array( $_GET['taxonomy'], $known, true ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only menu-highlight check
+	}
+
+	/** @param string $parent_file */
+	public function fix_taxonomy_parent_file( $parent_file ): string {
+		return $this->is_essf_taxonomy_screen() ? 'essfinance' : $parent_file;
+	}
+
+	/** @param string|null $submenu_file */
+	public function fix_taxonomy_submenu_file( $submenu_file ): ?string {
+		if ( ! $this->is_essf_taxonomy_screen() ) {
+			return $submenu_file;
+		}
+		return 'edit-tags.php?taxonomy=' . sanitize_key( wp_unslash( $_GET['taxonomy'] ?? '' ) );
 	}
 
 	public function register_menus(): void {
@@ -312,7 +349,8 @@ class ESSF_Admin_Page {
 					break;
 				case 'auto_set_category':
 					$glossary_history ??= ESSF_Category::category_glossary_history();
-					$guessed_slug       = ESSF_Category::guess_slug( $post->post_title, $glossary_history );
+					$prefix_rules     ??= ESSF_Category::get_prefix_rules();
+					$guessed_slug       = ESSF_Category::guess_slug( $post->post_title, $glossary_history, $prefix_rules );
 					wp_set_post_terms( $id, [ ESSF_Category::term_id_for_slug( $guessed_slug ) ], ESSF_Category::TAXONOMY );
 					break;
 			}
@@ -450,9 +488,6 @@ class ESSF_Admin_Page {
 
 		if ( empty( $_POST['essf_due_date'] ) ) {
 			$_POST['essf_due_date'] = current_time( 'Y-m-d' );
-		}
-		if ( empty( $_POST['essf_pay_date'] ) && 'paid' === sanitize_key( wp_unslash( $_POST['essf_status'] ?? '' ) ) ) {
-			$_POST['essf_pay_date'] = sanitize_text_field( wp_unslash( $_POST['essf_due_date'] ) );
 		}
 		$data = $this->parse_form_data( $_POST );
 
@@ -728,7 +763,8 @@ class ESSF_Admin_Page {
 	private function stage_ofx_import( string $content, array $existing, array $fitid_lookup, array $amount_index, ?string $start_date = null, ?string $end_date = null ): void {
 		$excluded_memos   = get_option( self::EXCLUDED_MEMOS_OPTION, [] );
 		$glossary_history = ESSF_Category::category_glossary_history();
-		$staged           = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos, $glossary_history, $start_date, $end_date );
+		$prefix_rules     = ESSF_Category::get_prefix_rules();
+		$staged           = self::build_ofx_stage_rows( ESSF_OFX_Parser::parse( $content ), $existing, $fitid_lookup, $amount_index, $excluded_memos, $glossary_history, $prefix_rules, $start_date, $end_date );
 
 		if ( ! $staged['rows'] ) {
 			wp_safe_redirect(
@@ -791,11 +827,12 @@ class ESSF_Admin_Page {
 	 * @param array       $amount_index     Amount→[id,date,title] index.
 	 * @param array       $excluded_memos   Normalized memos of previously-excluded rows.
 	 * @param array       $glossary_history Memo→category learned history.
+	 * @param array       $prefix_rules     Operator-authored prefix→category rules, from ESSF_Category::get_prefix_rules().
 	 * @param string|null $start_date       Optional inclusive lower bound (`Y-m-d`) on `due_date`.
 	 * @param string|null $end_date         Optional inclusive upper bound (`Y-m-d`) on `due_date`.
 	 * @return array{rows: array<int, array>, skipped: int, out_of_range: int}
 	 */
-	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [], array $glossary_history = [], ?string $start_date = null, ?string $end_date = null ): array {
+	public static function build_ofx_stage_rows( array $transactions, array $existing, array $fitid_lookup, array $amount_index = [], array $excluded_memos = [], array $glossary_history = [], array $prefix_rules = [], ?string $start_date = null, ?string $end_date = null ): array {
 		$rows         = [];
 		$skipped      = 0;
 		$out_of_range = 0;
@@ -845,7 +882,7 @@ class ESSF_Admin_Page {
 				'name'               => $name,
 				'memo'               => $memo,
 				'description'        => $description,
-				'category'           => ESSF_Category::guess_slug( $description, $glossary_history ),
+				'category'           => ESSF_Category::guess_slug( $description, $glossary_history, $prefix_rules ),
 				'transfer_detail'    => $transfer['detail'] ?? '',
 				'possible_duplicate' => self::find_possible_duplicate( $amount, $due_date, $amount_index ),
 				'suggested_exclude'  => ESSF_OFX_Suggestions::matches_excluded( $name ?: $memo, $excluded_memos ),
@@ -1363,8 +1400,88 @@ class ESSF_Admin_Page {
 				<?php esc_html_e( 'Every categorized entry teaches "Auto Set Category" by example — correct one and similar descriptions use that category from then on. "Forget" stops an entry from teaching by example; its own category is not changed.', 'essfinance' ); ?>
 			</p>
 
-			<?php $glossary = ESSF_Category::category_glossary_history(); ?>
-			<?php if ( ! $glossary ) : ?>
+			<h2><?php esc_html_e( 'Prefix rules', 'essfinance' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'A description starting with a prefix always uses that category — takes priority over learned examples below, so one rule can replace many near-duplicate entries (e.g. "Mercado" → Groceries covers every "Mercado ..." description).', 'essfinance' ); ?>
+			</p>
+			<?php $prefix_rules = ESSF_Category::get_prefix_rules(); ?>
+			<?php
+			$rule_category_terms  = [];
+			$excluded_rule_target = [ ESSF_Category::uncategorized_term_id(), ESSF_Category::term_id_for_slug( ESSF_Category::BALANCE_ADJUSTMENT_SLUG ) ];
+			foreach ( ESSF_Category::get_ordered_terms() as $rule_term ) {
+				if ( ! in_array( $rule_term->term_id, $excluded_rule_target, true ) ) {
+					$rule_category_terms[] = $rule_term;
+				}
+			}
+			?>
+			<?php if ( $prefix_rules ) : ?>
+				<table class="wp-list-table widefat fixed striped" style="max-width:600px;">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Prefix', 'essfinance' ); ?></th>
+							<th><?php esc_html_e( 'Category', 'essfinance' ); ?></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $prefix_rules as $rule ) : ?>
+							<tr>
+								<td><?php echo esc_html( $rule['prefix'] ?? '' ); ?></td>
+								<td><?php echo esc_html( ESSF_Category::label_for_slug( $rule['slug'] ?? '' ) ); ?></td>
+								<td>
+									<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=essf_forget_prefix_rule&prefix=' . rawurlencode( $rule['prefix'] ?? '' ) ), self::FORGET_PREFIX_RULE_NONCE ) ); ?>">
+										<?php esc_html_e( 'Forget', 'essfinance' ); ?>
+									</a>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:0.5em;">
+				<?php wp_nonce_field( self::ADD_PREFIX_RULE_NONCE ); ?>
+				<input type="hidden" name="action" value="essf_add_prefix_rule">
+				<input type="text" name="essf_prefix_rule_prefix" placeholder="<?php esc_attr_e( 'Prefix', 'essfinance' ); ?>" required>
+				<select name="essf_prefix_rule_slug" required>
+					<?php foreach ( $rule_category_terms as $rule_term ) : ?>
+						<option value="<?php echo esc_attr( $rule_term->slug ); ?>"><?php echo esc_html( $rule_term->name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<?php submit_button( __( 'Add Rule', 'essfinance' ), 'secondary', 'submit', false ); ?>
+			</form>
+
+			<h2><?php esc_html_e( 'Learned descriptions', 'essfinance' ); ?></h2>
+			<?php
+			$glossary       = ESSF_Category::category_glossary_history();
+			$glossary_shown = [];
+			$hidden_count   = 0;
+			foreach ( $glossary as $entry ) {
+				if ( ESSF_Category::match_prefix_rule( $entry['memo'], $prefix_rules ) ) {
+					++$hidden_count;
+					continue;
+				}
+				$glossary_shown[] = $entry;
+			}
+			?>
+			<?php if ( $hidden_count ) : ?>
+				<p class="description">
+					<?php
+					printf(
+						esc_html(
+							/* translators: %d: number of entries hidden because a prefix rule already covers them. */
+							_n(
+								'%d entry is hidden — already covered by a prefix rule above.',
+								'%d entries are hidden — already covered by a prefix rule above.',
+								$hidden_count,
+								'essfinance'
+							)
+						),
+						(int) $hidden_count
+					);
+					?>
+				</p>
+			<?php endif; ?>
+			<?php if ( ! $glossary_shown ) : ?>
 				<p><?php esc_html_e( 'Nothing learned yet — this fills in as entries get categorized.', 'essfinance' ); ?></p>
 			<?php else : ?>
 				<table class="wp-list-table widefat fixed striped">
@@ -1376,7 +1493,7 @@ class ESSF_Admin_Page {
 						</tr>
 					</thead>
 					<tbody>
-						<?php foreach ( $glossary as $entry ) : ?>
+						<?php foreach ( $glossary_shown as $entry ) : ?>
 							<tr>
 								<td><?php echo esc_html( $entry['memo'] ); ?></td>
 								<td><?php echo esc_html( $entry['title'] ); ?></td>
@@ -1408,6 +1525,65 @@ class ESSF_Admin_Page {
 		}
 
 		wp_safe_redirect( add_query_arg( 'essf_msg', 'forgotten', admin_url( 'admin.php?page=essfinance-category-glossary' ) ) );
+		exit;
+	}
+
+	/**
+	 * Adds (or, if the prefix already exists, retargets) one operator-authored
+	 * prefix rule — see ESSF_Category::PREFIX_RULES_OPTION. Unlike
+	 * remember_excluded_memos()'s passive, FIFO-capped learning, this is a
+	 * deliberate one-at-a-time operator action, so there's no cap.
+	 */
+	public function handle_add_prefix_rule(): void {
+		check_admin_referer( self::ADD_PREFIX_RULE_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$prefix = trim( rtrim( sanitize_text_field( wp_unslash( $_POST['essf_prefix_rule_prefix'] ?? '' ) ), '%' ) );
+		$slug   = sanitize_key( wp_unslash( $_POST['essf_prefix_rule_slug'] ?? '' ) );
+
+		if ( '' !== $prefix && get_term_by( 'slug', $slug, ESSF_Category::TAXONOMY ) ) {
+			$rules   = ESSF_Category::get_prefix_rules();
+			$rules   = array_values(
+				array_filter(
+					$rules,
+					static function ( $rule ) use ( $prefix ) {
+						return $rule['prefix'] !== $prefix;
+					}
+				)
+			);
+			$rules[] = [
+				'prefix' => $prefix,
+				'slug'   => $slug,
+			];
+			update_option( ESSF_Category::PREFIX_RULES_OPTION, $rules, false );
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=essfinance-category-glossary' ) );
+		exit;
+	}
+
+	public function handle_forget_prefix_rule(): void {
+		check_admin_referer( self::FORGET_PREFIX_RULE_NONCE );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Unauthorized.', 'essfinance' ) );
+		}
+
+		$prefix = isset( $_GET['prefix'] ) ? sanitize_text_field( wp_unslash( $_GET['prefix'] ) ) : '';
+		if ( '' !== $prefix ) {
+			$rules = array_values(
+				array_filter(
+					ESSF_Category::get_prefix_rules(),
+					static function ( $rule ) use ( $prefix ) {
+						return $rule['prefix'] !== $prefix;
+					}
+				)
+			);
+			update_option( ESSF_Category::PREFIX_RULES_OPTION, $rules, false );
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=essfinance-category-glossary' ) );
 		exit;
 	}
 
@@ -1521,10 +1697,15 @@ class ESSF_Admin_Page {
 
 	/**
 	 * Confirms the "Group as Loan" staging: renames every staged entry to
-	 * `"{base} {i}/{n}"` (title-only, so wp_update_post() is safe here — see
-	 * CLAUDE.md's post_date_gmt/post_modified_gmt caveat, which doesn't apply
-	 * to post_title), and creates the matching Loan term if it doesn't exist
-	 * yet. Principal is left at 0 — the operator sets it on the term after.
+	 * `"{base} {i}/{n}"` and creates the matching Loan term if it doesn't
+	 * exist yet. Principal is left at 0 — the operator sets it on the term
+	 * after. The rename is title-only but still goes through $wpdb->update()
+	 * rather than wp_update_post() — wp_insert_post() (which wp_update_post()
+	 * calls internally) always restamps post_modified/post_modified_gmt to
+	 * "now" on every update regardless of which fields you pass, and
+	 * post_modified_gmt *is* this plugin's Pay Date (see CLAUDE.md's
+	 * post_date_gmt/post_modified_gmt caveat) — a title-only wp_update_post()
+	 * call would silently wipe an already-correct Pay Date to today.
 	 */
 	public function handle_group_confirm(): void {
 		check_admin_referer( self::GROUP_CONFIRM_NONCE );
@@ -1548,13 +1729,9 @@ class ESSF_Admin_Page {
 		$entries = array_filter( array_map( 'get_post', $staged['ids'] ?? [] ) );
 		$n       = count( $entries );
 		$i       = 1;
+		global $wpdb;
 		foreach ( $entries as $entry ) {
-			wp_update_post(
-				[
-					'ID'         => $entry->ID,
-					'post_title' => $base . ' ' . $i . '/' . $n,
-				]
-			);
+			$wpdb->update( $wpdb->posts, [ 'post_title' => $base . ' ' . $i . '/' . $n ], [ 'ID' => $entry->ID ], [ '%s' ], [ '%d' ] );
 			++$i;
 		}
 
@@ -1716,19 +1893,28 @@ class ESSF_Admin_Page {
 
 		$due_raw = sanitize_text_field( wp_unslash( $post['essf_due_date'] ?? '' ) );
 		$pay_raw = sanitize_text_field( wp_unslash( $post['essf_pay_date'] ?? '' ) );
-		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
-		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
-		$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
-		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
 
 		$status = sanitize_key( wp_unslash( $post['essf_status'] ?? 'pending' ) );
 		if ( ! array_key_exists( $status, ESSF_CPT::labels() ) ) {
 			$status = 'pending';
 		}
 
+		// A Paid entry with no explicit pay date is assumed settled on its
+		// due date — applies to both Add and Edit, so correcting an entry's
+		// due date and marking it Paid (without separately touching Pay
+		// Date) doesn't leave a stale or missing pay date behind.
+		if ( '' === $pay_raw && 'paid' === $status ) {
+			$pay_raw = $due_raw;
+		}
+
+		$due_dt  = $due_raw ? DateTime::createFromFormat( 'Y-m-d', $due_raw ) : false;
+		$pay_dt  = $pay_raw ? DateTime::createFromFormat( 'Y-m-d', $pay_raw ) : false;
+		$due_gmt = $due_dt ? $due_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+		$pay_gmt = $pay_dt ? $pay_dt->format( 'Y-m-d' ) . ' 00:00:00' : '0000-00-00 00:00:00';
+
 		$category = sanitize_key( wp_unslash( $post['essf_category'] ?? 'uncategorized' ) );
 		if ( ESSF_Category::AUTO_SLUG === $category ) {
-			$category = ESSF_Category::guess_slug( $title, ESSF_Category::category_glossary_history() );
+			$category = ESSF_Category::guess_slug( $title, ESSF_Category::category_glossary_history(), ESSF_Category::get_prefix_rules() );
 		}
 
 		$order_date = '0000-00-00 00:00:00' !== $pay_gmt

@@ -67,6 +67,30 @@ if ( ! class_exists( 'WP_Post' ) ) {
 	}
 }
 
+// ── Minimal $wpdb stub ────────────────────────────────────────────────────────
+// Spies on ->update() calls instead of touching a real database — used to
+// assert that a write only ever sets the columns it claims to (e.g. renaming
+// a post_title must never implicitly also touch post_modified_gmt, unlike
+// wp_update_post() — see CLAUDE.md's post_date_gmt/post_modified_gmt caveat).
+
+if ( ! class_exists( 'wpdb' ) ) {
+	class wpdb {
+		public string $posts = 'wp_posts';
+
+		/** @var array<int, array{table: string, data: array, where: array}> */
+		public array $update_calls = [];
+
+		public function update( $table, $data, $where, $format = null, $where_format = null ) {
+			$this->update_calls[] = [
+				'table' => $table,
+				'data'  => $data,
+				'where' => $where,
+			];
+			return 1;
+		}
+	}
+}
+
 // ── Minimal WP_Term stub ─────────────────────────────────────────────────────
 
 if ( ! class_exists( 'WP_Term' ) ) {

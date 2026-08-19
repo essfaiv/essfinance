@@ -226,6 +226,38 @@ same lighter-weight pattern as `bulk-entries`) removes one exact pattern from th
 Neither deletes real financial data; both only affect what future imports get suggested/pre-
 excluded.
 
+### Category Glossary page (admin only)
+
+`?page=essfinance-category-glossary` (`render_category_glossary_page()`) is the category equivalent
+of the OFX Glossary above — `ESSF_Category::category_glossary_history()`'s per-post learned
+descriptions, each with a "Forget" action (`handle_forget_category_glossary()`, sets
+`ESSF_Category::GLOSSARY_EXCLUDED_META` on the post) that stops it from teaching by example without
+touching the entry itself. Two categorization signals feed
+`ESSF_Category::guess_slug( $description, $glossary_history, $prefix_rules )`, in priority order:
+
+1. **Prefix rules** (`ESSF_Category::match_prefix_rule()`) — operator-authored, explicit
+   `{prefix} → {category slug}` mappings stored in the `essf_category_prefix_rules` option
+   (`ESSF_Category::PREFIX_RULES_OPTION`/`get_prefix_rules()` — lives on `ESSF_Category`, not
+   `ESSF_Admin_Page`, unlike `EXCLUDED_MEMOS_OPTION`, because both the admin dashboard's and the
+   frontend shortcode's `guess_slug()` call sites need it, plus `ESSF_CLI::predict_category()`).
+   Matched by accent-folded, case-insensitive prefix (`fold_accents()`), first rule wins, unbounded
+   (no FIFO cap — unlike the OFX excluded-memos list, these are deliberately hand-curated one at a
+   time, not passively learned). Always wins over the glossary below, since an authored rule is a
+   deliberate decision. Managed from a "Prefix rules" section at the top of this same admin page
+   (`handle_add_prefix_rule()`/`handle_forget_prefix_rule()`) — the target category `<select>`
+   excludes `uncategorized` and `balance-adjustment`, same exclusions `keyword_map()` already applies.
+   Any glossary history row whose description already matches an active rule is hidden from the
+   "Learned descriptions" table below (display-only — `category_glossary_history()` itself still
+   returns everything, so the fuzzy-similarity matcher for *other* descriptions is unaffected, and
+   removing the rule later brings the row back with nothing to "unforget").
+2. **Glossary history** (`match_glossary()`, unchanged) — fuzzy `similar_text()`-based, same as
+   before this feature.
+
+`ESSF_CLI::predict_category()`'s manually-reimplemented priority chain (`wp essf ofx-audit`) mirrors
+this: raw-memo OFX suggestion first (a separate, per-transaction signal that isn't part of
+`guess_slug()` at all — see `render_review_page()`'s own `$cat_suggestions` override), then the
+prefix rule, then the glossary, then the keyword classifier.
+
 ### Legacy (archived, not loaded)
 
 `legacy/pre-0.3.0/` preserves the plugin's original single-file (`includes/core.php`) architecture

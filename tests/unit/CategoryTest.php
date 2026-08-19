@@ -572,4 +572,101 @@ class CategoryTest extends TestCase {
 	public function test_guess_slug_falls_back_to_uncategorized_when_nothing_matches_at_all(): void {
 		$this->assertSame( 'uncategorized', \ESSF_Category::guess_slug( 'Trimania', [] ) );
 	}
+
+	// ── get_prefix_rules() ───────────────────────────────────────────────
+
+	public function test_get_prefix_rules_returns_stored_option(): void {
+		$rules = [ [ 'prefix' => 'Mercado', 'slug' => 'groceries' ] ];
+		Functions\expect( 'get_option' )
+			->once()
+			->with( \ESSF_Category::PREFIX_RULES_OPTION, [] )
+			->andReturn( $rules );
+
+		$this->assertSame( $rules, \ESSF_Category::get_prefix_rules() );
+	}
+
+	public function test_get_prefix_rules_returns_empty_array_when_option_is_not_an_array(): void {
+		Functions\expect( 'get_option' )->once()->andReturn( false );
+
+		$this->assertSame( [], \ESSF_Category::get_prefix_rules() );
+	}
+
+	// ── match_prefix_rule() ──────────────────────────────────────────────
+
+	public function test_match_prefix_rule_matches_prefix_case_and_accent_insensitively(): void {
+		$rules = [ [ 'prefix' => 'mercado', 'slug' => 'groceries' ] ];
+
+		$this->assertSame( 'groceries', \ESSF_Category::match_prefix_rule( 'MERCADO Komprão', $rules ) );
+	}
+
+	public function test_match_prefix_rule_first_matching_rule_wins(): void {
+		$rules = [
+			[ 'prefix' => 'Empr', 'slug' => 'loans' ],
+			[ 'prefix' => 'Empréstimo', 'slug' => 'miscellaneous-expenses' ],
+		];
+
+		$this->assertSame( 'loans', \ESSF_Category::match_prefix_rule( 'Empréstimo Lucia', $rules ) );
+	}
+
+	public function test_match_prefix_rule_returns_null_with_no_rules(): void {
+		$this->assertNull( \ESSF_Category::match_prefix_rule( 'Mercado JC', [] ) );
+	}
+
+	public function test_match_prefix_rule_returns_null_when_nothing_matches(): void {
+		$rules = [ [ 'prefix' => 'Mercado', 'slug' => 'groceries' ] ];
+
+		$this->assertNull( \ESSF_Category::match_prefix_rule( 'Farmácia Popular', $rules ) );
+	}
+
+	public function test_match_prefix_rule_ignores_rules_with_blank_prefix_or_slug(): void {
+		$rules = [
+			[ 'prefix' => '', 'slug' => 'groceries' ],
+			[ 'prefix' => 'Mercado', 'slug' => '' ],
+		];
+
+		$this->assertNull( \ESSF_Category::match_prefix_rule( 'Mercado JC', $rules ) );
+	}
+
+	// ── guess_slug() with prefix rules ───────────────────────────────────
+
+	public function test_guess_slug_prefix_rule_wins_over_glossary_match(): void {
+		$glossary_history = [
+			[
+				'id'    => 1,
+				'memo'  => 'Trimania',
+				'title' => 'Miscellaneous expenses',
+				'date'  => '2026-08-01',
+			],
+		];
+		$prefix_rules      = [ [ 'prefix' => 'Trimania', 'slug' => 'groceries' ] ];
+		Functions\expect( 'get_terms' )->never();
+
+		$this->assertSame( 'groceries', \ESSF_Category::guess_slug( 'Trimania', $glossary_history, $prefix_rules ) );
+	}
+
+	public function test_guess_slug_prefix_rule_wins_over_keyword_fallback(): void {
+		$prefix_rules = [ [ 'prefix' => 'Empréstimo', 'slug' => 'miscellaneous-expenses' ] ];
+
+		$this->assertSame( 'miscellaneous-expenses', \ESSF_Category::guess_slug( 'Empréstimo Lucia', [], $prefix_rules ) );
+	}
+
+	public function test_guess_slug_falls_back_to_glossary_when_no_prefix_rule_matches(): void {
+		$glossary_history = [
+			[
+				'id'    => 1,
+				'memo'  => 'Trimania',
+				'title' => 'Miscellaneous expenses',
+				'date'  => '2026-08-01',
+			],
+		];
+		Functions\expect( 'get_terms' )
+			->once()
+			->andReturn( [ (object) [ 'term_id' => 13, 'slug' => 'miscellaneous-expenses', 'name' => 'Miscellaneous expenses' ] ] );
+		Functions\expect( 'is_wp_error' )->once()->andReturn( false );
+
+		$this->assertSame(
+			'miscellaneous-expenses',
+			\ESSF_Category::guess_slug( 'Trimania', $glossary_history, [ [ 'prefix' => 'Mercado', 'slug' => 'groceries' ] ] )
+		);
+	}
 }
